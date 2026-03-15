@@ -1,6 +1,6 @@
 # Core Extensions
 
-Built-in extensions that ship with [Bike Outliner](https://www.hogbaysoftware.com/bike/).
+Core extensions that ship with [Bike Outliner](https://www.hogbaysoftware.com/bike/).
 
 ## Building
 
