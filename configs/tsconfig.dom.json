@@ -1,11 +1,5 @@
 {
   "extends": "../node_modules/@bike-outliner/extension-kit/api/dom/tsconfig.json",
-  "compilerOptions": {
-    "paths": {
-      "bike/dom": ["../node_modules/@bike-outliner/extension-kit/api/dom/index.d.ts"],
-      "bike/components": ["../node_modules/@bike-outliner/extension-kit/api/dom/components.d.ts"]
-    }
-  },
   "include": [
     "../node_modules/@bike-outliner/extension-kit/api/dom/globals.d.ts",
     "../src/*/dom/**/*"

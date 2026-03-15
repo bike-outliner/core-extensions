@@ -4,19 +4,5 @@
     { "path": "./configs/tsconfig.app.json" },
     { "path": "./configs/tsconfig.dom.json" },
     { "path": "./configs/tsconfig.style.json" }
-  ],
-  "compilerOptions": {
-    "lib": ["ESNext"],
-    "allowJs": true,
-    "checkJs": false,
-    "strict": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "noImplicitThis": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "noEmit": true,
-    "noFallthroughCasesInSwitch": true
-  }
+  ]
 }

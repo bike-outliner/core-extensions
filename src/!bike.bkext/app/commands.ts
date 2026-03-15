@@ -36,13 +36,13 @@ export function clickLinkCommand(context: CommandContext): boolean {
       let queryParameters = url.queryParameters || {}
 
       if (bike.keybindings.isCommandPressed) {
-        queryParameters.target = 'tab'
+        queryParameters['target'] = 'tab'
       } else if (bike.keybindings.isOptionPressed) {
-        queryParameters.target = 'window'
+        queryParameters['target'] = 'window'
       }
 
-      if (queryParameters.target) {
-        queryParameters.activate = bike.keybindings.isShiftPressed ? 'true' : 'false'
+      if (queryParameters['target']) {
+        queryParameters['activate'] = bike.keybindings.isShiftPressed ? 'true' : 'false'
       }
 
       url.queryParameters = queryParameters

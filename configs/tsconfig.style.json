@@ -1,9 +1,4 @@
 {
   "extends": "../node_modules/@bike-outliner/extension-kit/api/style/tsconfig.json",
-  "compilerOptions": {
-    "paths": {
-      "bike/style": ["../node_modules/@bike-outliner/extension-kit/api/style/index.d.ts"]
-    }
-  },
   "include": ["../src/*/style/**/*"]
 }
