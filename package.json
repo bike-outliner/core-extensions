@@ -1,0 +1,21 @@
+{
+  "name": "core-extensions",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@bike-outliner/extension-kit": "file:../extension-kit",
+    "@types/d3": "^7.4.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "d3": "^7.9.0",
+    "react-calendar": "^6.0.0"
+  }
+}
