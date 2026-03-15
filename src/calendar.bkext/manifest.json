@@ -7,6 +7,5 @@
   "api_version": "0.0.0",
   "permissions": [],
   "host_permissions": [],
-  "built-in": true,
-  "install": true
+  "built-in": true
 }
