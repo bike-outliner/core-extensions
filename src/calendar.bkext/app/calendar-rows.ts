@@ -2,7 +2,7 @@ import { Outline, Row } from 'bike/app'
 import { getDaysInMonth, getMonthsInYear, getDateComponents } from './util'
 
 export function getCalendarRow(outline: Outline): Row {
-  return getDateIdRow('caledar', 'Calendar', outline.root)
+  return getDateIdRow('calendar', 'Calendar', outline.root)
 }
 
 export function getYearRow(

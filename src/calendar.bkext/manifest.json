@@ -2,7 +2,7 @@
   "$schema": "../../node_modules/@bike-outliner/extension-kit/schemas/manifest.schema.json",
   "description": "Notes calendar that generates outline structure when selecting a date.",
   "author": "Jesse Grosjean",
-  "url": "https://github.com/jessegrosjean/bike-extension-kit/tree/main/src/calendar.bkext",
+  "url": "https://github.com/bike-outliner/core-extensions/tree/main/src/calendar.bkext",
   "version": "0.1.0",
   "api_version": "0.0.0",
   "permissions": [],
