@@ -46,46 +46,36 @@ describe("Outline insertRows", () => {
     const outline = bike.testOutline()
 
     it("inserts rows from string array", () => {
-        outline.transaction({ label: "test" }, () => {
-            outline.insertRows(["alpha", "beta", "gamma"], outline.root)
-        })
+        outline.insertRows(["alpha", "beta", "gamma"], outline.root)
         assert.equal(outline.root.children.length, 3)
         assert.equal(outline.root.firstChild!.text.string, "alpha")
         assert.equal(outline.root.lastChild!.text.string, "gamma")
     })
 
     it("returns inserted rows", () => {
-        const rows = outline.transaction({ label: "test" }, () => {
-            return outline.insertRows(["delta"], outline.root)
-        })
+        const rows = outline.insertRows(["delta"], outline.root)
         assert.equal(rows.length, 1)
         assert.equal(rows[0].text.string, "delta")
     })
 
     it("inserts before a specific row", () => {
         const firstChild = outline.root.firstChild!
-        outline.transaction({ label: "test" }, () => {
-            outline.insertRows(["before-alpha"], outline.root, firstChild)
-        })
+        outline.insertRows(["before-alpha"], outline.root, firstChild)
         assert.equal(outline.root.firstChild!.text.string, "before-alpha")
     })
 
     it("inserts rows from RowTemplate", () => {
-        outline.transaction({ label: "test" }, () => {
-            outline.insertRows(
-                [{ type: "heading", text: "A Heading" }],
-                outline.root
-            )
-        })
+        outline.insertRows(
+            [{ type: "heading", text: "A Heading" }],
+            outline.root
+        )
         assert.equal(outline.root.lastChild!.type, "heading")
         assert.equal(outline.root.lastChild!.text.string, "A Heading")
     })
 
     it("inserts child rows", () => {
         const parent = outline.root.firstChild!
-        outline.transaction({ label: "test" }, () => {
-            outline.insertRows(["child-1", "child-2"], parent)
-        })
+        outline.insertRows(["child-1", "child-2"], parent)
         assert.equal(parent.children.length, 2)
         assert.equal(parent.firstChild!.text.string, "child-1")
     })
@@ -95,14 +85,10 @@ describe("Outline moveRows", () => {
     const outline = bike.testOutline()
 
     it("moves rows to a new parent", () => {
-        outline.transaction({ label: "test" }, () => {
-            outline.insertRows(["parent", "child"], outline.root)
-        })
+        outline.insertRows(["parent", "child"], outline.root)
         const parent = outline.root.firstChild!
         const child = outline.root.lastChild!
-        outline.transaction({ label: "test" }, () => {
-            outline.moveRows([child], parent)
-        })
+        outline.moveRows([child], parent)
         assert.equal(outline.root.children.length, 1)
         assert.equal(parent.firstChild!.text.string, "child")
     })
@@ -112,13 +98,9 @@ describe("Outline removeRows", () => {
     const outline = bike.testOutline()
 
     it("removes rows", () => {
-        outline.transaction({ label: "test" }, () => {
-            outline.insertRows(["keep", "remove"], outline.root)
-        })
+        outline.insertRows(["keep", "remove"], outline.root)
         const toRemove = outline.root.lastChild!
-        outline.transaction({ label: "test" }, () => {
-            outline.removeRows([toRemove])
-        })
+        outline.removeRows([toRemove])
         assert.equal(outline.root.children.length, 1)
         assert.equal(outline.root.firstChild!.text.string, "keep")
     })
@@ -128,9 +110,7 @@ describe("Outline getRowById", () => {
     const outline = bike.testOutline()
 
     it("finds existing row by id", () => {
-        outline.transaction({ label: "test" }, () => {
-            outline.insertRows(["findme"], outline.root)
-        })
+        outline.insertRows(["findme"], outline.root)
         const row = outline.root.firstChild!
         const found = outline.getRowById(row.id)
         assert(found, "should find the row")

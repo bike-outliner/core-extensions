@@ -39,13 +39,9 @@ describe("Row properties", () => {
 
     it("can set type", () => {
         const row = outline.root.children[1]
-        outline.transaction({ label: "test" }, () => {
-            row.type = "quote"
-        })
+        row.type = "quote"
         assert.equal(row.type, "quote")
-        outline.transaction({ label: "test" }, () => {
-            row.type = "body"
-        })
+        row.type = "body"
     })
 
     it("has text as AttributedString", () => {
@@ -57,13 +53,9 @@ describe("Row properties", () => {
 
     it("can set text", () => {
         const row = outline.root.children[1]
-        outline.transaction({ label: "test" }, () => {
-            row.text.string = "Updated Body"
-        })
+        row.text.string = "Updated Body"
         assert.equal(row.text.string, "Updated Body")
-        outline.transaction({ label: "test" }, () => {
-            row.text.string = "Body Row"
-        })
+        row.text.string = "Body Row"
     })
 
     it("has level", () => {
@@ -78,9 +70,7 @@ describe("Row properties", () => {
 describe("Row attributes", () => {
     const outline = bike.testOutline()
 
-    outline.transaction({ label: "setup" }, () => {
-        outline.insertRows(["test row"], outline.root)
-    })
+    outline.insertRows(["test row"], outline.root)
 
     it("has attributes record", () => {
         const row = outline.root.firstChild!
@@ -89,25 +79,17 @@ describe("Row attributes", () => {
 
     it("can set and get string attribute", () => {
         const row = outline.root.firstChild!
-        outline.transaction({ label: "test" }, () => {
-            row.setAttribute("done", "true")
-        })
+        row.setAttribute("done", "true")
         assert.equal(row.getAttribute("done"), "true")
-        outline.transaction({ label: "test" }, () => {
-            row.removeAttribute("done")
-        })
+        row.removeAttribute("done")
         assert.equal(row.getAttribute("done"), undefined)
     })
 
     it("can set and get number attribute", () => {
         const row = outline.root.firstChild!
-        outline.transaction({ label: "test" }, () => {
-            row.setAttribute("priority", 5)
-        })
+        row.setAttribute("priority", 5)
         assert.equal(row.getAttribute("priority"), "5")
-        outline.transaction({ label: "test" }, () => {
-            row.removeAttribute("priority")
-        })
+        row.removeAttribute("priority")
     })
 })
 
@@ -223,10 +205,8 @@ describe("Row types", () => {
     it("supports all row types", () => {
         const types: string[] = ["body", "heading", "quote", "code", "note", "unordered", "ordered", "task", "hr"]
         for (const t of types) {
-            outline.transaction({ label: "test" }, () => {
-                const rows = outline.insertRows([{ type: t as any, text: t === "hr" ? "" : `type-${t}` }], outline.root)
-                assert.equal(rows[0].type, t)
-            })
+            const rows = outline.insertRows([{ type: t as any, text: t === "hr" ? "" : `type-${t}` }], outline.root)
+            assert.equal(rows[0].type, t)
         }
     })
 })

@@ -104,9 +104,7 @@ describe("OutlineEditor selection", () => {
     const editor = bike.testEditor()
     const outline = editor.outline
 
-    outline.transaction({ label: "setup" }, () => {
-        outline.insertRows(["Select A", "Select B", "Select C"], outline.root)
-    })
+    outline.insertRows(["Select A", "Select B", "Select C"], outline.root)
 
     it("can create caret selection", () => {
         const row = outline.root.firstChild!
@@ -186,9 +184,7 @@ describe("OutlineEditor revealRow", () => {
     const editor = bike.testEditor()
     const outline = editor.outline
 
-    outline.transaction({ label: "setup" }, () => {
-        outline.insertRows(["Reveal me"], outline.root)
-    })
+    outline.insertRows(["Reveal me"], outline.root)
 
     it("can reveal a row", () => {
         const row = outline.root.firstChild!

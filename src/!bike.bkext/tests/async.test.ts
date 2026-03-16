@@ -20,9 +20,7 @@ describe("Async Tests", () => {
     it("async test modifies outline", async () => {
         await new Promise<void>(resolve => setTimeout(resolve, 10))
         const outline = editor.outline
-        outline.transaction({ label: "async test" }, () => {
-            outline.insertRows(["async row"], outline.root)
-        })
+        outline.insertRows(["async row"], outline.root)
         assert(outline.root.firstChild, "Expected a child row after async insert")
         assert.equal(outline.root.firstChild!.text.string, "async row")
     })

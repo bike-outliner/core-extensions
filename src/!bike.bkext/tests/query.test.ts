@@ -1,14 +1,12 @@
 describe("Outline query", () => {
     const outline = bike.testOutline()
 
-    outline.transaction({ label: "setup" }, () => {
-        outline.insertRows([
-            { type: "heading", text: "Query Heading" },
-            { text: "Query Body 1" },
-            { type: "task", text: "Query Task" },
-            { text: "Query Body 2" },
-        ], outline.root)
-    })
+    outline.insertRows([
+        { type: "heading", text: "Query Heading" },
+        { text: "Query Body 1" },
+        { type: "task", text: "Query Task" },
+        { text: "Query Body 2" },
+    ], outline.root)
 
     it("query //row returns all rows", () => {
         const result = outline.query("//row") as { type: "elements"; value: unknown[] }
