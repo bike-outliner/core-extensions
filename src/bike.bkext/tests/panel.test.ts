@@ -96,6 +96,60 @@ describe("showPanel", () => {
         handle.dispose()
     })
 
+    it("can show a panel with inspector role (default)", async () => {
+        const domScript = `
+            var extensionExports = { activate: function(context) {
+                context.postMessage({ type: "ready" })
+            }}
+        `
+
+        const handle = await bike.showPanel({ script: domScript, role: 'inspector', width: 200, height: 150 })
+        assert(handle, "Expected a DOMScriptHandle from showPanel with inspector role")
+
+        const response = await new Promise<any>((resolve) => {
+            handle.onmessage = (message: any) => resolve(message)
+        })
+
+        assert.equal(response.type, "ready")
+        handle.dispose()
+    })
+
+    it("can show a panel with utility role", async () => {
+        const domScript = `
+            var extensionExports = { activate: function(context) {
+                context.postMessage({ type: "ready" })
+            }}
+        `
+
+        const handle = await bike.showPanel({ script: domScript, role: 'utility', width: 200, height: 150 })
+        assert(handle, "Expected a DOMScriptHandle from showPanel with utility role")
+
+        const response = await new Promise<any>((resolve) => {
+            handle.onmessage = (message: any) => resolve(message)
+        })
+
+        assert.equal(response.type, "ready")
+        handle.dispose()
+    })
+
+    it("can show a panel with window role", async () => {
+        const domScript = `
+            var extensionExports = { activate: function(context) {
+                context.postMessage({ type: "ready" })
+            }}
+        `
+
+        const handle = await bike.showPanel({ script: domScript, role: 'window', title: 'Window Role Test', width: 300, height: 200 })
+        assert(handle, "Expected a DOMScriptHandle from showPanel with window role")
+
+        const response = await new Promise<any>((resolve) => {
+            handle.onmessage = (message: any) => resolve(message)
+        })
+
+        assert.equal(response.type, "ready")
+        handle.dispose()
+    })
+
     it("can show a panel associated with a window", async () => {
         const window = bike.frontmostWindow
         assert(window, "Expected a frontmost window")
