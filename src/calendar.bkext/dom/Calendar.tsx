@@ -10,7 +10,8 @@ export function activate(context: DOMExtensionContext) {
 
   function onChange(nextValue: any) {
     context.postMessage({
-      date: nextValue,
+      type: 'dateChange',
+      date: nextValue instanceof Date ? nextValue.toISOString() : String(nextValue),
     })
   }
 

@@ -1,7 +1,9 @@
-import { AppExtensionContext, Window } from 'bike/app'
+import { AppExtensionContext, Window, Message } from 'bike/app'
 import { todayCommand, monthCommand, yearCommand } from './commands'
 import { getDayRow } from './calendar-rows'
 import { getDateComponents } from './util'
+
+type CalendarDOMToAppMessage = { type: 'dateChange'; date: string }
 
 export async function activate(context: AppExtensionContext) {
   bike.commands.addCommands({
@@ -23,7 +25,7 @@ export async function activate(context: AppExtensionContext) {
       },
     })
 
-    const calendarHandle = await window.inspector.addItem({
+    const calendarHandle = await window.inspector.addItem<Message, CalendarDOMToAppMessage>({
       tab: 'calendar',
       label: 'Calendar',
       script: 'Calendar.js',
@@ -32,9 +34,9 @@ export async function activate(context: AppExtensionContext) {
     calendarHandle.onmessage = (message) => {
       let editor = window.currentOutlineEditor
 
-      if (editor && message.date) {
+      if (editor && message.type === 'dateChange' && message.date) {
         let outline = editor.outline
-        let dateRow = getDayRow(editor.outline, message.date)
+        let dateRow = getDayRow(editor.outline, new Date(message.date))
         if (!dateRow.firstChild) {
           outline.insertRows([{}], dateRow)
         }

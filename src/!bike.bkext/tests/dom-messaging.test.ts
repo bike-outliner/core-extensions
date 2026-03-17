@@ -8,7 +8,7 @@ describe("DOM Context Messaging", () => {
         const domScript = `
             var extensionExports = { activate: function(context) {
                 context.onmessage = function(message) {
-                    context.postMessage({ echo: message.value, added: message.value + 1 })
+                    context.postMessage({ type: "echo", echo: message.value, added: message.value + 1 })
                 }
             }}
         `
@@ -20,7 +20,7 @@ describe("DOM Context Messaging", () => {
             handle.onmessage = (message: any) => {
                 resolve(message)
             }
-            handle.postMessage({ value: 42 })
+            handle.postMessage({ type: "test", value: 42 })
         })
 
         assert.equal(response.echo, 42, "DOM should echo back the value")
@@ -37,7 +37,7 @@ describe("DOM Context Messaging", () => {
                 var count = 0
                 context.onmessage = function(message) {
                     count++
-                    context.postMessage({ received: message.text, count: count })
+                    context.postMessage({ type: "ack", received: message.text, count: count })
                 }
             }}
         `
@@ -52,9 +52,9 @@ describe("DOM Context Messaging", () => {
             }
         })
 
-        handle.postMessage({ text: "first" })
-        handle.postMessage({ text: "second" })
-        handle.postMessage({ text: "third" })
+        handle.postMessage({ type: "send", text: "first" })
+        handle.postMessage({ type: "send", text: "second" })
+        handle.postMessage({ type: "send", text: "third" })
 
         await allReceived
 
@@ -74,6 +74,7 @@ describe("DOM Context Messaging", () => {
             var extensionExports = { activate: function(context) {
                 context.onmessage = function(message) {
                     context.postMessage({
+                        type: "result",
                         keys: Object.keys(message),
                         arrayLength: message.items.length,
                         nested: message.nested.value
@@ -87,6 +88,7 @@ describe("DOM Context Messaging", () => {
         const response = await new Promise<any>((resolve) => {
             handle.onmessage = (message: any) => resolve(message)
             handle.postMessage({
+                type: "data",
                 items: [1, 2, 3],
                 nested: { value: "deep" },
                 flag: true
