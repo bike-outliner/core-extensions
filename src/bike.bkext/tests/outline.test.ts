@@ -1,5 +1,7 @@
 import { Outline } from 'bike/app'
 
+
+
 describe("Outline", () => {
     const outline = bike.testOutline()
 
@@ -40,6 +42,7 @@ describe("Outline", () => {
         outline.persistentMetadata.delete("test-key")
         assert.equal(outline.persistentMetadata.get("test-key"), undefined)
     })
+    
 })
 
 describe("Outline insertRows", () => {

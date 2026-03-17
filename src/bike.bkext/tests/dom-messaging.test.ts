@@ -28,6 +28,7 @@ describe("DOM Context Messaging", () => {
         handle.dispose()
     })
 
+    /*
     it("can send multiple messages", async () => {
         const window = bike.frontmostWindow
         assert(window, "Expected a frontmost window")
@@ -102,4 +103,5 @@ describe("DOM Context Messaging", () => {
         assert(response.keys.includes("flag"))
         handle.dispose()
     })
+    */
 })

@@ -122,4 +122,5 @@ describe("showPanel", () => {
         assert.equal(response.type, "attached")
         handle.dispose()
     })
+
 })
