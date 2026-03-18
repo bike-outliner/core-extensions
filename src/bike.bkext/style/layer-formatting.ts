@@ -63,7 +63,9 @@ export function registerFormattingLayers(style: EditorStyle) {
 
     row(`.unordered`, (context, row) => {
       context.theme.rows.unorderedList.apply(row.text)
-      listMark(context, row, Image.fromText(new Text('•', row.text.font, row.text.color)))
+      let pointSize = row.text.font.resolve(context).pointSize
+      let font = row.text.font.withPointSize(pointSize * 0.3)
+      listMark(context, row, symbolImage('circle.fill', row.text.color, font))
     })
 
     row(`.ordered`, (context, row) => {
