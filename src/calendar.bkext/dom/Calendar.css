@@ -57,26 +57,65 @@
 }
 
 .react-calendar__tile abbr {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 1.8em;
   height: 1.8em;
-  border-radius: 50%;
+  will-change: transform;
 }
 
-.react-calendar__tile:hover abbr {
+/* Safari/WebKit redraw workaround:
+   Without these measures, changing the selected day or hovering leaves
+   sub-pixel artifacts ("dirt") in the row containing today's date.
+   The root cause is that WebKit's incremental repaint sometimes
+   calculates too-small damage rects when pseudo-elements with
+   border-radius differ between sibling tiles.
+
+   Two fixes applied together:
+   1. will-change:transform on abbr – promotes each tile to its own
+      GPU compositing layer so repaints can't leak across tiles.
+   2. ::before (circle) and ::after (today underline) exist on EVERY
+      tile with transparent backgrounds – ensures all rows have
+      identical rendering structure so damage rects are consistent. */
+.react-calendar__tile abbr::before,
+.react-calendar__tile abbr::after {
+  content: '';
+  position: absolute;
+}
+
+.react-calendar__tile abbr::before {
+  inset: 0;
+  border-radius: 50%;
+  background-color: transparent;
+  z-index: -1;
+}
+
+.react-calendar__tile abbr::after {
+  bottom: 0.35em;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1em;
+  height: 1px;
+  background-color: transparent;
+}
+
+.react-calendar__tile:hover abbr::before {
   background-color: var(--secondary-background);
 }
 
-/* Today: underlined */
-.react-calendar button.react-calendar__tile--now abbr {
-  text-decoration: underline;
+/* Today: show underline */
+.react-calendar button.react-calendar__tile--now abbr::after {
+  background-color: currentColor;
 }
 
 /* Selected day */
+.react-calendar button.react-calendar__tile--active abbr::before {
+  background-color: var(--control-accent);
+}
+
 .react-calendar button.react-calendar__tile--active abbr {
-  background: var(--control-accent);
   color: var(--alternate-selected-text);
 }
 
