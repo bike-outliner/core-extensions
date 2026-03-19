@@ -1,9 +1,8 @@
-import { AppExtensionContext, Window, Message } from 'bike/app'
+import { AppExtensionContext, Window } from 'bike/app'
 import { todayCommand, monthCommand, yearCommand } from './commands'
 import { getDayRow } from './calendar-rows'
 import { getDateComponents } from './util'
-
-type CalendarDOMToAppMessage = { type: 'dateChange'; date: string }
+import { CalendarProtocol } from '../dom/protocols'
 
 export async function activate(context: AppExtensionContext) {
   bike.commands.addCommands({
@@ -25,8 +24,7 @@ export async function activate(context: AppExtensionContext) {
       },
     })
 
-    const calendarHandle = await window.inspector.addItem<Message, CalendarDOMToAppMessage>({
-      tab: 'calendar',
+    const calendarHandle = await window.inspector.addItem<CalendarProtocol>({
       label: 'Calendar',
       script: 'Calendar.js',
     })
