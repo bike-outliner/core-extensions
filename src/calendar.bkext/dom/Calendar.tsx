@@ -3,8 +3,9 @@ import { SFSymbol } from 'bike/components'
 import { createRoot } from 'react-dom/client'
 import Calendar from 'react-calendar'
 import './Calendar.css'
+import { CalendarProtocol } from './protocols'
 
-export function activate(context: DOMExtensionContext) {
+export function activate(context: DOMExtensionContext<CalendarProtocol>) {
   const container = context.element
   const root = createRoot(container)
 
