@@ -1,3 +1,15 @@
+import { Row } from 'bike/app'
+import { isDayId } from '../dom/protocols'
+
+export function findDateId(row: Row): string | null {
+  let current: Row | undefined = row
+  while (current) {
+    if (isDayId(current.id)) return current.id
+    current = current.parent
+  }
+  return null
+}
+
 export function getMonthsInYear(year: number): Date[] {
   const months: Date[] = []
   for (let month = 0; month < 12; month++) {

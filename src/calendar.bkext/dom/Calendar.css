@@ -1,6 +1,10 @@
+.calendar-disclosure {
+  max-width: 200px;
+}
+
 .react-calendar {
-  max-width: 300px;
-  margin: 0 auto;
+  margin: 0;
+  margin-left: -6px;
 }
 
 .react-calendar button {
@@ -8,37 +12,36 @@
   border: 0;
   outline: none;
   background: none;
-  color: var(--label);
   cursor: pointer;
 }
 
-/* Navigation: 7-column grid so arrows align over first/last day columns */
-.react-calendar__navigation {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
+/* Nav buttons in disclosure header accessory — hidden until hover */
+.calendar-nav-bar {
+  display: flex;
   align-items: center;
-  margin-bottom: 0.5em;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
 
-.react-calendar__navigation__label {
-  grid-column: 2 / 7;
-  text-align: center;
-  font: -apple-system-headline;
+.bike-disclosure__header:hover .calendar-nav-bar {
+  opacity: 1;
 }
 
-.react-calendar__navigation__arrow {
-  text-align: center;
+.calendar-nav-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
   color: var(--secondary-label);
-}
-
-.react-calendar__navigation__arrow .bike-symbol {
-  vertical-align: middle;
+  display: flex;
+  align-items: center;
 }
 
 /* Weekday headers: single row, evenly spaced */
 .react-calendar__month-view__weekdays {
   text-align: center;
-  font: -apple-system-subheadline;
+  font: -apple-system-body;
   color: var(--secondary-label);
 }
 
@@ -50,73 +53,30 @@
 .react-calendar__tile {
   padding: 0;
   text-align: center;
-  font: -apple-system-subheadline;
+  font: -apple-system-body;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .react-calendar__tile abbr {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.8em;
-  height: 1.8em;
-  will-change: transform;
+  width: 1.4em;
+  height: 1.4em;
 }
 
-/* Safari/WebKit redraw workaround:
-   Without these measures, changing the selected day or hovering leaves
-   sub-pixel artifacts ("dirt") in the row containing today's date.
-   The root cause is that WebKit's incremental repaint sometimes
-   calculates too-small damage rects when pseudo-elements with
-   border-radius differ between sibling tiles.
-
-   Two fixes applied together:
-   1. will-change:transform on abbr – promotes each tile to its own
-      GPU compositing layer so repaints can't leak across tiles.
-   2. ::before (circle) and ::after (today underline) exist on EVERY
-      tile with transparent backgrounds – ensures all rows have
-      identical rendering structure so damage rects are consistent. */
-.react-calendar__tile abbr::before,
-.react-calendar__tile abbr::after {
-  content: '';
-  position: absolute;
+/* Today: underline */
+.react-calendar button.react-calendar__tile--now abbr {
+  text-decoration: underline;
 }
 
-.react-calendar__tile abbr::before {
-  inset: 0;
-  border-radius: 50%;
-  background-color: transparent;
-  z-index: -1;
-}
-
-.react-calendar__tile abbr::after {
-  bottom: 0.35em;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 1em;
-  height: 1px;
-  background-color: transparent;
-}
-
-.react-calendar__tile:hover abbr::before {
-  background-color: var(--secondary-background);
-}
-
-/* Today: show underline */
-.react-calendar button.react-calendar__tile--now abbr::after {
-  background-color: currentColor;
-}
-
-/* Selected day */
-.react-calendar button.react-calendar__tile--active abbr::before {
-  background-color: var(--control-accent);
-}
-
+/* Selected day: selection background */
 .react-calendar button.react-calendar__tile--active abbr {
-  color: var(--alternate-selected-text);
+  color: var(--selected-content-text);
+  background: var(--selected-content-background);
+  border-radius: 4px;
 }
 
 /* Neighboring month days */

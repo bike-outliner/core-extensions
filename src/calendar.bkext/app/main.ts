@@ -1,7 +1,7 @@
 import { AppExtensionContext, Window } from 'bike/app'
 import { todayCommand, monthCommand, yearCommand } from './commands'
 import { getDayRow } from './calendar-rows'
-import { getDateComponents } from './util'
+import { getDateComponents, findDateId } from './util'
 import { CalendarProtocol } from '../dom/protocols'
 
 export async function activate(context: AppExtensionContext) {
@@ -42,5 +42,24 @@ export async function activate(context: AppExtensionContext) {
         editor.selectCaret(dateRow.firstChild!, 0)
       }
     }
+
+    window.observeCurrentOutlineEditor((editor) => {
+      if (editor) {
+        editor.observeSelection((selection) => {
+          if (!selection) {
+            calendarHandle.postMessage({ type: 'clearSelection' })
+            return
+          }
+          const dateId = findDateId(selection.row)
+          if (dateId) {
+            const [year, month, day] = dateId.split('/').map(Number)
+            const date = new Date(year, month - 1, day)
+            calendarHandle.postMessage({ type: 'selectDate', date: date.toISOString() })
+          } else {
+            calendarHandle.postMessage({ type: 'clearSelection' })
+          }
+        }, 300)
+      }
+    })
   })
 }

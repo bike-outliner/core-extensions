@@ -1,35 +1,84 @@
 import { DOMExtensionContext } from 'bike/dom'
-import { SFSymbol } from 'bike/components'
+import { Disclosure, SFSymbol } from 'bike/components'
 import { createRoot } from 'react-dom/client'
+import { useState, useEffect } from 'react'
 import Calendar from 'react-calendar'
 import './Calendar.css'
 import { CalendarProtocol } from './protocols'
 
-export function activate(context: DOMExtensionContext<CalendarProtocol>) {
-  const container = context.element
-  const root = createRoot(container)
+function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProtocol> }) {
+  const [activeStartDate, setActiveStartDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
+
+  useEffect(() => {
+    context.onmessage = (message) => {
+      switch (message.type) {
+        case 'selectDate': {
+          const date = new Date(message.date)
+          setSelectedDate(date)
+          setActiveStartDate(date)
+          break
+        }
+        case 'clearSelection':
+          setSelectedDate(null)
+          break
+      }
+    }
+    return () => {
+      context.onmessage = undefined
+    }
+  }, [])
+
+  const monthYear = activeStartDate.toLocaleDateString(navigator.language, { month: 'long', year: 'numeric' })
 
   function onChange(nextValue: any) {
+    const date = nextValue instanceof Date ? nextValue : new Date(String(nextValue))
+    setSelectedDate(date)
     context.postMessage({
       type: 'dateChange',
-      date: nextValue instanceof Date ? nextValue.toISOString() : String(nextValue),
+      date: date.toISOString(),
     })
   }
 
-  root.render(
-    <div>
+  const navBar = (
+    <div className="calendar-nav-bar">
+      <button className="calendar-nav-button" onClick={() => setActiveStartDate(d => new Date(d.getFullYear(), d.getMonth() - 1))} type="button">
+        <SFSymbol name="chevron.backward" scale="small" />
+      </button>
+      <button className="calendar-nav-button" onClick={() => { setActiveStartDate(new Date()); onChange(new Date()) }} type="button">
+        <SFSymbol name="suit.diamond" scale="small" />
+      </button>
+      <button className="calendar-nav-button" onClick={() => setActiveStartDate(d => new Date(d.getFullYear(), d.getMonth() + 1))} type="button">
+        <SFSymbol name="chevron.forward" scale="small" />
+      </button>
+    </div>
+  )
+
+  return (
+    <Disclosure
+      className="calendar-disclosure"
+      label={monthYear}
+      accessory={navBar}
+      accessoryAlignment="trailing"
+      defaultExpanded
+    >
       <Calendar
         onChange={onChange}
-        defaultValue={new Date()}
+        value={selectedDate}
+        activeStartDate={activeStartDate}
+        onActiveStartDateChange={({ activeStartDate: d }) => { if (d) setActiveStartDate(d) }}
+        showNavigation={false}
         maxDetail="month"
         minDetail="month"
         locale={navigator.language}
-        prevLabel={<SFSymbol name="chevron.left" scale="small" weight="medium" />}
-        nextLabel={<SFSymbol name="chevron.right" scale="small" weight="medium" />}
-        prev2Label={null}
-        next2Label={null}
         formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(navigator.language, { weekday: 'narrow' })}
       />
-    </div>
+    </Disclosure>
   )
+}
+
+export function activate(context: DOMExtensionContext<CalendarProtocol>) {
+  const container = context.element
+  const root = createRoot(container)
+  root.render(<CalendarPanel context={context} />)
 }
