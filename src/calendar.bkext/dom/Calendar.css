@@ -1,10 +1,5 @@
-.calendar-disclosure {
-  max-width: 200px;
-}
-
 .react-calendar {
   margin: 0;
-  margin-left: -6px;
 }
 
 .react-calendar button {
@@ -51,7 +46,7 @@
 
 /* Day tiles */
 .react-calendar__tile {
-  padding: 0;
+  padding: 3% 0;
   text-align: center;
   font: -apple-system-body;
   display: flex;
