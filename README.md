@@ -10,5 +10,3 @@ Requires [extension-kit](https://github.com/bike-outliner/extension-kit).
 npm install
 npx bike-ext build --install
 ```
-
-See [Creating Extensions](https://bikeguide.hogbaysoftware.com/bike-2-preview/using-bike-advanced/creating-extensions) in Bike's user guide.
