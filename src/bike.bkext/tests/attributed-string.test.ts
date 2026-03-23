@@ -1,3 +1,5 @@
+import { AttributedString } from 'bike/app'
+
 describe("AttributedString basics", () => {
     const outline = bike.testOutline()
 
@@ -166,5 +168,99 @@ describe("AttributedString export", () => {
         const md = row.text.toMarkdown()
         assert(md.includes("**"), "markdown should contain bold markers")
         row.text.removeAttribute("strong", [0, 5])
+    })
+})
+
+describe("AttributedString factory methods", () => {
+    const outline = bike.testOutline()
+    outline.insertRows(["Hello World"], outline.root)
+
+    it("fromMarkdown creates attributed string", () => {
+        const text = AttributedString.fromMarkdown("hello **bold** world")
+        assert.equal(text.string, "hello bold world")
+        assert.equal(text.attributeAt("strong", 6), "")
+        assert.equal(text.attributeAt("strong", 0), undefined)
+    })
+
+    it("fromMarkdown handles emphasis", () => {
+        const text = AttributedString.fromMarkdown("*italic* text")
+        assert.equal(text.string, "italic text")
+        assert.equal(text.attributeAt("em", 0), "")
+    })
+
+    it("fromMarkdown handles links", () => {
+        const text = AttributedString.fromMarkdown("[link](https://example.com)")
+        assert.equal(text.string, "link")
+        assert.equal(text.attributeAt("a", 0), "https://example.com")
+    })
+
+    it("fromMarkdown handles plain text", () => {
+        const text = AttributedString.fromMarkdown("plain text")
+        assert.equal(text.string, "plain text")
+    })
+
+    it("fromHTML creates attributed string", () => {
+        const text = AttributedString.fromHTML("<p><strong>bold</strong> text</p>")
+        assert.equal(text.string, "bold text")
+        assert.equal(text.attributeAt("strong", 0), "")
+    })
+
+    it("fromHTML handles emphasis", () => {
+        const text = AttributedString.fromHTML("<p><em>italic</em> text</p>")
+        assert.equal(text.string, "italic text")
+        assert.equal(text.attributeAt("em", 0), "")
+    })
+
+    it("fromHTML handles links", () => {
+        const text = AttributedString.fromHTML('<p><a href="https://example.com">link</a></p>')
+        assert.equal(text.string, "link")
+        assert.equal(text.attributeAt("a", 0), "https://example.com")
+    })
+
+    it("roundtrip markdown", () => {
+        const row = outline.root.firstChild!
+        row.text.addAttribute("strong", "", [0, 5])
+        const md = row.text.toMarkdown()
+        const roundtripped = AttributedString.fromMarkdown(md)
+        assert.equal(roundtripped.string, row.text.string)
+        assert.equal(roundtripped.attributeAt("strong", 0), "")
+        row.text.removeAttribute("strong", [0, 5])
+    })
+
+    it("roundtrip HTML", () => {
+        const row = outline.root.firstChild!
+        row.text.addAttribute("em", "", [6, 11])
+        const html = row.text.toHTML()
+        const roundtripped = AttributedString.fromHTML(html)
+        assert.equal(roundtripped.string, row.text.string)
+        assert.equal(roundtripped.attributeAt("em", 6), "")
+        row.text.removeAttribute("em", [6, 11])
+    })
+
+    it("fromMarkdown result can be used with insert", () => {
+        const row = outline.root.firstChild!
+        const bold = AttributedString.fromMarkdown("**bold**")
+        row.text.insert(5, bold)
+        assert.equal(row.text.string, "Hellobold World")
+        assert.equal(row.text.attributeAt("strong", 5), "")
+        row.text.string = "Hello World"
+    })
+
+    it("fromMarkdown throws on multiple paragraphs", () => {
+        assert.throws(() => {
+            AttributedString.fromMarkdown("para1\n\npara2")
+        })
+    })
+
+    it("fromHTML throws on invalid HTML", () => {
+        assert.throws(() => {
+            AttributedString.fromHTML("not valid < xml")
+        })
+    })
+
+    it("fromHTML throws on multiple paragraphs", () => {
+        assert.throws(() => {
+            AttributedString.fromHTML("<p>one</p><p>two</p>")
+        })
     })
 })
