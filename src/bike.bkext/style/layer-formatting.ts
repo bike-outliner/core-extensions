@@ -134,9 +134,11 @@ export function registerFormattingLayers(style: EditorStyle) {
         mark.width = layout.width.offset(4 * uiScale)
         mark.height = layout.height
         mark.corners.radius = 3 * uiScale
-        mark.color = markColor
-        mark.border.width = 1 * uiScale
-        mark.border.color = markColor.withFraction(0.1, context.theme.colors.text)
+        if (markColor) {
+          mark.color = markColor
+          mark.border.width = 1 * uiScale
+          mark.border.color = markColor.withFraction(0.1, context.theme.colors.text)
+        }
         mark.mergable = true
       })
     })
