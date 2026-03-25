@@ -1,9 +1,8 @@
 {
   "metadata": {
-    "name": "Solarized Dark",
     "version": "1.0.0",
     "author": "Hog Bay Software",
-    "appearance": "dark"
+    "appearance": "light"
   },
   "colors": {
     "base03": "#002b36",
@@ -23,26 +22,24 @@
     "cyan": "#2aa198",
     "green": "#859900",
 
-    "text": "$base0",
-    "secondaryText": "$base01",
+    "text": "$base00",
+    "secondaryText": "$base1",
     "accent": "$blue",
-    "background": "$base03",
-    "caret": "$base0",
-    "caretLine": "rgba(255, 255, 255, 0.04)",
-    "textBackgroundSelected": "rgba(38, 139, 210, 0.35)",
-    "blockBackgroundSelected": "rgba(38, 139, 210, 0.2)",
-    "findMatch": "rgba(181, 137, 0, 0.35)",
-    "handle": "$base01",
-    "guideLine": "$base02",
-    "focusArrow": "$base01",
+    "background": "$base3",
+    "caret": "$base00",
+    "caretLine": "rgba(0, 0, 0, 0.04)",
+    "textBackgroundSelected": "rgba(38, 139, 210, 0.25)",
+    "blockBackgroundSelected": "rgba(38, 139, 210, 0.15)",
+    "findMatch": "rgba(181, 137, 0, 0.3)",
+    "handle": "$base1",
     "spelling": "$red",
     "grammar": "$green"
   },
   "materials": {
-    "window": "$base03",
-    "titlebar": "$base02",
-    "sidebar": "$base02",
-    "editor": "$base03"
+    "window": "$base3",
+    "titlebar": "$base2",
+    "sidebar": "$base2",
+    "editor": "$base3"
   },
   "rows": {
     "body": {
@@ -61,7 +58,7 @@
     },
     "codeblock": {
       "color": "$green",
-      "backgroundColor": "$base02",
+      "backgroundColor": "$base2",
       "fontFamily": "SF Mono",
       "fontTraits": ["monospace"]
     },
@@ -75,12 +72,12 @@
       "color": "$text"
     },
     "horizontalRule": {
-      "color": "$base01"
+      "color": "$base1"
     }
   },
   "runs": {
     "strong": {
-      "color": "$base1",
+      "color": "$base01",
       "fontWeight": "semibold"
     },
     "emphasis": {
@@ -96,10 +93,10 @@
       "color": "$magenta",
       "fontFamily": "SF Mono",
       "fontTraits": ["monospace"],
-      "backgroundColor": "$base02"
+      "backgroundColor": "$base2"
     },
     "mark": {
-      "backgroundColor": "rgba(181, 137, 0, 0.3)"
+      "backgroundColor": "rgba(181, 137, 0, 0.25)"
     },
     "link": {
       "color": "$blue",
