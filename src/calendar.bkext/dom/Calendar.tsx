@@ -8,7 +8,7 @@ import { CalendarProtocol } from './protocols'
 
 function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProtocol> }) {
   const [activeStartDate, setActiveStartDate] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   useEffect(() => {
     context.onmessage = (message) => {
@@ -63,6 +63,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
       defaultExpanded
     >
       <Calendar
+        className={selectedDate ? '' : 'no-selection'}
         onChange={onChange}
         value={selectedDate}
         activeStartDate={activeStartDate}

@@ -67,8 +67,8 @@
   text-decoration: underline;
 }
 
-/* Selected day: selection background */
-.react-calendar button.react-calendar__tile--active abbr {
+/* Selected day: selection background (suppressed when no date is selected) */
+.react-calendar:not(.no-selection) button.react-calendar__tile--active abbr {
   color: var(--selected-content-text);
   background: var(--selected-content-background);
   border-radius: 4px;
