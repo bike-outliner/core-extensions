@@ -1,4 +1,5 @@
 import { Outline, Row } from 'bike/app'
+import { dateIdPattern } from '../dom/protocols'
 import { getDaysInMonth, getMonthsInYear, getDateComponents } from './util'
 
 export function getCalendarRow(outline: Outline): Row {
@@ -74,7 +75,6 @@ function getDateIdRow(dateId: string, text: string, parent: Row): Row {
     return row
   }
 
-  let dateIdPattern = /\d{4}\/\d{2}\/\d{2}/
   let insertBefore: Row | undefined
 
   for (const child of parent.children) {

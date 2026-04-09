@@ -40,21 +40,16 @@ export function getDateComponents(date: Date): {
 } {
   const yearName = date.getFullYear().toString()
   const yearId = `${yearName}/00/00`
-  const monthName = date.toLocaleString('default', { month: 'long' }) + `, ${yearName}`
+  const monthName = date.toLocaleString(systemLocale, { month: 'long' }) + `, ${yearName}`
   const monthId = `${yearName}/${String(date.getMonth() + 1).padStart(2, '0')}/00`
   const dayName =
-    date.toLocaleString('default', { month: 'long' }) +
+    date.toLocaleString(systemLocale, { month: 'long' }) +
     ` ${String(date.getDate()).padStart(2, '0')}, ${yearName}`
   const dayId = `${yearName}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(
     date.getDate()
   ).padStart(2, '0')}`
 
-  let hours = date.getHours()
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const ampm = hours >= 12 ? 'PM' : 'AM'
-  hours = hours % 12
-  hours = hours === 0 ? 12 : hours
-  const timeName = `${hours}:${minutes} ${ampm}`
+  const timeName = date.toLocaleTimeString(systemLocale, { hour: 'numeric', minute: '2-digit' })
 
   return { yearName, yearId, monthName, monthId, dayName, dayId, timeName }
 }

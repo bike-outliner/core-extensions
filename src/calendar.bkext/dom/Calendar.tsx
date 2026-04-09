@@ -29,7 +29,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     }
   }, [])
 
-  const monthYear = activeStartDate.toLocaleDateString(navigator.language, { month: 'long', year: 'numeric' })
+  const monthYear = activeStartDate.toLocaleDateString(systemLocale, { month: 'long', year: 'numeric' })
 
   function onChange(nextValue: any) {
     const date = nextValue instanceof Date ? nextValue : new Date(String(nextValue))
@@ -71,8 +71,8 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         showNavigation={false}
         maxDetail="month"
         minDetail="month"
-        locale={navigator.language}
-        formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(navigator.language, { weekday: 'narrow' })}
+        locale={systemLocale}
+        formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(systemLocale, { weekday: 'narrow' })}
       />
     </Disclosure>
   )
