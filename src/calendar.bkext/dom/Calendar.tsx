@@ -72,6 +72,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         maxDetail="month"
         minDetail="month"
         locale={systemLocale}
+        calendarType={systemFirstWeekday === 0 ? 'gregory' : systemFirstWeekday === 6 ? 'islamic' : 'iso8601'}
         formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(systemLocale, { weekday: 'narrow' })}
       />
     </Disclosure>

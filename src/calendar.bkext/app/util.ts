@@ -30,26 +30,41 @@ export function getDaysInMonth(date: Date): Date[] {
 }
 
 export function getDateComponents(date: Date): {
-  yearName: string
   yearId: string
-  monthName: string
   monthId: string
-  dayName: string
   dayId: string
+  yearName: string
+  monthName: string
+  dayName: string
   timeName: string
 } {
-  const yearName = date.getFullYear().toString()
-  const yearId = `${yearName}/00/00`
-  const monthName = date.toLocaleString(systemLocale, { month: 'long' }) + `, ${yearName}`
-  const monthId = `${yearName}/${String(date.getMonth() + 1).padStart(2, '0')}/00`
-  const dayName =
-    date.toLocaleString(systemLocale, { month: 'long' }) +
-    ` ${String(date.getDate()).padStart(2, '0')}, ${yearName}`
-  const dayId = `${yearName}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(
+  const year = date.getFullYear()
+  const yearId = `${year}/00/00`
+  const monthId = `${year}/${String(date.getMonth() + 1).padStart(2, '0')}/00`
+  const dayId = `${year}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(
     date.getDate()
   ).padStart(2, '0')}`
 
-  const timeName = date.toLocaleTimeString(systemLocale, { hour: 'numeric', minute: '2-digit' })
+  const yearName = formatWith(date, "yearNameFormat", "YYYY")
+  const monthName = formatWith(date, "monthNameFormat", { year: 'numeric', month: 'long' })
+  const dayName = formatWith(date, "dayNameFormat", { dateStyle: 'long' })
+  const timeName = formatWith(date, "timeNameFormat", { hour: 'numeric', minute: '2-digit' })
 
   return { yearName, yearId, monthName, monthId, dayName, dayId, timeName }
+}
+
+function formatWith(date: Date, key: string, defaultFormat: string | object): string {
+  const format = bike.defaults.get(key) ?? defaultFormat
+  if (typeof format === 'string') {
+    return format
+      .replace('YYYY', String(date.getFullYear()))
+      .replace('MM', String(date.getMonth() + 1).padStart(2, '0'))
+      .replace('DD', String(date.getDate()).padStart(2, '0'))
+      .replace('hh', String(date.getHours()).padStart(2, '0'))
+      .replace('mm', String(date.getMinutes()).padStart(2, '0'))
+  }
+  if (typeof format === 'object' && !Array.isArray(format)) {
+    return new Intl.DateTimeFormat(systemLocale, format as Intl.DateTimeFormatOptions).format(date)
+  }
+  return date.toLocaleDateString(systemLocale)
 }
