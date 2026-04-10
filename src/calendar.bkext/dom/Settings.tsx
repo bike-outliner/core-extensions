@@ -1,6 +1,6 @@
 import { DOMExtensionContext } from 'bike/dom'
 import { JSONValue } from 'bike/core'
-import { Disclosure, FormRow, FormGroup } from 'bike/components'
+import { Checkbox, Disclosure, FormRow, FormGroup } from 'bike/components'
 import { createRoot } from 'react-dom/client'
 import { useState } from 'react'
 import { calendarDefaults } from './protocols'
@@ -36,10 +36,10 @@ function FormatRow({ label, formatKey }: { label: string; formatKey: FormatKey }
   function onChange(input: string) {
     setValue(input)
     if (input === '') {
-      defaults.delete(formatKey)
+      bike.defaults.delete(formatKey)
     } else {
       try {
-        defaults.set(formatKey, parseInput(input))
+        bike.defaults.set(formatKey, parseInput(input))
       } catch {
         // Don't store invalid JSON objects while user is still typing
       }
@@ -61,18 +61,17 @@ function FormatRow({ label, formatKey }: { label: string; formatKey: FormatKey }
 }
 
 function WeekNumbersRow() {
-  const [checked, setChecked] = useState(() => defaults.get('showWeekNumbers') !== false)
+  const [checked, setChecked] = useState(() => bike.defaults.get('showWeekNumbers') !== false)
 
   function onChange(value: boolean) {
     setChecked(value)
-    defaults.set('showWeekNumbers', value)
+    bike.defaults.set('showWeekNumbers', value)
   }
 
   return (
-      <label>
-        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-        {' '}Show week numbers in calendar view
-      </label>
+    <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)}>
+      Show week number in left column
+    </Checkbox>
   )
 }
 
@@ -85,9 +84,9 @@ function preview(value: string, defaultValue: string): string {
   const now = new Date()
   try {
     if (raw.trimStart().startsWith('{')) {
-      return new Intl.DateTimeFormat(systemLocale, JSON.parse(raw)).format(now)
+      return new Intl.DateTimeFormat(bike.systemLocale, JSON.parse(raw)).format(now)
     }
-    return formatDate(now, raw)
+    return bike.formatDate(now, raw)
   } catch {
     return '(invalid format)'
   }
@@ -102,7 +101,7 @@ function displayValue(value: JSONValue): string {
 
 /** Read a setting for display. Returns empty string if value matches the default. */
 function readDisplay(key: FormatKey): string {
-  const value = defaults.get(key)
+  const value = bike.defaults.get(key)
   if (value === undefined) return ''
   if (JSON.stringify(value) === JSON.stringify(calendarDefaults[key])) return ''
   return displayValue(value)

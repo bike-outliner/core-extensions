@@ -5,7 +5,7 @@ import { getDateComponents, findDateId } from './util'
 import { CalendarProtocol, calendarDefaults } from '../dom/protocols'
 
 export async function activate(context: AppExtensionContext) {
-  defaults.registerDefaults(calendarDefaults)
+  bike.defaults.registerDefaults(calendarDefaults)
 
   bike.commands.addCommands({
     commands: {

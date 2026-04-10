@@ -52,12 +52,12 @@ export function getDateComponents(date: Date): {
 }
 
 function formatWith(date: Date, key: string): string {
-  const format = defaults.get(key)
+  const format = bike.defaults.get(key)
   if (typeof format === 'string') {
-    return formatDate(date, format)
+    return bike.formatDate(date, format)
   }
   if (typeof format === 'object' && !Array.isArray(format)) {
-    return new Intl.DateTimeFormat(systemLocale, format as Intl.DateTimeFormatOptions).format(date)
+    return new Intl.DateTimeFormat(bike.systemLocale, format as Intl.DateTimeFormatOptions).format(date)
   }
-  return date.toLocaleDateString(systemLocale)
+  return date.toLocaleDateString(bike.systemLocale)
 }

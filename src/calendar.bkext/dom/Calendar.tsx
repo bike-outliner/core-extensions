@@ -9,7 +9,7 @@ import { CalendarProtocol } from './protocols'
 function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProtocol> }) {
   const [activeStartDate, setActiveStartDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [showWeekNumbers, setShowWeekNumbers] = useState(() => defaults.get('showWeekNumbers') !== false)
+  const [showWeekNumbers, setShowWeekNumbers] = useState(() => bike.defaults.get('showWeekNumbers') !== false)
 
   useEffect(() => {
     context.onmessage = (message) => {
@@ -31,11 +31,11 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
   }, [])
 
   useEffect(() => {
-    const disposable = defaults.observe('showWeekNumbers', (v) => setShowWeekNumbers(v !== false))
+    const disposable = bike.defaults.observe('showWeekNumbers', (v) => setShowWeekNumbers(v !== false))
     return () => disposable.dispose()
   }, [])
 
-  const monthYear = activeStartDate.toLocaleDateString(systemLocale, { month: 'long', year: 'numeric' })
+  const monthYear = activeStartDate.toLocaleDateString(bike.systemLocale, { month: 'long', year: 'numeric' })
 
   function onChange(nextValue: any) {
     const date = nextValue instanceof Date ? nextValue : new Date(String(nextValue))
@@ -78,9 +78,9 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         showWeekNumbers={showWeekNumbers}
         maxDetail="month"
         minDetail="month"
-        locale={systemLocale}
-        calendarType={systemFirstWeekday === 0 ? 'gregory' : systemFirstWeekday === 6 ? 'islamic' : 'iso8601'}
-        formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(systemLocale, { weekday: 'narrow' })}
+        locale={bike.systemLocale}
+        calendarType={bike.systemFirstWeekday === 0 ? 'gregory' : bike.systemFirstWeekday === 6 ? 'islamic' : 'iso8601'}
+        formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(bike.systemLocale, { weekday: 'narrow' })}
       />
     </Disclosure>
   )
