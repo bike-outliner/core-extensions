@@ -19,6 +19,13 @@ export function parseDateId(id: string): Date | null {
   return new Date(year, month - 1, day)
 }
 
+export const calendarDefaults = {
+  yearNameFormat: 'yyyy',
+  monthNameFormat: { year: 'numeric', month: 'long' } as const,
+  dayNameFormat: { dateStyle: 'long' } as const,
+  showWeekNumbers: true,
+}
+
 export interface CalendarProtocol extends DOMProtocol {
   toDOM:
     | { type: 'selectDate'; date: string }

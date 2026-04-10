@@ -36,7 +36,6 @@ export function getDateComponents(date: Date): {
   yearName: string
   monthName: string
   dayName: string
-  timeName: string
 } {
   const year = date.getFullYear()
   const yearId = `${year}/00/00`
@@ -45,23 +44,17 @@ export function getDateComponents(date: Date): {
     date.getDate()
   ).padStart(2, '0')}`
 
-  const yearName = formatWith(date, "yearNameFormat", "YYYY")
-  const monthName = formatWith(date, "monthNameFormat", { year: 'numeric', month: 'long' })
-  const dayName = formatWith(date, "dayNameFormat", { dateStyle: 'long' })
-  const timeName = formatWith(date, "timeNameFormat", { hour: 'numeric', minute: '2-digit' })
+  const yearName = formatWith(date, "yearNameFormat")
+  const monthName = formatWith(date, "monthNameFormat")
+  const dayName = formatWith(date, "dayNameFormat")
 
-  return { yearName, yearId, monthName, monthId, dayName, dayId, timeName }
+  return { yearName, yearId, monthName, monthId, dayName, dayId}
 }
 
-function formatWith(date: Date, key: string, defaultFormat: string | object): string {
-  const format = bike.defaults.get(key) ?? defaultFormat
+function formatWith(date: Date, key: string): string {
+  const format = defaults.get(key)
   if (typeof format === 'string') {
-    return format
-      .replace('YYYY', String(date.getFullYear()))
-      .replace('MM', String(date.getMonth() + 1).padStart(2, '0'))
-      .replace('DD', String(date.getDate()).padStart(2, '0'))
-      .replace('hh', String(date.getHours()).padStart(2, '0'))
-      .replace('mm', String(date.getMinutes()).padStart(2, '0'))
+    return formatDate(date, format)
   }
   if (typeof format === 'object' && !Array.isArray(format)) {
     return new Intl.DateTimeFormat(systemLocale, format as Intl.DateTimeFormatOptions).format(date)

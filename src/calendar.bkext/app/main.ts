@@ -2,15 +2,22 @@ import { AppExtensionContext, Window } from 'bike/app'
 import { todayCommand, monthCommand, yearCommand } from './commands'
 import { getDayRow } from './calendar-rows'
 import { getDateComponents, findDateId } from './util'
-import { CalendarProtocol } from '../dom/protocols'
+import { CalendarProtocol, calendarDefaults } from '../dom/protocols'
 
 export async function activate(context: AppExtensionContext) {
+  defaults.registerDefaults(calendarDefaults)
+
   bike.commands.addCommands({
     commands: {
       'calendar:today': todayCommand,
       'calendar:month': monthCommand,
       'calendar:year': yearCommand,
     },
+  })
+
+  bike.settings.addItem({
+    label: 'Calendar',
+    script: 'Settings.js',
   })
 
   bike.observeWindows(async (window: Window) => {

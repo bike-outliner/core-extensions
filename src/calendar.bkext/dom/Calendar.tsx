@@ -9,6 +9,7 @@ import { CalendarProtocol } from './protocols'
 function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProtocol> }) {
   const [activeStartDate, setActiveStartDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [showWeekNumbers, setShowWeekNumbers] = useState(() => defaults.get('showWeekNumbers') !== false)
 
   useEffect(() => {
     context.onmessage = (message) => {
@@ -27,6 +28,11 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     return () => {
       context.onmessage = undefined
     }
+  }, [])
+
+  useEffect(() => {
+    const disposable = defaults.observe('showWeekNumbers', (v) => setShowWeekNumbers(v !== false))
+    return () => disposable.dispose()
   }, [])
 
   const monthYear = activeStartDate.toLocaleDateString(systemLocale, { month: 'long', year: 'numeric' })
@@ -69,6 +75,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         activeStartDate={activeStartDate}
         onActiveStartDateChange={({ activeStartDate: d }) => { if (d) setActiveStartDate(d) }}
         showNavigation={false}
+        showWeekNumbers={showWeekNumbers}
         maxDetail="month"
         minDetail="month"
         locale={systemLocale}
