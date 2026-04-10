@@ -4,11 +4,12 @@ import { computeValues, symbolImage } from './util'
 export function listMark(context: StyleContext, row: RowStyle, image: Image, commandName?: string) {
   let values = computeValues(context)
   row.text.margin.left = Math.floor(values.indent * 2)
+  
   row.text.decoration('mark', (mark, layout) => {
     if (commandName) mark.commandName = commandName
+    let size = layout.firstLine.height
     mark.x = layout.leading.offset(-values.indent / 2)
     mark.y = layout.firstLine.centerY
-    let size = layout.firstLine.height
     mark.width = size
     mark.height = size
     mark.contents.gravity = 'center'
