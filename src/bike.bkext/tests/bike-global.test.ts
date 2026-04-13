@@ -58,6 +58,55 @@ describe("bike global", () => {
     })
 })
 
+describe("bike.windows", () => {
+    const editor = bike.testEditor()
+
+    it("all windows have valid properties", () => {
+        const windows = bike.windows
+        assert(Array.isArray(windows), "windows should be an array")
+        assert(windows.length > 0, "should have at least one window")
+        for (const window of windows) {
+            assert(typeof window.title === "string", "title should be a string")
+            assert(window.sidebar, "sidebar should exist")
+            assert(window.inspector, "inspector should exist")
+            assert(Array.isArray(window.documents), "documents should be an array")
+            assert(Array.isArray(window.outlineEditors), "outlineEditors should be an array")
+            assert(typeof window.observeCurrentOutlineEditor === "function")
+        }
+    })
+})
+
+describe("bike.documents", () => {
+    const editor = bike.testEditor()
+
+    it("all documents have valid properties", () => {
+        const documents = bike.documents
+        assert(Array.isArray(documents), "documents should be an array")
+        assert(documents.length > 0, "should have at least one document")
+        for (const doc of documents) {
+            assert(typeof doc.displayName === "string", "displayName should be a string")
+            assert(typeof doc.fileType === "string", "fileType should be a string")
+            assert(doc.outline, "document should have an outline")
+            assert(doc.outline.root, "outline should have a root")
+            assert(Array.isArray(doc.windows), "windows should be an array")
+        }
+    })
+})
+
+describe("bike.outlineEditors", () => {
+    const editor = bike.testEditor()
+
+    it("all outlineEditors have valid properties", () => {
+        const editors = bike.outlineEditors
+        assert(Array.isArray(editors), "outlineEditors should be an array")
+        assert(editors.length > 0, "should have at least one outlineEditor")
+        for (const e of editors) {
+            assert(e.outline, "outlineEditor should have an outline")
+            assert(e.outline.root, "outline should have a root")
+        }
+    })
+})
+
 describe("bike window", () => {
     const editor = bike.testEditor()
     const window = bike.frontmostWindow!
