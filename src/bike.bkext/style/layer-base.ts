@@ -25,7 +25,7 @@ export function registerBaseLayer(style: EditorStyle) {
         caret.loadedAttributesColor = Color.white()
       } else {
         caret.blinkStyle = 'none'
-        caret.color = colors.text.withFraction(0.8, colors.background)
+        caret.color = colors.text.withFraction(0.863, colors.background)
         caret.lineColor = context.settings.showCaretLine ? Color.systemFillQuaternary() : Color.clear()
       }
     })

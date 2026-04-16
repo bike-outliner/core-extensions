@@ -9,7 +9,7 @@ export function registerInteractionLayers(style: EditorStyle) {
       let values = computeValues(context)
       let selection = context.isKey
         ? colors.blockBackgroundSelected
-        : colors.text.withFraction(0.8, colors.background)
+        : colors.text.withFraction(0.863, colors.background)
       row.decoration('selection', (background, layout) => {
         background.anchor.x = 0
         background.anchor.y = 0
@@ -32,7 +32,7 @@ export function registerInteractionLayers(style: EditorStyle) {
       let colors = context.theme.colors
       let selection = context.isKey
         ? colors.textBackgroundSelected
-        : colors.text.withFraction(0.8, colors.background)
+        : colors.text.withFraction(0.863, colors.background)
 
       text.decoration('selection', (sel, layout) => {
         sel.zPosition = -2
