@@ -170,6 +170,7 @@ export function registerFormattingLayers(style: EditorStyle) {
       text.decoration('button', (button, layout) => {
         button.commandName = 'bike:.click-link'
         button.fragmentPlacement = 'last'
+        button.zPosition = -1
         button.x = layout.trailing
         button.anchor.x = 0
         button.width = layout.fixed(imageWidth)
