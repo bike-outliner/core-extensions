@@ -7,7 +7,7 @@ describe("Outline", () => {
 
     it("has root row", () => {
         assert(outline.root, "outline should have a root")
-        assert(typeof outline.root.id === "string", "root should have an id")
+        assert(typeof outline.root.id === "number", "root should have an id")
     })
 
     it("starts empty", () => {
@@ -112,15 +112,28 @@ describe("Outline removeRows", () => {
 describe("Outline getRowById", () => {
     const outline = bike.testOutline()
 
-    it("finds existing row by id", () => {
+    it("finds row by numeric id", () => {
         outline.insertRows(["findme"], outline.root)
         const row = outline.root.firstChild!
         const found = outline.getRowById(row.id)
-        assert(found, "should find the row")
+        assert(found, "should find row by numeric id")
         assert.equal(found!.id, row.id)
     })
 
-    it("returns undefined for non-existent id", () => {
+    it("finds row by persistentId", () => {
+        outline.insertRows([{ persistentId: "lookup-test", text: "Lookup" }], outline.root)
+        const found = outline.getRowById("lookup-test")
+        assert(found, "should find row by persistentId")
+        assert.equal(found!.persistentId, "lookup-test")
+        assert.equal(found!.text.string, "Lookup")
+    })
+
+    it("returns undefined for non-existent numeric id", () => {
+        const found = outline.getRowById(999999)
+        assert.equal(found, undefined)
+    })
+
+    it("returns undefined for non-existent persistentId", () => {
         const found = outline.getRowById("non-existent-id-12345")
         assert.equal(found, undefined)
     })

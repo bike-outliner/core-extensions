@@ -13,10 +13,41 @@ describe("Row properties", () => {
         outline.insertRows(["Child A", "Child B"], outline.root.firstChild!)
     })
 
-    it("has id", () => {
+    it("has numeric id", () => {
         const row = outline.root.firstChild!
-        assert(typeof row.id === "string", "id should be a string")
-        assert(row.id.length > 0, "id should not be empty")
+        assert(typeof row.id === "number", "id should be a number")
+    })
+
+    it("has unique ids", () => {
+        const rows = outline.root.children
+        const ids = new Set(rows.map(r => r.id))
+        assert.equal(ids.size, rows.length, "all row ids should be unique")
+    })
+
+    it("has no persistentId by default", () => {
+        const row = outline.root.firstChild!
+        assert.equal(row.persistentId, undefined, "persistentId should default to undefined")
+    })
+
+    it("can ensure persistentId", () => {
+        const row = outline.root.firstChild!
+        const pid = row.ensuredPersistentId
+        assert(typeof pid === "string", "ensuredPersistentId should return a string")
+        assert(pid.length > 0, "ensuredPersistentId should not be empty")
+        assert.equal(row.persistentId, pid, "persistentId should match after ensuring")
+    })
+
+    it("ensuredPersistentId is stable", () => {
+        const row = outline.root.firstChild!
+        const pid1 = row.ensuredPersistentId
+        const pid2 = row.ensuredPersistentId
+        assert.equal(pid1, pid2, "ensuredPersistentId should return the same value")
+    })
+
+    it("can insert row with persistentId", () => {
+        const rows = outline.insertRows([{ persistentId: "test-pid", text: "PID Row" }], outline.root)
+        assert.equal(rows[0].persistentId, "test-pid")
+        outline.removeRows(rows)
     })
 
     it("has outline reference", () => {

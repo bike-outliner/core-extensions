@@ -17,7 +17,7 @@ export function clickFocusCommand(context: CommandContext): boolean {
   let editor = context.editor
   let row = context.selection?.row
   if (!editor || !row) return false
-  if (editor.focus.id == row.id) {
+  if (editor.focus.id === row.id) {
     editor.focusOut()
   } else {
     editor.focus = row

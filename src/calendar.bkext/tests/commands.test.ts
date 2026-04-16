@@ -27,10 +27,10 @@ describe("calendar row structure", () => {
 
     it("can create a day row with calendar hierarchy", () => {
         // Insert calendar > year > month > day structure directly
-        const calendarRow = outline.insertRows([{ id: "calendar", text: "Calendar" }], outline.root)[0]
-        const yearRow = outline.insertRows([{ id: yearId, text: year }], calendarRow)[0]
-        const monthRow = outline.insertRows([{ id: monthId, text: "Test Month" }], yearRow)[0]
-        const dayRow = outline.insertRows([{ id: dayId, text: "Test Day" }], monthRow)[0]
+        const calendarRow = outline.insertRows([{ persistentId: "calendar", text: "Calendar" }], outline.root)[0]
+        const yearRow = outline.insertRows([{ persistentId: yearId, text: year }], calendarRow)[0]
+        const monthRow = outline.insertRows([{ persistentId: monthId, text: "Test Month" }], yearRow)[0]
+        const dayRow = outline.insertRows([{ persistentId: dayId, text: "Test Day" }], monthRow)[0]
 
         assert(outline.getRowById(yearId), "year row should exist")
         assert(outline.getRowById(monthId), "month row should exist")
@@ -45,13 +45,13 @@ describe("calendar row structure", () => {
     it("year contains month", () => {
         const yearRow = outline.getRowById(yearId)!
         const monthRow = outline.getRowById(monthId)!
-        assert.equal(monthRow.parent!.id, yearRow.id)
+        assert.equal(monthRow.parent!.persistentId, yearRow.persistentId)
     })
 
     it("month contains day", () => {
         const monthRow = outline.getRowById(monthId)!
         const dayRow = outline.getRowById(dayId)!
-        assert.equal(dayRow.parent!.id, monthRow.id)
+        assert.equal(dayRow.parent!.persistentId, monthRow.persistentId)
     })
 })
 

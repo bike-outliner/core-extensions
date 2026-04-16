@@ -78,7 +78,8 @@ function getDateIdRow(dateId: string, text: string, parent: Row): Row {
   let insertBefore: Row | undefined
 
   for (const child of parent.children) {
-    if (child.id.match(dateIdPattern) && dateId < child.id) {
+    let pid = child.persistentId
+    if (pid && pid.match(dateIdPattern) && dateId < pid) {
       insertBefore = child
       break
     }
@@ -87,7 +88,7 @@ function getDateIdRow(dateId: string, text: string, parent: Row): Row {
   return outline.insertRows(
     [
       {
-        id: dateId,
+        persistentId: dateId,
         text: text,
       },
     ],

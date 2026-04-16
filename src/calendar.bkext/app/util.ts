@@ -4,7 +4,8 @@ import { isDayId } from '../dom/protocols'
 export function findDateId(row: Row): string | null {
   let current: Row | undefined = row
   while (current) {
-    if (isDayId(current.id)) return current.id
+    let pid = current.persistentId
+    if (pid && isDayId(pid)) return pid
     current = current.parent
   }
   return null
