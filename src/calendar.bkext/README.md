@@ -6,16 +6,14 @@ outline structure on demand so you can keep dated notes without bookkeeping.
 
 ## Sidebar
 
-- **Today** — sidebar location. Jumps to today, creating the day row if it
-  does not yet exist, and places the cursor at its first child so you can
-  start typing.
+**Today** — sidebar location. Jumps to today, creating the day row if it does
+not yet exist, and places the cursor at its first child so you can start typing.
 
 ## Inspector
 
-- **Calendar** — inspector panel. A month grid; click a date to jump there.
-  Header controls (visible on hover): ‹ previous month, ◆ today, › next month.
-  Selecting any row inside the date hierarchy highlights the matching day in
-  the grid.
+**Calendar** — inspector panel. A month grid; click a date to jump there. Header
+controls (visible on hover): ‹ previous month, ◆ today, › next month. Selecting
+any row inside the date hierarchy highlights the matching day in the grid.
 
 ## Outline structure
 
