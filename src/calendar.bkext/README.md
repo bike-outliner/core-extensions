@@ -37,8 +37,7 @@ the visible text of any year, month, or day row without breaking anything.
 ## Commands
 
 - `calendar:today` — jump to today, create the day row if missing, and place
-  the cursor at its first child. (This is also what the sidebar Today button
-  runs.)
+  the cursor at its first child.
 - `calendar:month` — open the current month and pre-create every day in it.
 - `calendar:year` — open the current year and pre-create every month and
   every day in it.
