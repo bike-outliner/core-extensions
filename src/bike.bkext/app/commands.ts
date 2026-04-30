@@ -1,4 +1,4 @@
-import { AttributedString, CommandContext, FoldOptions, OutlineEditor, Range, Selection, URL } from 'bike/app'
+import { AttributedString, CommandContext, FoldOptions, Outline, OutlineEditor, Range, Selection, URL } from 'bike/app'
 
 export function clickHandleCommand(context: CommandContext): boolean {
   let options: FoldOptions = bike.keybindings.isOptionPressed ? 'completely' : 'row'
@@ -61,14 +61,15 @@ function findURLs(editor: OutlineEditor, selection: Selection): URL[] {
   if (selection.type == 'caret') {
     const link = row.text.attributeAt('a', selection.detail.char)
     if (link) {
-      return [new URL(link)]
+      const url = row.outline.resolveLink(link)
+      if (url) return [url]
     }
   } else if (selection.type == 'text') {
-    return findURLsInText(selection.detail.text)
+    return findURLsInText(selection.detail.text, row.outline)
   } else if (selection.type == 'block') {
     const urls: URL[] = []
     for (let row of selection.rows) {
-      findURLsInText(row.text).forEach((url) => {
+      findURLsInText(row.text, row.outline).forEach((url) => {
         urls.push(url)
       })
     }
@@ -77,13 +78,14 @@ function findURLs(editor: OutlineEditor, selection: Selection): URL[] {
   return []
 }
 
-function findURLsInText(text: AttributedString): URL[] {
+function findURLsInText(text: AttributedString, outline: Outline): URL[] {
   const urls: URL[] = []
   const range: Range = [0, 0]
   while (range[0] < text.count) {
     const link = text.attributeAt('a', range[0], 'downstream', range)
     if (link) {
-      urls.push(new URL(link))
+      const url = outline.resolveLink(link)
+      if (url) urls.push(url)
     }
     range[0] = range[1]
     range[1] = range[0]
