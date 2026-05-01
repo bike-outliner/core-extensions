@@ -32,6 +32,7 @@
     "blockBackgroundSelected": "rgba(38, 139, 210, 0.2)",
     "findMatch": "rgba(181, 137, 0, 0.35)",
     "handle": "$base01",
+    "handleUnloaded": "color-mix(in oklch, $base01 30%, $base02)",
     "guideLine": "$base02",
     "focusArrow": "$base01",
     "spelling": "$red",
