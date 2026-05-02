@@ -26,6 +26,10 @@ export async function activate(context: AppExtensionContext) {
       text: 'Today',
       symbol: 'calendar',
       representedRowId: getDateComponents(new Date()).dayId,
+      prepareRow: () => {
+        const outline = window.currentOutlineEditor!.outline
+        return getDayRow(outline, new Date())
+      },
       action: () => {
         bike.commands.performCommand('calendar:today')
       },

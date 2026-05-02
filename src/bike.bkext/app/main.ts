@@ -45,8 +45,9 @@ export async function activate(context: AppExtensionContext) {
       id: 'go:home',
       text: 'Home',
       symbol: 'house',
-      action: 'go:home',
       representedRowId: representedRowId,
+      prepareRow: () => window.currentOutlineEditor!.outline.root,
+      action: 'go:home',
     })
   }
 
