@@ -26,22 +26,31 @@
     "secondaryText": "$base01",
     "accent": "$blue",
     "background": "$base03",
-    "caret": "$base0",
-    "caretLine": "rgba(255, 255, 255, 0.04)",
-    "textBackgroundSelected": "rgba(38, 139, 210, 0.35)",
-    "blockBackgroundSelected": "rgba(38, 139, 210, 0.2)",
+    "caret": "$accent",
+    "caretLine": "rgb(from $text r g b / 6%)",
+    "caretMessage": "$secondaryText",
+    "textBackgroundSelected": "rgb(from $accent r g b / 25%)",
+    "blockBackgroundSelected": "rgb(from $accent r g b / 25%)",
     "findMatch": "color-mix(in oklch, $yellow 30%, $background)",
+    "findMatchCurrent": "oklch(from $yellow calc(l + 0.1) c h)",
     "handle": "$text",
     "handleUnloaded": "color-mix(in oklch, $handle 15%, $background)",
     "guideLine": "color-mix(in oklch, $handleUnloaded 5%, $background)",
     "focusArrow": "$handleUnloaded",
     "spelling": "$red",
-    "grammar": "$green"
+    "grammar": "$green",
+    "replacement": "$violet",
+    "titlebarSeparator": "$divider",
+    "sidebarSeparators": "$divider",
+    "editorBarSeparators": "$panel",
+
+    "panel": "$base02",
+    "divider": "rgb(from $base01 r g b / 40%)"
   },
   "materials": {
     "window": "$background",
-    "titlebar": "$base02",
-    "sidebar": "$base02",
+    "titlebar": "$panel",
+    "sidebar": "$panel",
     "editor": "$background"
   },
   "rows": {
@@ -61,8 +70,6 @@
     },
     "codeblock": {
       "color": "$green",
-      "backgroundColor": "$base02",
-      "fontFamily": "SF Mono",
       "fontTraits": ["monospace"]
     },
     "task": {
@@ -75,7 +82,7 @@
       "color": "$text"
     },
     "horizontalRule": {
-      "color": "$base01"
+      "color": "$divider"
     }
   },
   "runs": {
@@ -94,12 +101,10 @@
     },
     "code": {
       "color": "$magenta",
-      "fontFamily": "SF Mono",
-      "fontTraits": ["monospace"],
-      "backgroundColor": "$base02"
+      "fontTraits": ["monospace"]
     },
     "mark": {
-      "backgroundColor": "color-mix(in oklch, $yellow 30%, $background)"
+      "backgroundColor": "rgb(from $yellow r g b / 20%)"
     },
     "link": {
       "color": "$accent",

@@ -26,22 +26,31 @@
     "secondaryText": "$base1",
     "accent": "$blue",
     "background": "$base3",
-    "caret": "$base00",
-    "caretLine": "rgba(0, 0, 0, 0.04)",
-    "textBackgroundSelected": "rgba(38, 139, 210, 0.25)",
-    "blockBackgroundSelected": "rgba(38, 139, 210, 0.15)",
+    "caret": "$accent",
+    "caretLine": "rgb(from $text r g b / 6%)",
+    "caretMessage": "$secondaryText",
+    "textBackgroundSelected": "rgb(from $accent r g b / 25%)",
+    "blockBackgroundSelected": "rgb(from $accent r g b / 25%)",
     "findMatch": "color-mix(in oklch, $yellow 40%, $background)",
+    "findMatchCurrent": "oklch(from $yellow calc(l - 0.1) c h)",
     "handle": "$text",
     "handleUnloaded": "color-mix(in oklch, $handle 30%, $background)",
-    "guideLine": "color-mix(in oklch, $handleUnloaded 50%, $background)",
+    "guideLine": "color-mix(in oklch, $handleUnloaded 65%, $background)",
     "focusArrow": "$handleUnloaded",
     "spelling": "$red",
-    "grammar": "$green"
+    "grammar": "$green",
+    "replacement": "$violet",
+    "titlebarSeparator": "$divider",
+    "sidebarSeparators": "$divider",
+    "editorBarSeparators": "$panel",
+
+    "panel": "$base2",
+    "divider": "rgb(from $base01 r g b / 25%)"
   },
   "materials": {
     "window": "$background",
-    "titlebar": "$base2",
-    "sidebar": "$base2",
+    "titlebar": "$panel",
+    "sidebar": "$panel",
     "editor": "$background"
   },
   "rows": {
@@ -61,8 +70,6 @@
     },
     "codeblock": {
       "color": "$green",
-      "backgroundColor": "$base2",
-      "fontFamily": "SF Mono",
       "fontTraits": ["monospace"]
     },
     "task": {
@@ -75,7 +82,7 @@
       "color": "$text"
     },
     "horizontalRule": {
-      "color": "$base1"
+      "color": "$divider"
     }
   },
   "runs": {
@@ -94,12 +101,10 @@
     },
     "code": {
       "color": "$magenta",
-      "fontFamily": "SF Mono",
-      "fontTraits": ["monospace"],
-      "backgroundColor": "$base2"
+      "fontTraits": ["monospace"]
     },
     "mark": {
-      "backgroundColor": "color-mix(in oklch, $yellow 25%, $background)"
+      "backgroundColor": "rgb(from $yellow r g b / 20%)"
     },
     "link": {
       "color": "$accent",
