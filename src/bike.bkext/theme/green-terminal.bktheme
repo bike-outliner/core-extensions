@@ -1,0 +1,105 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "author": "Hog Bay Software",
+    "appearance": "dark"
+  },
+  "colors": {
+    "bg": "#001500",
+    "fg": "#33ff33",
+
+    "text": "$fg",
+    "secondaryText": "color-mix(in oklch, $fg 50%, $bg)",
+    "accent": "$fg",
+    "background": "$bg",
+    "caret": "$accent",
+    "caretLine": "rgb(from $fg r g b / 6%)",
+    "caretMessage": "$secondaryText",
+    "textBackgroundSelected": "color-mix(in oklch, $bg 80%, $fg)",
+    "blockBackgroundSelected": "color-mix(in oklch, $bg 80%, $fg)",
+    "findMatch": "color-mix(in oklch, $bg 60%, $fg)",
+    "findMatchCurrent": "$fg",
+    "handle": "$text",
+    "handleUnloaded": "color-mix(in oklch, $fg 15%, $bg)",
+    "guideLine": "color-mix(in oklch, $handleUnloaded 5%, $bg)",
+    "focusArrow": "$handleUnloaded",
+    "spelling": "$fg",
+    "grammar": "color-mix(in oklch, $fg 70%, $bg)",
+    "replacement": "$secondaryText",
+    "titlebarSeparator": "$divider",
+    "sidebarSeparators": "$divider",
+    "editorBarSeparators": "$panel",
+
+    "panel": "color-mix(in oklch, $bg 95%, $fg)",
+    "divider": "rgb(from $fg r g b / 25%)"
+  },
+  "materials": {
+    "window": "$background",
+    "editor": "$background",
+    "sidebar": {
+      "type": "system",
+      "style": "titlebar",
+      "followsActive": true
+    }
+  },
+  "rows": {
+    "body": {
+      "color": "$text"
+    },
+    "heading": {
+      "color": "$text",
+      "fontWeight": "semibold"
+    },
+    "note": {
+      "color": "$secondaryText"
+    },
+    "blockquote": {
+      "color": "$text",
+      "fontTraits": ["italic"]
+    },
+    "codeblock": {
+      "color": "$text",
+      "fontTraits": ["monospace"]
+    },
+    "task": {
+      "color": "$text"
+    },
+    "orderedList": {
+      "color": "$text"
+    },
+    "unorderedList": {
+      "color": "$text"
+    },
+    "horizontalRule": {
+      "color": "$divider"
+    }
+  },
+  "runs": {
+    "strong": {
+      "color": "$text",
+      "fontWeight": "semibold"
+    },
+    "emphasis": {
+      "fontTraits": ["italic"]
+    },
+    "strikethrough": {
+      "color": "$secondaryText",
+      "strikethrough": {
+        "single": true
+      }
+    },
+    "code": {
+      "color": "$text",
+      "fontTraits": ["monospace"]
+    },
+    "mark": {
+      "backgroundColor": "rgb(from $fg r g b / 25%)"
+    },
+    "link": {
+      "color": "$accent",
+      "underline": {
+        "single": true
+      }
+    }
+  }
+}
