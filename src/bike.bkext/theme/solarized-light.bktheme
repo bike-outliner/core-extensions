@@ -30,17 +30,19 @@
     "caretLine": "rgba(0, 0, 0, 0.04)",
     "textBackgroundSelected": "rgba(38, 139, 210, 0.25)",
     "blockBackgroundSelected": "rgba(38, 139, 210, 0.15)",
-    "findMatch": "rgba(181, 137, 0, 0.3)",
-    "handle": "$base1",
-    "handleUnloaded": "color-mix(in oklch, $base1 30%, $base2)",
+    "findMatch": "color-mix(in oklch, $yellow 40%, $background)",
+    "handle": "$text",
+    "handleUnloaded": "color-mix(in oklch, $handle 30%, $background)",
+    "guideLine": "color-mix(in oklch, $handleUnloaded 50%, $background)",
+    "focusArrow": "$handleUnloaded",
     "spelling": "$red",
     "grammar": "$green"
   },
   "materials": {
-    "window": "$base3",
+    "window": "$background",
     "titlebar": "$base2",
     "sidebar": "$base2",
-    "editor": "$base3"
+    "editor": "$background"
   },
   "rows": {
     "body": {
@@ -97,10 +99,10 @@
       "backgroundColor": "$base2"
     },
     "mark": {
-      "backgroundColor": "rgba(181, 137, 0, 0.25)"
+      "backgroundColor": "color-mix(in oklch, $yellow 25%, $background)"
     },
     "link": {
-      "color": "$blue",
+      "color": "$accent",
       "underline": {
         "single": true
       }

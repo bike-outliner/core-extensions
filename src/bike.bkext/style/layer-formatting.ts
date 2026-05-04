@@ -25,7 +25,7 @@ export function registerFormattingLayers(style: EditorStyle) {
         mark.x = layout.leading.offset(-values.indent / 2)
         mark.height = layout.height.offset(row.text.margin.top + row.text.margin.bottom)
         mark.width = layout.fixed(Math.max(4 * values.uiScale, 0.5))
-        mark.color = colors.text.withAlpha(0.7)
+        mark.color = colors.text.alphaSet(0.7)
         mark.corners.radius = 3 * values.uiScale
         mark.corners.maxXMinYCorner = false
         mark.corners.maxXMaxYCorner = false
@@ -44,10 +44,10 @@ export function registerFormattingLayers(style: EditorStyle) {
         block.y = layout.top
         block.height = layout.height.offset(row.text.margin.top + row.text.margin.bottom)
         block.width = layout.text.width.offset(adjust.scale(-1))
-        block.color = colors.text.withAlpha(0.02)
+        block.color = colors.text.alphaSet(0.02)
         block.corners.radius = 3 * values.uiScale
         block.border.width = 0.5 * values.uiScale
-        block.border.color = colors.text.withAlpha(0.05)
+        block.border.color = colors.text.alphaSet(0.05)
         block.mergable = true
         block.zPosition = -3
       })
@@ -137,7 +137,7 @@ export function registerFormattingLayers(style: EditorStyle) {
         if (markColor) {
           mark.color = markColor
           mark.border.width = 1 * uiScale
-          mark.border.color = markColor.withFraction(0.1, context.theme.colors.text)
+          mark.border.color = markColor.mixed(context.theme.colors.text, 0.1)
         }
         mark.mergable = true
       })
@@ -163,7 +163,7 @@ export function registerFormattingLayers(style: EditorStyle) {
       let symbol = new SymbolConfiguration('arrow.up.forward.app')
         .withSymbolScale('medium')
         .withFont(text.font.withWeight('semibold'))
-        .withHierarchicalColor(text.color.withAlpha(1))
+        .withHierarchicalColor(text.color.alphaSet(1))
       let image = Image.fromSymbol(symbol)
       let imageWidth = image.resolve(context).width * 1.1
       text.padding.right = imageWidth

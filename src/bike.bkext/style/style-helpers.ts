@@ -51,10 +51,10 @@ export function dropLine(context: StyleContext, row: RowStyle, yPosition: (layou
 export function restoreWritingFocus(context: StyleContext, text: TextRunStyle) {
   let values = computeValues(context)
   let textFocusAlpha = values.textFocusAlpha
-  text.color = text.color.withAlpha(1.0)
-  text.underline.color = text.underline.color.withAlpha(1.0)
-  text.strikethrough.color = text.strikethrough.color.withAlpha(1.0)
-  text.backgroundColor = text.backgroundColor.withAlpha(1.0)
+  text.color = text.color.alphaSet(1.0)
+  text.underline.color = text.underline.color.alphaSet(1.0)
+  text.strikethrough.color = text.strikethrough.color.alphaSet(1.0)
+  text.backgroundColor = text.backgroundColor.alphaSet(1.0)
   text.decorations((each, _) => {
     each.opacity /= textFocusAlpha
   })

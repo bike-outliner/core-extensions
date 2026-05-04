@@ -22,10 +22,10 @@ export function registerFocusLayers(style: EditorStyle) {
       if (context.settings.writingFocusMode) {
         let values = computeValues(context)
         let textFocusAlpha = values.textFocusAlpha
-        row.text.color = row.text.color.withAlpha(textFocusAlpha)
-        row.text.underline.color = row.text.underline.color.withAlpha(textFocusAlpha)
-        row.text.strikethrough.color = row.text.strikethrough.color.withAlpha(textFocusAlpha)
-        row.text.backgroundColor = row.text.backgroundColor.withAlpha(textFocusAlpha)
+        row.text.color = row.text.color.alphaSet(textFocusAlpha)
+        row.text.underline.color = row.text.underline.color.alphaSet(textFocusAlpha)
+        row.text.strikethrough.color = row.text.strikethrough.color.alphaSet(textFocusAlpha)
+        row.text.backgroundColor = row.text.backgroundColor.alphaSet(textFocusAlpha)
         row.decorations((each, _) => {
           each.opacity *= textFocusAlpha
         })
@@ -39,10 +39,10 @@ export function registerFocusLayers(style: EditorStyle) {
       if (context.settings.writingFocusMode) {
         let values = computeValues(context)
         let textFocusAlpha = values.textFocusAlpha
-        text.color = text.color.withAlpha(textFocusAlpha)
-        text.underline.color = text.underline.color.withAlpha(textFocusAlpha)
-        text.strikethrough.color = text.strikethrough.color.withAlpha(textFocusAlpha)
-        text.backgroundColor = text.backgroundColor.withAlpha(textFocusAlpha)
+        text.color = text.color.alphaSet(textFocusAlpha)
+        text.underline.color = text.underline.color.alphaSet(textFocusAlpha)
+        text.strikethrough.color = text.strikethrough.color.alphaSet(textFocusAlpha)
+        text.backgroundColor = text.backgroundColor.alphaSet(textFocusAlpha)
         text.decorations((each, _) => {
           each.opacity *= textFocusAlpha
         })
