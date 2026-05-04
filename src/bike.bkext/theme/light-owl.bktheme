@@ -1,0 +1,113 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "author": "Hog Bay Software",
+    "appearance": "light"
+  },
+  "colors": {
+    "bg": "#fbfbfb",
+    "foreground": "#403f53",
+    "lineHighlight": "#f0f0f0",
+    "selection": "#e0e0e0",
+    "comment": "#989fb1",
+    "purple": "#994cc3",
+    "blue": "#4876d6",
+    "magenta": "#aa0982",
+    "teal": "#0c969b",
+    "gold": "#daaa01",
+    "red": "#bc5454",
+
+    "text": "$foreground",
+    "secondaryText": "$comment",
+    "accent": "$blue",
+    "background": "$bg",
+    "caret": "$accent",
+    "caretLine": "rgb(from $lineHighlight r g b / 50%)",
+    "caretMessage": "$secondaryText",
+    "textBackgroundSelected": "$selection",
+    "blockBackgroundSelected": "$selection",
+    "findMatch": "color-mix(in oklch, $gold 40%, $background)",
+    "findMatchCurrent": "oklch(from $gold calc(l - 0.1) c h)",
+    "handle": "$text",
+    "handleUnloaded": "color-mix(in oklch, $handle 30%, $background)",
+    "guideLine": "color-mix(in oklch, $handleUnloaded 65%, $background)",
+    "focusArrow": "$handleUnloaded",
+    "spelling": "$red",
+    "grammar": "$teal",
+    "replacement": "$purple",
+    "titlebarSeparator": "$divider",
+    "sidebarSeparators": "$divider",
+    "editorBarSeparators": "$panel",
+
+    "panel": "$lineHighlight",
+    "divider": "rgb(from $comment r g b / 25%)"
+  },
+  "materials": {
+    "window": "$background",
+    "editor": "$background",
+    "sidebar": {
+      "type": "system",
+      "style": "titlebar",
+      "followsActive": true
+    }
+  },
+  "rows": {
+    "body": {
+      "color": "$text"
+    },
+    "heading": {
+      "color": "$gold",
+      "fontWeight": "semibold"
+    },
+    "note": {
+      "color": "$secondaryText"
+    },
+    "blockquote": {
+      "color": "$teal",
+      "fontTraits": ["italic"]
+    },
+    "codeblock": {
+      "color": "$purple",
+      "fontTraits": ["monospace"]
+    },
+    "task": {
+      "color": "$text"
+    },
+    "orderedList": {
+      "color": "$text"
+    },
+    "unorderedList": {
+      "color": "$text"
+    },
+    "horizontalRule": {
+      "color": "$divider"
+    }
+  },
+  "runs": {
+    "strong": {
+      "fontWeight": "semibold"
+    },
+    "emphasis": {
+      "fontTraits": ["italic"]
+    },
+    "strikethrough": {
+      "color": "$secondaryText",
+      "strikethrough": {
+        "single": true
+      }
+    },
+    "code": {
+      "color": "$magenta",
+      "fontTraits": ["monospace"]
+    },
+    "mark": {
+      "backgroundColor": "rgb(from $gold r g b / 25%)"
+    },
+    "link": {
+      "color": "$accent",
+      "underline": {
+        "single": true
+      }
+    }
+  }
+}
