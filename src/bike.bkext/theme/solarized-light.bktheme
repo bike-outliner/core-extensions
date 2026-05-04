@@ -49,9 +49,12 @@
   },
   "materials": {
     "window": "$background",
-    "titlebar": "$panel",
-    "sidebar": "$panel",
-    "editor": "$background"
+    "editor": "$background",
+    "sidebar": {
+      "type": "system",
+      "style": "titlebar",
+      "followsActive": true
+    }
   },
   "rows": {
     "body": {

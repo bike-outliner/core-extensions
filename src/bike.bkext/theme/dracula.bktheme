@@ -45,19 +45,12 @@
   },
   "materials": {
     "window": "$background",
-    "titlebar": {
-      "type": "system",
-      "style": "titlebar",
-      "opacity": 0.5,
-      "followsActive": true
-    },
+    "editor": "$background",
     "sidebar": {
       "type": "system",
       "style": "titlebar",
-      "opacity": 0.5,
       "followsActive": true
-    },
-    "editor": "$background"
+    }
   },
   "rows": {
     "body": {
