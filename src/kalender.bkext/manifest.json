@@ -1,0 +1,10 @@
+{
+  "$schema": "../../node_modules/@bike-outliner/extension-kit/schemas/manifest.schema.json",
+  "description": "Notizkalender, der beim Auswählen eines Datums automatisch eine Gliederungsstruktur generiert.",
+  "author": "Jesse Grosjean, René Coignard",
+  "url": "https://github.com/coignard/core-extensions/tree/main/src/kalender.bkext",
+  "version": "0.1.1",
+  "api_version": "0.0.0",
+  "permissions": [],
+  "host_permissions": []
+}

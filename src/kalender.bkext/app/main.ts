@@ -1,0 +1,74 @@
+import { AppExtensionContext, Window } from 'bike/app'
+import { todayCommand } from './commands'
+import { getDayRow } from './calendar-rows'
+import { getDateComponents, findDateId } from './util'
+import { CalendarProtocol, calendarDefaults } from '../dom/protocols'
+
+export async function activate(context: AppExtensionContext) {
+  bike.defaults.registerDefaults(calendarDefaults)
+
+  bike.commands.addCommands({
+    commands: {
+      'kalender:today': todayCommand,
+    },
+  })
+
+  bike.settings.addItem({
+    label: 'Kalender',
+    script: 'Settings.js',
+  })
+
+  bike.observeWindows(async (window: Window) => {
+    window.sidebar.addLocation({
+      id: 'kalender:today',
+      text: 'Heute',
+      symbol: 'calendar',
+      representedRowId: getDateComponents(new Date()).dayId,
+      prepareRow: () => {
+        const outline = window.currentOutlineEditor!.outline
+        return getDayRow(outline, new Date())
+      },
+      action: () => {
+        bike.commands.performCommand('kalender:today')
+      },
+    })
+
+    const calendarHandle = await window.inspector.addItem<CalendarProtocol>({
+      label: 'Kalender',
+      script: 'Calendar.js',
+    })
+
+    calendarHandle.onmessage = (message) => {
+      let editor = window.currentOutlineEditor
+
+      if (editor && message.type === 'dateChange' && message.date) {
+        let outline = editor.outline
+        let dateRow = getDayRow(editor.outline, new Date(message.date))
+        if (!dateRow.firstChild) {
+          outline.insertRows([{}], dateRow)
+        }
+        editor.focus = dateRow
+        editor.selectCaret(dateRow.firstChild!, 0)
+      }
+    }
+
+    window.observeCurrentOutlineEditor((editor) => {
+      if (editor) {
+        editor.observeSelection((selection) => {
+          if (!selection) {
+            calendarHandle.postMessage({ type: 'clearSelection' })
+            return
+          }
+          const dateId = findDateId(selection.row)
+          if (dateId) {
+            const [year, month, day] = dateId.split('/').map(Number)
+            const date = new Date(year, month - 1, day)
+            calendarHandle.postMessage({ type: 'selectDate', date: date.toISOString() })
+          } else {
+            calendarHandle.postMessage({ type: 'clearSelection' })
+          }
+        }, 300)
+      }
+    })
+  })
+}

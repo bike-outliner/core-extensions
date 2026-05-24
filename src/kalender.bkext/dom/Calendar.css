@@ -1,0 +1,89 @@
+.react-calendar {
+  margin: 0;
+}
+
+.react-calendar button {
+  margin: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* Nav buttons in disclosure header accessory — hidden until hover */
+.calendar-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.bike-disclosure__header:hover .calendar-nav-bar {
+  opacity: 1;
+}
+
+.calendar-nav-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--secondary-label);
+  display: flex;
+  align-items: center;
+}
+
+/* Weekday headers: single row, evenly spaced */
+.react-calendar__month-view__weekdays {
+  text-align: center;
+  font: -apple-system-body;
+  color: var(--secondary-label);
+}
+
+.react-calendar__month-view__weekdays abbr {
+  text-decoration: none;
+}
+
+/* Week numbers — override react-calendar inline display/flex-shrink for alignment */
+.react-calendar__month-view__weekNumbers {
+  font: -apple-system-caption1;
+  color: var(--secondary-label);
+  display: block !important;
+  flex-shrink: unset !important;
+}
+
+/* All tiles — fixed height so week number rows match day rows exactly */
+.react-calendar__tile {
+  height: 2em;
+  padding: 0;
+  text-align: center;
+  font: -apple-system-body;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.react-calendar__tile abbr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6em;
+  height: 1.6em;
+}
+
+/* Today: underline */
+.react-calendar button.react-calendar__tile--now abbr {
+  text-decoration: underline;
+}
+
+/* Selected day: selection background (suppressed when no date is selected) */
+.react-calendar:not(.no-selection) button.react-calendar__tile--active abbr {
+  color: var(--selected-content-text);
+  background: var(--selected-content-background);
+  border-radius: 4px;
+}
+
+/* Neighboring month days */
+.react-calendar button.react-calendar__month-view__days__day--neighboringMonth {
+  color: var(--tertiary-label);
+}
