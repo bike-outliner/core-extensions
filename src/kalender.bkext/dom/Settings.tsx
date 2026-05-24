@@ -16,12 +16,12 @@ function SettingsPanel() {
     <Disclosure label="Kalender" defaultExpanded>
       <WeekNumbersRow />
       <ul>
-        <li>Date format patterns used to generate row text.</li>
-        <li>Use format <a href="https://date-fns.org/docs/format">patterns</a> or JSON encoded Intl.DateTimeFormat <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat#using_options">options</a>.</li>
-        <li>Patterns are used when creating new rows, existing rows will not change.</li>
+        <li>Datumsformate für die Zeilentexte.</li>
+        <li>Format <a href="https://date-fns.org/docs/format">Muster</a> oder JSON-kodierte Intl.DateTimeFormat <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat#using_options">Optionen</a>.</li>
+        <li>Muster gelten nur für neue Zeilen, bestehende werden nicht geändert.</li>
       </ul>
       <FormGroup>
-        <FormatRow label="Day" formatKey="dayNameFormat" />
+        <FormatRow label="Tag" formatKey="dayNameFormat" />
       </FormGroup>
     </Disclosure>
   )
@@ -68,7 +68,7 @@ function WeekNumbersRow() {
 
   return (
     <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)}>
-      Show week number in left column
+      Wochennummer in linker Spalte anzeigen
     </Checkbox>
   )
 }
