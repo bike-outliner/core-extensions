@@ -2,6 +2,7 @@ import { CommandContext } from 'bike/app'
 import { getDayRow, getMonthRow, getYearRow } from './calendar-rows'
 
 export function yearCommand(context: CommandContext): boolean {
+  if (bike.defaults.get('rowLayout') === 'flat') return todayCommand(context)
   let editor = context.editor
   if (!editor) return true
   editor.outline.transaction({ animate: 'default' }, () => {
@@ -14,6 +15,7 @@ export function yearCommand(context: CommandContext): boolean {
 }
 
 export function monthCommand(context: CommandContext): boolean {
+  if (bike.defaults.get('rowLayout') === 'flat') return todayCommand(context)
   let editor = context.editor
   if (!editor) return true
   editor.outline.transaction({ animate: 'default' }, () => {

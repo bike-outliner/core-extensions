@@ -24,6 +24,8 @@ export const calendarDefaults = {
   monthNameFormat: { year: 'numeric', month: 'long' } as const,
   dayNameFormat: { dateStyle: 'long' } as const,
   showWeekNumbers: true,
+  boldRows: false,
+  rowLayout: 'nested' as 'nested' | 'flat',
 }
 
 export interface CalendarProtocol extends DOMProtocol {

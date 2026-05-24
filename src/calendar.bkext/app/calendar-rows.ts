@@ -61,9 +61,10 @@ export function getDayRow(outline: Outline, date: Date): Row {
   }
 
   return outline.transaction({ animate: 'default' }, () => {
-    let monthRow = getMonthRow(outline, date, false)
-    let dayRow = getDateIdRow(dateComponents.dayId, dateComponents.dayName, monthRow)
-    return dayRow
+    const parent = bike.defaults.get('rowLayout') === 'flat'
+      ? outline.root
+      : getMonthRow(outline, date, false)
+    return getDateIdRow(dateComponents.dayId, dateComponents.dayName, parent)
   })
 }
 
@@ -85,11 +86,13 @@ function getDateIdRow(dateId: string, text: string, parent: Row): Row {
     }
   }
 
+  const bold = dateIdPattern.test(dateId) && bike.defaults.get('boldRows') === true
   return outline.insertRows(
     [
       {
         persistentId: dateId,
-        text: text,
+        text: bold ? `**${text}**` : text,
+        ...(bold ? { format: 'markdown' } : {}),
       },
     ],
     parent,
