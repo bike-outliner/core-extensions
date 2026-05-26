@@ -17,30 +17,40 @@ any row inside the date hierarchy highlights the matching day in the grid.
 
 ## Outline structure
 
-The extension keeps your dated notes under a top-level `Calendar` row:
+By default new dated notes are generated at the top of your outline:
 
-    Calendar
-    └─ 2026
-       └─ April 2026
-          └─ Monday, April 27, 2026
-             └─ <your notes here>
+    2026
+    └─ April 2026
+       └─ Monday, April 27, 2026
+          └─ <your notes here>
 
 Rows are created on demand — picking April 27 only creates the rows above it
 that do not yet exist, and inserts them in chronological order among their
-siblings. Existing day rows are reused, never duplicated.
+siblings. Existing rows are reused, never moved or duplicated.
+
+**Location follows your structure.** When a date row is needed, the extension
+first reuses the exact row if it exists, otherwise creates it under its parent
+level (a day under its month, a month under its year). The top level (year, or
+the coarsest level you've enabled) joins any existing rows of that level
+wherever they already are, falling back to the document root. So to keep your
+calendar somewhere specific — say under a `Calendar` row — just move it there
+once, and new rows will be generated in that location from then on.
 
 Each calendar row carries a stable `persistentId` of the form `YYYY/MM/DD`
-(`YYYY/MM/00` for months, `YYYY/00/00` for years, `calendar` for the root).
-This is what links the calendar UI to outline rows, so you can freely edit
-the visible text of any year, month, or day row without breaking anything.
+(`YYYY/MM/00` for months, `YYYY/00/00` for years). This is what links the
+calendar UI to outline rows, so you can freely edit the visible text of any
+year, month, or day row without breaking anything.
 
 ## Commands
 
 - `calendar:today` — jump to today, create the day row if missing, and place
   the cursor at its first child.
-- `calendar:month` — open the current month and pre-create every day in it.
-- `calendar:year` — open the current year and pre-create every month and
-  every day in it.
+- `calendar:month` — pre-create every day in the current month.
+- `calendar:year` — pre-create every day in the current year.
+
+These generate every day of the period regardless of which levels are enabled;
+the days are injected at whatever nesting Year/Month produce, and the cursor
+lands in the nearest enabled container (month, year, or the document root).
 
 Run them from the command palette, or bind keyboard shortcuts to them in
 Bike's keybindings.
@@ -50,17 +60,24 @@ Bike's keybindings.
 Open Bike's Settings and choose the **Calendar** pane.
 
 - **Show week numbers** — toggle the week-number column in the calendar grid.
-- **Year / Month / Day format** — controls the visible text of year, month,
-  and day rows. Each field accepts either:
-  - a [date-fns format string](https://date-fns.org/docs/format) — e.g.
-    `yyyy`, `yyyy-MM-dd`, `MMMM d`
-  - a JSON `Intl.DateTimeFormat` options object — e.g.
-    `{"year":"numeric","month":"long"}`, `{"dateStyle":"long"}`
+- **Year / Month / Day** — the text for each level's rows. Put the date in a
+  single `{ … }` span; everything outside the span is markdown.
+  - The contents of `{ … }` are parsed as JSON: a valid object is used as
+    [`Intl.DateTimeFormat` options](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat#using_options)
+    (e.g. `{"dateStyle":"long"}`); otherwise the text inside is a
+    [date-fns pattern](https://date-fns.org/docs/format) (e.g. `{ yyyy }`,
+    `{ MMMM d }`).
+  - Markdown outside the span formats the row: a leading `#`/`##` makes it a
+    heading, `**…**` makes it bold. For example `# { yyyy }` renders the year as
+    a heading and `**{"dateStyle":"long"}**` renders the day in bold.
+- **Include checkbox** (Year and Month) — when unchecked, that level's row is
+  not created. Day is always included. Uncheck both Year and Month for a flat
+  list of days; uncheck only Month for years with days directly under them.
 
 Defaults:
 
 | Field | Default                             | Example                |
 |-------|-------------------------------------|------------------------|
-| Year  | `yyyy`                              | 2026                   |
+| Year  | `{ yyyy }`                          | 2026                   |
 | Month | `{"year":"numeric","month":"long"}` | April 2026             |
 | Day   | `{"dateStyle":"long"}`              | Monday, April 27, 2026 |

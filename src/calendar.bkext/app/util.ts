@@ -34,9 +34,6 @@ export function getDateComponents(date: Date): {
   yearId: string
   monthId: string
   dayId: string
-  yearName: string
-  monthName: string
-  dayName: string
 } {
   const year = date.getFullYear()
   const yearId = `${year}/00/00`
@@ -45,20 +42,5 @@ export function getDateComponents(date: Date): {
     date.getDate()
   ).padStart(2, '0')}`
 
-  const yearName = formatWith(date, "yearNameFormat")
-  const monthName = formatWith(date, "monthNameFormat")
-  const dayName = formatWith(date, "dayNameFormat")
-
-  return { yearName, yearId, monthName, monthId, dayName, dayId}
-}
-
-function formatWith(date: Date, key: string): string {
-  const format = bike.defaults.get(key)
-  if (typeof format === 'string') {
-    return bike.formatDate(date, format)
-  }
-  if (typeof format === 'object' && !Array.isArray(format)) {
-    return new Intl.DateTimeFormat(bike.systemLocale, format as Intl.DateTimeFormatOptions).format(date)
-  }
-  return date.toLocaleDateString(bike.systemLocale)
+  return { yearId, monthId, dayId }
 }

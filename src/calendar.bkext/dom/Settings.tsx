@@ -1,35 +1,85 @@
 import { DOMExtensionContext } from 'bike/dom'
 import { JSONValue } from 'bike/core'
-import { Checkbox, Disclosure, FormRow, FormGroup } from 'bike/components'
+import { Box, Checkbox, Disclosure, FormRow, FormGroup } from 'bike/components'
 import { createRoot } from 'react-dom/client'
 import { useState } from 'react'
-import { calendarDefaults } from './protocols'
+import { calendarDefaults, substituteDate } from './protocols'
 
-type FormatKey = keyof typeof calendarDefaults
+type FormatKey = 'yearNameFormat' | 'monthNameFormat' | 'dayNameFormat'
+type EnableKey = 'yearEnabled' | 'monthEnabled'
 
 export function activate(context: DOMExtensionContext) {
   createRoot(context.element).render(<SettingsPanel />)
 }
 
 function SettingsPanel() {
+  const [yearEnabled, setYearEnabled] = useState(() => bike.defaults.get('yearEnabled') !== false)
+  const [monthEnabled, setMonthEnabled] = useState(() => bike.defaults.get('monthEnabled') !== false)
+
+  function toggle(key: EnableKey, set: (value: boolean) => void) {
+    return (checked: boolean) => {
+      set(checked)
+      bike.defaults.set(key, checked)
+    }
+  }
+
+  // Indent each preview by the number of enabled levels above it, mirroring the
+  // generated outline nesting.
+  const aboveMonth = yearEnabled ? 1 : 0
+  const aboveDay = (yearEnabled ? 1 : 0) + (monthEnabled ? 1 : 0)
+
   return (
     <Disclosure label="Calendar" defaultExpanded>
       <WeekNumbersRow />
-      <ul>
-        <li>Date format patterns used to generate row text.</li>
-        <li>Use format <a href="https://date-fns.org/docs/format">patterns</a> or JSON encoded Intl.DateTimeFormat <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat#using_options">options</a>.</li>
-        <li>Patterns are used when creating new rows, existing rows will not change.</li>
-      </ul>
-      <FormGroup>
-        <FormatRow label="Year" formatKey="yearNameFormat" />
-        <FormatRow label="Month" formatKey="monthNameFormat" />
-        <FormatRow label="Day" formatKey="dayNameFormat" />
-      </FormGroup>
+
+      <Box label="Row templates">
+        <FormGroup>
+          <FormatRow
+            label="Year"
+            formatKey="yearNameFormat"
+            enabled={yearEnabled}
+            onToggle={toggle('yearEnabled', setYearEnabled)}
+            indent={0}
+          />
+          <FormatRow
+            label="Month"
+            formatKey="monthNameFormat"
+            enabled={monthEnabled}
+            onToggle={toggle('monthEnabled', setMonthEnabled)}
+            indent={aboveMonth}
+          />
+          <FormatRow label="Day" formatKey="dayNameFormat" enabled indent={aboveDay} />
+        </FormGroup>
+
+        <p>
+          Put the date in a date-fns <a href="https://date-fns.org/docs/format">pattern</a> like{' '}
+          <code>{'{ yyyy }'}</code>, or JSON Intl.DateTimeFormat{' '}
+          <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat#using_options">options</a>{' '}
+          like <code>{'{"dateStyle":"long"}'}</code>. Markdown outside the braces sets the row —{' '}
+          <code>{'# { yyyy }'}</code> is a heading.
+        </p>
+        <p>
+          Uncheck Year or Month for a flat structure. New rows are added beside existing ones — at the top of your outline by default, or wherever you move them.
+        </p>
+      </Box>
+
     </Disclosure>
   )
 }
 
-function FormatRow({ label, formatKey }: { label: string; formatKey: FormatKey }) {
+function FormatRow({
+  label,
+  formatKey,
+  enabled,
+  onToggle,
+  indent,
+}: {
+  label: string
+  formatKey: FormatKey
+  enabled: boolean
+  onToggle?: (checked: boolean) => void
+  indent: number
+}) {
   const [value, setValue] = useState(() => readDisplay(formatKey))
   const defaultDisplay = displayValue(calendarDefaults[formatKey])
 
@@ -38,24 +88,46 @@ function FormatRow({ label, formatKey }: { label: string; formatKey: FormatKey }
     if (input === '') {
       bike.defaults.delete(formatKey)
     } else {
-      try {
-        bike.defaults.set(formatKey, parseInput(input))
-      } catch {
-        // Don't store invalid JSON objects while user is still typing
-      }
+      // The field is stored verbatim; the date spec inside `{ … }` is parsed
+      // when rows are generated, not here.
+      bike.defaults.set(formatKey, input)
     }
   }
 
+  const dim = { opacity: enabled ? 1 : 0.5 }
+
   return (
-    <FormRow label={label}>
-      <input
-        type="text"
-        value={value}
-        placeholder={defaultDisplay}
-        onChange={(e) => onChange(e.target.value)}
-        autoCorrect="off" autoComplete="off" spellCheck={false} autoCapitalize="off"
-      />
-      <Preview>{preview(value, defaultDisplay)}</Preview>
+    <FormRow label={<span style={dim}>{label}</span>} style={{ alignItems: 'center' }}>
+      <span style={{ display: 'flex', alignItems: 'center' }}>
+        {/* Fixed-width slot (reserved even for the disabled Day checkbox) so
+            every text field shares the same leading edge; trailing margin = gap. */}
+        <span
+          style={{
+            flex: '0 0 auto',
+            display: 'inline-flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '20px',
+            marginRight: '8px',
+          }}
+        >
+          {onToggle ? (
+            <Checkbox checked={enabled} onChange={(e) => onToggle(e.target.checked)} />
+          ) : (
+            // Day is always included — show it checked but disabled.
+            <Checkbox checked disabled readOnly />
+          )}
+        </span>
+        <input
+          type="text"
+          value={value}
+          placeholder={defaultDisplay}
+          onChange={(e) => onChange(e.target.value)}
+          style={dim}
+          autoCorrect="off" autoComplete="off" spellCheck={false} autoCapitalize="off"
+        />
+        {enabled && <Preview indent={indent}>{preview(value, defaultDisplay)}</Preview>}
+      </span>
     </FormRow>
   )
 }
@@ -75,18 +147,19 @@ function WeekNumbersRow() {
   )
 }
 
-function Preview({ children }: { children: React.ReactNode }) {
-  return <span style={{ color: 'var(--secondary-label)', marginLeft: '6px' }}>{children}</span>
+function Preview({ children, indent = 0 }: { children: React.ReactNode; indent?: number }) {
+  // 6px gap from the field + one indent step per enabled ancestor level.
+  return (
+    <span style={{ color: 'var(--secondary-label)', marginLeft: `${6 + indent * 16}px` }}>
+      {children}
+    </span>
+  )
 }
 
 function preview(value: string, defaultValue: string): string {
   const raw = value || defaultValue
-  const now = new Date()
   try {
-    if (raw.trimStart().startsWith('{')) {
-      return new Intl.DateTimeFormat(bike.systemLocale, JSON.parse(raw)).format(now)
-    }
-    return bike.formatDate(now, raw)
+    return substituteDate(new Date(), raw)
   } catch {
     return '(invalid format)'
   }
@@ -105,12 +178,4 @@ function readDisplay(key: FormatKey): string {
   if (value === undefined) return ''
   if (JSON.stringify(value) === JSON.stringify(calendarDefaults[key])) return ''
   return displayValue(value)
-}
-
-/** Parse user input for storage: text starting with { is parsed as an object, otherwise stored as a string. */
-function parseInput(input: string): JSONValue {
-  if (input.trimStart().startsWith('{')) {
-    return JSON.parse(input)
-  }
-  return input
 }
