@@ -1,6 +1,6 @@
 import { DOMExtensionContext } from 'bike/dom'
 import { JSONValue } from 'bike/core'
-import { Box, Checkbox, Disclosure, FormRow, FormGroup } from 'bike/components'
+import { Box, Checkbox, Disclosure, FormRow, FormGroup, SFSymbol } from 'bike/components'
 import { createRoot } from 'react-dom/client'
 import { useState } from 'react'
 import { calendarDefaults, substituteDate } from './protocols'
@@ -59,7 +59,7 @@ function SettingsPanel() {
             onToggle={toggle('monthEnabled', setMonthEnabled)}
             indent={aboveMonth}
           />
-          <FormatRow label="Day" formatKey="dayNameFormat" enabled indent={aboveDay} />
+          <FormatRow label="Day" formatKey="dayNameFormat" enabled indent={aboveDay} deepest />
         </FormGroup>
       </Box>
 
@@ -73,12 +73,14 @@ function FormatRow({
   enabled,
   onToggle,
   indent,
+  deepest = false,
 }: {
   label: string
   formatKey: FormatKey
   enabled: boolean
   onToggle?: (checked: boolean) => void
   indent: number
+  deepest?: boolean
 }) {
   const [value, setValue] = useState(() => readDisplay(formatKey))
   const defaultDisplay = displayValue(calendarDefaults[formatKey])
@@ -126,7 +128,7 @@ function FormatRow({
           style={dim}
           autoCorrect="off" autoComplete="off" spellCheck={false} autoCapitalize="off"
         />
-        {enabled && <Preview indent={indent}>{preview(value, defaultDisplay)}</Preview>}
+        {enabled && <Preview indent={indent} deepest={deepest}>{preview(value, defaultDisplay)}</Preview>}
       </span>
     </FormRow>
   )
@@ -147,10 +149,29 @@ function WeekNumbersRow() {
   )
 }
 
-function Preview({ children, indent = 0 }: { children: React.ReactNode; indent?: number }) {
-  // 6px gap from the field + one indent step per enabled ancestor level.
+function Preview({
+  children,
+  indent = 0,
+  deepest = false,
+}: {
+  children: React.ReactNode
+  indent?: number
+  deepest?: boolean
+}) {
+  // 6px gap from the field + one indent step per enabled ancestor level. The
+  // disclosure triangle mimics a Bike row: leaf rows point forward (collapsed),
+  // rows with generated children below point down (expanded).
   return (
-    <span style={{ color: 'var(--secondary-label)', marginLeft: `${6 + indent * 16}px` }}>
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        color: 'var(--secondary-label)',
+        marginLeft: `${6 + indent * 16}px`,
+      }}
+    >
+      <SFSymbol name={deepest ? 'arrowtriangle.forward' : 'arrowtriangle.down'} scale="small" />
       {children}
     </span>
   )
