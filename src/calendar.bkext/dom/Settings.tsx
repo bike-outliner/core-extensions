@@ -32,7 +32,18 @@ function SettingsPanel() {
     <Disclosure label="Calendar" defaultExpanded>
       <WeekNumbersRow />
 
-      <Box label="Row templates">
+      <Box>
+        <p>
+          Format patterns used to generate calendar rows:
+        </p>
+
+        <ul>
+          <li>Include date <code>{'{'}</code> <a href="https://date-fns.org/docs/format">pattern</a> <code>{'}'}</code> or JSON Intl.DateTimeFormat{' '}
+          <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat#using_options">options</a>.</li>
+          <li>Use markdown outside the braces for row formatting — <code>{'# { yyyy }'}</code> is a heading.</li>
+          <li>Uncheck Year or Month if you want the calendar to skip those levels.</li>
+        </ul>
+
         <FormGroup>
           <FormatRow
             label="Year"
@@ -50,17 +61,6 @@ function SettingsPanel() {
           />
           <FormatRow label="Day" formatKey="dayNameFormat" enabled indent={aboveDay} />
         </FormGroup>
-
-        <p>
-          Put the date in a date-fns <a href="https://date-fns.org/docs/format">pattern</a> like{' '}
-          <code>{'{ yyyy }'}</code>, or JSON Intl.DateTimeFormat{' '}
-          <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat#using_options">options</a>{' '}
-          like <code>{'{"dateStyle":"long"}'}</code>. Markdown outside the braces sets the row —{' '}
-          <code>{'# { yyyy }'}</code> is a heading.
-        </p>
-        <p>
-          Uncheck Year or Month for a flat structure. New rows are added beside existing ones — at the top of your outline by default, or wherever you move them.
-        </p>
       </Box>
 
     </Disclosure>
