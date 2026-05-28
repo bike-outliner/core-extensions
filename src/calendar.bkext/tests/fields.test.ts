@@ -21,6 +21,23 @@ describe("substituteDate", () => {
     it("treats text with no { } as literal (no date)", () => {
         assert.equal(substituteDate(date, "yyyy"), "yyyy")
     })
+
+    describe("escapeMarkdown (row-generation path)", () => {
+        // `{ d. }` -> "26." reproduces, locale-independently, the leading marker
+        // that German `dateStyle:long` ("28. Mai 2026") emits.
+        it("escapes a leading ordered-list marker in the formatted date", () => {
+            assert.equal(substituteDate(date, "{ d. }", { escapeMarkdown: true }), "26\\.")
+        })
+
+        it("leaves the date verbatim when not escaping (preview path)", () => {
+            assert.equal(substituteDate(date, "{ d. }"), "26.")
+        })
+
+        it("escapes only the date span, never the author's template markup", () => {
+            // The "# " is the user's heading marker (outside the braces) and must survive.
+            assert.equal(substituteDate(date, "# { yyyy }", { escapeMarkdown: true }), "# 2026")
+        })
+    })
 })
 
 describe("row generation", () => {
@@ -118,4 +135,10 @@ describe("markdown sets the row type on insert", () => {
     it("1. is ordered", () => assert.equal(dayTypeFor("1. { yyyy }"), "ordered"))
     it("- is unordered", () => assert.equal(dayTypeFor("- { yyyy }"), "unordered"))
     it("plain is body", () => assert.equal(dayTypeFor("{ yyyy }"), "body"))
+
+    // A leading marker that comes from the formatted date itself (not the
+    // template) must NOT change the row type — the German `28. Mai 2026` bug.
+    it("a date whose own text starts with a number is body, not ordered", () => {
+        assert.equal(dayTypeFor("{ d. MMMM yyyy }"), "body")
+    })
 })

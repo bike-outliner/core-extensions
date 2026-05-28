@@ -180,7 +180,10 @@ function Preview({
 function preview(value: string, defaultValue: string): string {
   const raw = value || defaultValue
   try {
-    return substituteDate(new Date(), raw)
+    // Mirror the row-generation path: escape so the preview shows the exact
+    // markdown that gets inserted (e.g. German `28\. Mai 2026`), matching how
+    // it already surfaces author markers like `# 2026` literally.
+    return substituteDate(new Date(), raw, { escapeMarkdown: true })
   } catch {
     return '(invalid format)'
   }

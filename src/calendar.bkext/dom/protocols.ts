@@ -49,15 +49,46 @@ function formatSpec(date: Date, span: unknown): string {
 }
 
 /**
+ * Neutralize a leading markdown block marker in formatted date *data* so it
+ * can't turn a generated row into a list/heading/quote. Only the date span is
+ * escaped — author markup around it (e.g. a leading `# `) is left intact. The
+ * motivating case: a locale whose long date style starts with the day number,
+ * like German `28. Mai 2026`, whose `28. ` reads as an ordered-list marker.
+ * A backslash escape is harmless if the span ends up mid-line.
+ */
+function escapeLeadingBlockMarker(s: string): string {
+  // Ordered list: digits + "." or ")" followed by a space or end of line.
+  const ordered = s.match(/^(\s*)(\d+)([.)])(?=\s|$)/)
+  if (ordered) {
+    return `${ordered[1]}${ordered[2]}\\${ordered[3]}${s.slice(ordered[0].length)}`
+  }
+  // Heading "#", quote ">", or bullet "-" / "*" / "+".
+  const block = s.match(/^(\s*)([#>+*-])(?=\s|$)/)
+  if (block) {
+    return `${block[1]}\\${block[2]}${s.slice(block[0].length)}`
+  }
+  return s
+}
+
+/**
  * Substitute the formatted date into a field value, keeping surrounding text
  * and markdown. The date lives in a single `{ … }` span — `{ yyyy }` (date-fns)
  * or `{"dateStyle":"long"}` (JSON Intl options). A field with no `{ … }` span is
  * treated as literal text (no date).
+ *
+ * Pass `{ escapeMarkdown: true }` when the result is inserted as markdown (row
+ * generation), so the formatted date can't inject block structure; leave it off
+ * for display (the settings preview), which wants the date verbatim.
  */
-export function substituteDate(date: Date, rawValue: unknown): string {
-  // Legacy: a stored Intl options object.
+export function substituteDate(
+  date: Date,
+  rawValue: unknown,
+  options: { escapeMarkdown?: boolean } = {}
+): string {
+  const escape = options.escapeMarkdown ? escapeLeadingBlockMarker : (s: string) => s
+  // Legacy: a stored Intl options object — the whole value is the date.
   if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
-    return formatSpec(date, rawValue)
+    return escape(formatSpec(date, rawValue))
   }
   const field = String(rawValue ?? '')
   const open = field.indexOf('{')
@@ -65,7 +96,7 @@ export function substituteDate(date: Date, rawValue: unknown): string {
   if (open < 0 || close <= open) {
     return field
   }
-  const formatted = formatSpec(date, field.slice(open, close + 1))
+  const formatted = escape(formatSpec(date, field.slice(open, close + 1)))
   return field.slice(0, open) + formatted + field.slice(close + 1)
 }
 

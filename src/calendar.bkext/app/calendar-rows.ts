@@ -55,7 +55,9 @@ function ensureRow(outline: Outline, date: Date, level: Level): Row {
     const again = outline.getRowById(id)
     if (again) return again
     const parent = parentRow(outline, date, level)
-    const text = substituteDate(date, bike.defaults.get(FIELD_KEY[level]))
+    const text = substituteDate(date, bike.defaults.get(FIELD_KEY[level]), {
+      escapeMarkdown: true,
+    })
     return insertDateRow(outline, id, text, parent)
   })
 }
