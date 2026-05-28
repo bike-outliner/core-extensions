@@ -1,5 +1,5 @@
 import { Color, EditorStyle } from 'bike/style'
-import { computeValues } from './util'
+import { computeValues, symbolImage } from './util'
 import { underlineHighlight, dropLine } from './style-helpers'
 
 export function registerInteractionLayers(style: EditorStyle) {
@@ -48,6 +48,33 @@ export function registerInteractionLayers(style: EditorStyle) {
       let colors = context.theme.colors
       text.underline.thick = true
       text.underline.color = colors.accent
+    })
+
+    // A selected newline (the gap between two rows) draws a thin pilcrow sliver
+    // just past the end of the upstream row. Uses a row-text decoration at the
+    // last line's trailing edge so it also renders when the row is empty (where
+    // a run decoration would have nothing to attach to).
+    row(`.selected-newline() = upstream`, (context, row) => {
+      let values = computeValues(context)
+      let colors = context.theme.colors
+      let selection = context.isKey
+        ? colors.textBackgroundSelected
+        : colors.contentBackgroundSelectedUnemphasized
+
+      row.text.decoration('selectedNewline', (sel, layout) => {
+        sel.zPosition = -2
+        sel.anchor.x = 0
+        sel.anchor.y = 0
+        sel.x = layout.lastLine.trailing
+        sel.y = layout.lastLine.top
+        sel.width = layout.fixed(values.fontAttributes.xWidth)
+        sel.height = layout.lastLine.height
+        sel.color = selection
+        sel.corners.radius = 3 * values.uiScale
+        sel.mergable = false
+        sel.contents.image = symbolImage('paragraphsign', colors.caret, values.font)
+        sel.contents.gravity = 'resizeAspect'
+      })
     })
 
     run(`.@view-marked-range`, (context, text) => {
