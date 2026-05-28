@@ -19,10 +19,6 @@
       }
     },
     "sidebar": {
-      "fill": {
-        "type": "system",
-        "style": "header"
-      }
     },
     "editorPane": {
       "fill": "textBackground",
@@ -32,33 +28,22 @@
       }
     },
     "editorToolbar": {
-      "fill": {
-        "type": "system",
-        "style": "header"
-      },
+      "fill": "textBackground",
       "borders": {
         "bottom": "$themeSecondarDivider"
       }
     },
     "editor": {},
     "editorPanel": {
-      "fill": {
-        "type": "system",
-        "style": "header"
-      },
       "borders": {
         "top": "$themeSecondarDivider"
       }
     },
     "editorStatusBar": {
-      "fill": {
-        "type": "system",
-        "style": "header"
-      },
+      "fill": "textBackground",
       "borders": {
         "top": "$themeSecondarDivider"
       }
-    },
-    "sidebar": {}
+    }
   }
 }
