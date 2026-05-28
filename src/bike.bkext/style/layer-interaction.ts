@@ -1,4 +1,4 @@
-import { Color, EditorStyle } from 'bike/style'
+import { Color, Text, Image, EditorStyle } from 'bike/style'
 import { computeValues, symbolImage } from './util'
 import { underlineHighlight, dropLine } from './style-helpers'
 
@@ -80,6 +80,23 @@ export function registerInteractionLayers(style: EditorStyle) {
     run(`.@view-marked-range`, (context, text) => {
       text.underline.thick = true
       text.underline.color = context.theme.colors.textBackgroundSelected
+    })
+
+    // Invisibles: a space inside a text selection draws a faint glyph over the
+    // (otherwise blank) character so the user can see exactly what they've
+    // selected. The Swift side tags each selected space with
+    // `view-selected-space` (one run per char).
+    run(`.@view-selected-space`, (context, text) => {
+      let values = computeValues(context)
+      let colors = context.theme.colors
+      text.decoration('invisibleSpace', (glyph, layout) => {
+        glyph.anchor.x = 0
+        glyph.anchor.y = 0
+        glyph.x = layout.leading
+        glyph.y = layout.top
+        glyph.contents.image = Image.fromText(new Text('·', values.font, colors.caret))
+        glyph.contents.gravity = 'center'
+      })
     })
   })
 
