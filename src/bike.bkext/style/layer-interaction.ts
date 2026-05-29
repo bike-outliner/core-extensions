@@ -67,7 +67,7 @@ export function registerInteractionLayers(style: EditorStyle) {
         sel.anchor.y = 0
         sel.x = layout.lastLine.trailing
         sel.y = layout.lastLine.top
-        sel.width = layout.fixed(values.fontAttributes.xWidth)
+        sel.width = layout.fixed(values.fontAttributes.xWidth * 1.25)
         sel.height = layout.lastLine.height
         sel.color = selection
         sel.corners.radius = 3 * values.uiScale
