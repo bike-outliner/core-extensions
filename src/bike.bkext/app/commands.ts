@@ -17,11 +17,20 @@ export function clickFocusCommand(context: CommandContext): boolean {
   let editor = context.editor
   let row = context.selection?.row
   if (!editor || !row) return false
-  if (editor.focus.id === row.id) {
-    editor.focusOut()
-  } else {
-    editor.focus = row
-  }
+  // Clicking the focus decoration is a direct gesture — opt into the focus
+  // animation (navigation spring + sliding caret). Uses editor.transaction
+  // (not outline.transaction) so the named 'navigation' spring resolves;
+  // focus/location changes are immediate everywhere else.
+  editor.transaction(
+    { animate: { spring: 'navigation', caret: 'slideWithRow' } },
+    () => {
+      if (editor.focus.id === row.id) {
+        editor.focusOut()
+      } else {
+        editor.focus = row
+      }
+    }
+  )
   return true
 }
 

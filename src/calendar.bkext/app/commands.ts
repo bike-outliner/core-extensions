@@ -4,7 +4,7 @@ import { getDayRow, getMonthRow, getYearRow } from './calendar-rows'
 export function yearCommand(context: CommandContext): boolean {
   let editor = context.editor
   if (!editor) return true
-  editor.outline.transaction({ animate: 'default' }, () => {
+  editor.outline.transaction({ animate: 'none' }, () => {
     let outline = editor.outline
     // Always generate the whole year's days; they're injected at whatever
     // nesting the enabled levels produce. `yearRow` is the year row when shown,
@@ -19,7 +19,7 @@ export function yearCommand(context: CommandContext): boolean {
 export function monthCommand(context: CommandContext): boolean {
   let editor = context.editor
   if (!editor) return true
-  editor.outline.transaction({ animate: 'default' }, () => {
+  editor.outline.transaction({ animate: 'none' }, () => {
     let outline = editor.outline
     // Always generate the whole month's days, injected at the enabled nesting.
     let monthRow = getMonthRow(outline, new Date())
@@ -32,7 +32,7 @@ export function monthCommand(context: CommandContext): boolean {
 export function todayCommand(context: CommandContext): boolean {
   let editor = context.editor
   if (!editor) return true
-  editor.outline.transaction({ animate: 'default' }, () => {
+  editor.outline.transaction({ animate: 'none' }, () => {
     let outline = editor.outline
     let todayRow = getDayRow(outline, new Date())
     if (!todayRow.firstChild) {

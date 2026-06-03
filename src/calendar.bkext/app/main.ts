@@ -45,12 +45,16 @@ export async function activate(context: AppExtensionContext) {
 
       if (editor && message.type === 'dateChange' && message.date) {
         let outline = editor.outline
-        let dateRow = getDayRow(editor.outline, new Date(message.date))
-        if (!dateRow.firstChild) {
-          outline.insertRows([{}], dateRow)
-        }
-        editor.focus = dateRow
-        editor.selectCaret(dateRow.firstChild!, 0)
+        // Clicking a date in the calendar panel is indirect navigation —
+        // commit immediately (no spring) so the focus jump doesn't slide.
+        outline.transaction({ animate: 'none' }, () => {
+          let dateRow = getDayRow(editor.outline, new Date(message.date))
+          if (!dateRow.firstChild) {
+            outline.insertRows([{}], dateRow)
+          }
+          editor.focus = dateRow
+          editor.selectCaret(dateRow.firstChild!, 0)
+        })
       }
     }
 
