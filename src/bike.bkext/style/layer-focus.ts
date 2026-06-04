@@ -70,16 +70,4 @@ export function registerFocusLayers(style: EditorStyle) {
       })
     }
   })
-
-  style.layer('filter-match', (row, run, caret, viewport, include) => {
-    row(`.filter-match() = false and filter-match-ancestor() = false and selection() = null`, (context, row) => {
-      if (context.isFiltering) {
-        row.text.scale = 0.25
-        row.text.margin.left *= 0.5
-        row.decorations((each, _) => {
-          each.opacity = 0
-        })
-      }
-    })
-  })
 }

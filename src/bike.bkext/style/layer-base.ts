@@ -24,8 +24,9 @@ export function registerBaseLayer(style: EditorStyle) {
         caret.loadedAttributesFont = values.font.withPointSize(pointSize * 0.6)
         caret.loadedAttributesColor = Color.white()
       } else {
+        caret.color = colors.contentBackgroundSelectedUnemphasized.alphaMultiplied(2)
+        caret.width = 2 * values.uiScale
         caret.blinkStyle = 'none'
-        caret.color = colors.contentBackgroundSelectedUnemphasized.alphaMultiplied(1.5)
         caret.lineColor = context.settings.showCaretLine ? colors.contentBackgroundSelectedUnemphasized.alphaMultiplied(0.5) : Color.clear()
       }
     })
