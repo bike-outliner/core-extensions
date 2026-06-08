@@ -118,6 +118,11 @@ export function registerInteractionLayers(style: EditorStyle) {
     })
 
     run(`.@view-find-current or @view-check-current`, (context, run) => {
+      // While the editor itself is focused, fall back to the standard text-selection
+      // appearance — the bright "current match" highlight is only for when an external
+      // UI (Find panel, Check panel, Filter field) is driving and owns focus.
+      if (context.isKey) return
+
       let colors = context.theme.colors
       let values = computeValues(context)
       let uiScale = values.uiScale
