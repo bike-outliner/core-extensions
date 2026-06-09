@@ -18,9 +18,49 @@ var extensionExports = { activate: function (context) {
         );
       } catch (e) { context.postMessage({ id: msg.id, error: String((e && e.message) || e) }); }
     } else if (msg.type === 'observe') {
-      bike.session.observeOutline(msg.params, function (doc) {
+      bike.session.observeOutlineQuery(msg.params, function (doc) {
         var n = (doc && doc.root && doc.root.children) ? doc.root.children.length : -1;
         context.postMessage({ id: msg.id, snapshot: n });
+      }).then(
+        function (sub) { subs[msg.id] = sub; context.postMessage({ id: msg.id, value: { subscribed: true } }); },
+        function (err) { context.postMessage({ id: msg.id, error: String((err && err.message) || err) }); }
+      );
+    } else if (msg.type === 'observeChanges') {
+      bike.session.observeOutlineChanges(msg.params, function (event) {
+        context.postMessage({ id: msg.id, event: event.type });
+      }).then(
+        function (sub) { subs[msg.id] = sub; context.postMessage({ id: msg.id, value: { subscribed: true } }); },
+        function (err) { context.postMessage({ id: msg.id, error: String((err && err.message) || err) }); }
+      );
+    } else if (msg.type === 'observeTree') {
+      bike.session.observeOutline(msg.params, function (doc, changes) {
+        var n = (doc && doc.root && doc.root.children) ? doc.root.children.length : -1;
+        context.postMessage({ id: msg.id, tree: n, changes: changes.length });
+      }).then(
+        function (sub) { subs[msg.id] = sub; context.postMessage({ id: msg.id, value: { subscribed: true } }); },
+        function (err) { context.postMessage({ id: msg.id, error: String((err && err.message) || err) }); }
+      );
+    } else if (msg.type === 'observeEditor') {
+      bike.session.observeEditor(msg.params, function (editor) {
+        context.postMessage({ id: msg.id, editor: { head: editor && editor.selection ? editor.selection.head : null, focused: editor ? editor.focused.length : 0 } });
+      }).then(
+        function (sub) { subs[msg.id] = sub; context.postMessage({ id: msg.id, value: { subscribed: true } }); },
+        function (err) { context.postMessage({ id: msg.id, error: String((err && err.message) || err) }); }
+      );
+    } else if (msg.type === 'observeEditorChanges') {
+      bike.session.observeEditorChanges(msg.params, function (event) {
+        context.postMessage({ id: msg.id, editorEvent: event.type });
+      }).then(
+        function (sub) { subs[msg.id] = sub; context.postMessage({ id: msg.id, value: { subscribed: true } }); },
+        function (err) { context.postMessage({ id: msg.id, error: String((err && err.message) || err) }); }
+      );
+    } else if (msg.type === 'observeEditorOutline') {
+      bike.session.observeEditor({ outline: true }, function (editor, outline, changes) {
+        var ids = [];
+        if (outline && outline.root) (function walk(r) { ids.push(r.id); (r.children || []).forEach(walk); })(outline.root);
+        var head = editor && editor.selection ? editor.selection.head : null;
+        // headInOutline encodes the invariant: a maintained selection.head is always a live row.
+        context.postMessage({ id: msg.id, editor: { head: head, headInOutline: head == null || ids.indexOf(head) !== -1, ids: ids } });
       }).then(
         function (sub) { subs[msg.id] = sub; context.postMessage({ id: msg.id, value: { subscribed: true } }); },
         function (err) { context.postMessage({ id: msg.id, error: String((err && err.message) || err) }); }
@@ -50,10 +90,34 @@ describe("bike.session DOM API", () => {
 
     const pending = new Map<number, (m: any) => void>()
     const snaps = new Map<number, (n: number) => void>()
+    const events = new Map<number, (e: string) => void>()
+    const trees = new Map<number, (m: any) => void>()
+    const editorCbs = new Map<number, (e: any) => void>()
+    const editorEventCbs = new Map<number, (t: string) => void>()
     handle.onmessage = (m: any) => {
+      if (typeof m.editorEvent === "string") {
+        const cb = editorEventCbs.get(m.id)
+        if (cb) cb(m.editorEvent)
+        return
+      }
       if (typeof m.snapshot === "number") {
         const cb = snaps.get(m.id)
         if (cb) cb(m.snapshot)
+        return
+      }
+      if (typeof m.event === "string") {
+        const cb = events.get(m.id)
+        if (cb) cb(m.event)
+        return
+      }
+      if (typeof m.tree === "number") {
+        const cb = trees.get(m.id)
+        if (cb) cb(m)
+        return
+      }
+      if (m.editor !== undefined) {
+        const cb = editorCbs.get(m.id)
+        if (cb) cb(m.editor)
         return
       }
       const resolve = pending.get(m.id)
@@ -80,6 +144,56 @@ describe("bike.session DOM API", () => {
             dispose: () => handle.postMessage({ type: "dispose", subId: id, id: nextId++ }),
           })))
           handle.postMessage({ type: "observe", id, params })
+        })
+      },
+      observeChanges(params: any, onEvent: (e: string) => void): Promise<{ dispose: () => void }> {
+        const id = nextId++
+        events.set(id, onEvent)
+        return new Promise((resolve, reject) => {
+          pending.set(id, (m) => (m.error !== undefined ? reject(new Error(m.error)) : resolve({
+            dispose: () => handle.postMessage({ type: "dispose", subId: id, id: nextId++ }),
+          })))
+          handle.postMessage({ type: "observeChanges", id, params })
+        })
+      },
+      observeTree(params: any, onUpdate: (m: { tree: number; changes: number }) => void): Promise<{ dispose: () => void }> {
+        const id = nextId++
+        trees.set(id, onUpdate)
+        return new Promise((resolve, reject) => {
+          pending.set(id, (m) => (m.error !== undefined ? reject(new Error(m.error)) : resolve({
+            dispose: () => handle.postMessage({ type: "dispose", subId: id, id: nextId++ }),
+          })))
+          handle.postMessage({ type: "observeTree", id, params })
+        })
+      },
+      observeEditor(params: any, onSnap: (e: { head: number | null; focused: number }) => void): Promise<{ dispose: () => void }> {
+        const id = nextId++
+        editorCbs.set(id, onSnap)
+        return new Promise((resolve, reject) => {
+          pending.set(id, (m) => (m.error !== undefined ? reject(new Error(m.error)) : resolve({
+            dispose: () => handle.postMessage({ type: "dispose", subId: id, id: nextId++ }),
+          })))
+          handle.postMessage({ type: "observeEditor", id, params })
+        })
+      },
+      observeEditorChanges(params: any, onEvent: (t: string) => void): Promise<{ dispose: () => void }> {
+        const id = nextId++
+        editorEventCbs.set(id, onEvent)
+        return new Promise((resolve, reject) => {
+          pending.set(id, (m) => (m.error !== undefined ? reject(new Error(m.error)) : resolve({
+            dispose: () => handle.postMessage({ type: "dispose", subId: id, id: nextId++ }),
+          })))
+          handle.postMessage({ type: "observeEditorChanges", id, params })
+        })
+      },
+      observeEditorOutline(onSync: (s: { head: number | null; headInOutline: boolean; ids: number[] }) => void): Promise<{ dispose: () => void }> {
+        const id = nextId++
+        editorCbs.set(id, onSync as any)
+        return new Promise((resolve, reject) => {
+          pending.set(id, (m) => (m.error !== undefined ? reject(new Error(m.error)) : resolve({
+            dispose: () => handle.postMessage({ type: "dispose", subId: id, id: nextId++ }),
+          })))
+          handle.postMessage({ type: "observeEditorOutline", id })
         })
       },
     }
@@ -109,6 +223,11 @@ describe("bike.session DOM API", () => {
       assert.equal(typeof ed.outlineId, "string", "SessionEditor.outlineId")
       assert(Array.isArray(ed.focused) && Array.isArray(ed.collapsed), "focused/collapsed arrays")
       assert("filter" in ed, "SessionEditor.filter present")
+
+      const ok = await s.call("checkOutlinePath", { path: "//task @done" })
+      assert(typeof ok === "string" && ok.includes("-- Parse Tree --"), "valid path parses to a tree report")
+      const bad = await s.call("checkOutlinePath", { path: "//task @done = 'x'" })
+      assert(typeof bad === "string" && bad.includes("-- Parse Error --"), "invalid path reports the parse error")
     } finally { s.dispose() }
   })
 
@@ -182,7 +301,7 @@ describe("bike.session DOM API", () => {
     } finally { s.dispose() }
   })
 
-  it("observeOutline streams a snapshot after an edit, then disposes", async () => {
+  it("observeOutlineQuery streams a snapshot after an edit, then disposes", async () => {
     bike.testEditor()
     const s = await openSession()
     try {
@@ -193,8 +312,161 @@ describe("bike.session DOM API", () => {
       // Trigger a change so a snapshot is emitted (debounced ~500ms).
       await s.call("createRow", { markdown: "observed row" })
 
-      const rows = await withTimeout(firstSnap, 5000, "observeOutline snapshot")
+      const rows = await withTimeout(firstSnap, 5000, "observeOutlineQuery snapshot")
       assert(rows >= 1, "snapshot reports at least one row")
+      sub.dispose()
+    } finally { s.dispose() }
+  })
+
+  it("observeOutlineChanges seeds with a snapshot, then streams granular changes", async () => {
+    bike.testEditor()
+    const s = await openSession()
+    try {
+      // The seed arrives asynchronously after subscribe resolves, so wait for
+      // the first event rather than reading it synchronously.
+      const seen: string[] = []
+      let resolveSeed: (t: string) => void
+      const seed = new Promise<string>((res) => { resolveSeed = res })
+      let resolveChange: (t: string) => void
+      const firstChange = new Promise<string>((res) => { resolveChange = res })
+      const sub = await s.observeChanges({}, (type) => {
+        seen.push(type)
+        if (seen.length === 1) resolveSeed(type)
+        else if (type !== "snapshot") resolveChange(type)
+      })
+      const seedType = await withTimeout(seed, 5000, "snapshot seed")
+      assert.equal(seedType, "snapshot", "first event is a full-outline snapshot seed")
+
+      await s.call("createRow", { markdown: "inserted row" })
+      const changeType = await withTimeout(firstChange, 5000, "granular change after edit")
+      assert.equal(changeType, "rowsInserted", "creating a row streams a rowsInserted change")
+      sub.dispose()
+    } finally { s.dispose() }
+  })
+
+  it("observeOutline maintains a tree that reflects edits", async () => {
+    bike.testEditor()
+    const s = await openSession()
+    try {
+      // The seed update arrives asynchronously after subscribe resolves.
+      let count = 0
+      let resolveSeed: (m: { tree: number; changes: number }) => void
+      const seed = new Promise<{ tree: number; changes: number }>((res) => { resolveSeed = res })
+      let resolveGrew: (m: { tree: number; changes: number }) => void
+      const grew = new Promise<{ tree: number; changes: number }>((res) => { resolveGrew = res })
+      const sub = await s.observeTree({}, (m) => {
+        count += 1
+        if (count === 1) resolveSeed(m)
+        if (m.changes > 0 && m.tree >= 1) resolveGrew(m)
+      })
+      // Seed update: maintained doc starts empty, with no applied changes.
+      const seedUpdate = await withTimeout(seed, 5000, "maintained tree seed")
+      assert(seedUpdate.tree === 0 && seedUpdate.changes === 0, "seed delivers the empty tree with no changes")
+
+      await s.call("createRow", { markdown: "maintained row" })
+      const m = await withTimeout(grew, 5000, "maintained tree grows after edit")
+      assert(m.tree >= 1, "maintained tree reflects the new row")
+      assert(m.changes >= 1, "the applied change is delivered alongside the tree")
+      sub.dispose()
+    } finally { s.dispose() }
+  })
+
+  it("observeOutline with debounce coalesces edits into one batched update", async () => {
+    bike.testEditor()
+    const s = await openSession()
+    try {
+      let count = 0
+      let resolveSeed: () => void
+      const seed = new Promise<void>((res) => { resolveSeed = res })
+      let resolveBatch: (m: { tree: number; changes: number }) => void
+      const batched = new Promise<{ tree: number; changes: number }>((res) => { resolveBatch = res })
+      // 400ms quiet window: two quick edits land in the same batch.
+      const sub = await s.observeTree({ debounce: 400 }, (m) => {
+        count += 1
+        if (count === 1) resolveSeed()
+        else if (m.changes >= 2) resolveBatch(m)
+      })
+      await withTimeout(seed, 5000, "debounced seed")
+
+      // Two separate transactions inside the window → one coalesced onUpdate.
+      await s.call("createRow", { markdown: "one" })
+      await s.call("createRow", { markdown: "two" })
+      const m = await withTimeout(batched, 5000, "coalesced batch")
+      assert.equal(m.changes, 2, "both edits arrive in a single batched onUpdate")
+      assert(m.tree >= 2, "maintained tree reflects both new rows")
+      sub.dispose()
+    } finally { s.dispose() }
+  })
+
+  it("observeEditor streams an editor snapshot reflecting selection changes", async () => {
+    bike.testEditor()
+    const s = await openSession()
+    try {
+      const a = await s.call("createRow", { markdown: "alpha" })
+      await s.call("createRow", { markdown: "beta" })
+
+      // debounce 0 for a live snapshot; wait for one reporting row `a` selected.
+      let resolveSel: (head: number) => void
+      const selectedA = new Promise<number>((res) => { resolveSel = res })
+      const sub = await s.observeEditor({ debounce: 0 }, (e) => {
+        if (e && e.head === a.id) resolveSel(a.id)
+      })
+
+      await s.call("updateEditor", { select: a.id })
+      const head = await withTimeout(selectedA, 5000, "editor selection snapshot")
+      assert.equal(head, a.id, "editor snapshot reflects the new selection")
+      sub.dispose()
+    } finally { s.dispose() }
+  })
+
+  it("observeEditorChanges seeds with a snapshot, then streams slice changes", async () => {
+    bike.testEditor()
+    const s = await openSession()
+    try {
+      const a = await s.call("createRow", { markdown: "alpha" })
+
+      const seen: string[] = []
+      let resolveSeed: (t: string) => void
+      const seed = new Promise<string>((res) => { resolveSeed = res })
+      let resolveFocus: (t: string) => void
+      const focusChange = new Promise<string>((res) => { resolveFocus = res })
+      const sub = await s.observeEditorChanges({ debounce: 0 }, (type) => {
+        seen.push(type)
+        if (seen.length === 1) resolveSeed(type)
+        else if (type === "focus") resolveFocus(type)
+      })
+      const seedType = await withTimeout(seed, 5000, "editor snapshot seed")
+      assert.equal(seedType, "snapshot", "first event is a full-editor snapshot seed")
+
+      // Focusing a row always moves the focus stack off the root → a slice change.
+      await s.call("updateEditor", { focus: a.id })
+      const changeType = await withTimeout(focusChange, 5000, "editor focus change")
+      assert.equal(changeType, "focus", "focusing a row streams a focus slice change")
+      sub.dispose()
+    } finally { s.dispose() }
+  })
+
+  it("observeEditor({ outline: true }) keeps selection valid against the synced outline", async () => {
+    bike.testEditor()
+    const s = await openSession()
+    try {
+      const a = await s.call("createRow", { markdown: "alpha" })
+      await s.call("createRow", { markdown: "beta" })
+      await s.call("updateEditor", { select: a.id })
+
+      let resolveGone: (sync: { head: number | null; headInOutline: boolean; ids: number[] }) => void
+      const aGone = new Promise<{ head: number | null; headInOutline: boolean; ids: number[] }>((res) => { resolveGone = res })
+      const sub = await s.observeEditorOutline((sync) => {
+        // Resolve once the deleted row is gone from the maintained outline.
+        if (sync.ids.indexOf(a.id) === -1) resolveGone(sync)
+      })
+
+      // Deleting the selected row removes it from the outline AND moves the
+      // selection — both arrive in one batch, outline applied first.
+      await s.call("deleteRows", { rows: [a.id] })
+      const sync = await withTimeout(aGone, 5000, "row removed from synced outline")
+      assert(sync.ids.indexOf(a.id) === -1, "deleted row is gone from the maintained outline")
+      assert(sync.headInOutline, "selection.head is still a live row in the synced outline (delivered together)")
       sub.dispose()
     } finally { s.dispose() }
   })
