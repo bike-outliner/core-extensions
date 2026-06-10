@@ -80,7 +80,8 @@ export function registerFormattingLayers(style: EditorStyle) {
     })
 
     row(`.@done`, (context, row) => {
-      row.opacity *= 0.33
+      row.text.strikethrough.thick = true
+      row.text.strikethrough.color = row.text.color//.alphaSet(0.5)
     })
 
     row(`.task @done`, (context, row) => {
