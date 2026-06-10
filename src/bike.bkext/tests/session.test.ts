@@ -55,12 +55,19 @@ var extensionExports = { activate: function (context) {
         function (err) { context.postMessage({ id: msg.id, error: String((err && err.message) || err) }); }
       );
     } else if (msg.type === 'observeEditorOutline') {
-      bike.session.observeEditor({ outline: true }, function (editor, outline, changes) {
+      bike.session.observeOutlineEditor({}, function (outline, editor, changes) {
         var ids = [];
         if (outline && outline.root) (function walk(r) { ids.push(r.id); (r.children || []).forEach(walk); })(outline.root);
         var head = editor && editor.selection ? editor.selection.head : null;
         // headInOutline encodes the invariant: a maintained selection.head is always a live row.
         context.postMessage({ id: msg.id, editor: { head: head, headInOutline: head == null || ids.indexOf(head) !== -1, ids: ids } });
+      }).then(
+        function (sub) { subs[msg.id] = sub; context.postMessage({ id: msg.id, value: { subscribed: true } }); },
+        function (err) { context.postMessage({ id: msg.id, error: String((err && err.message) || err) }); }
+      );
+    } else if (msg.type === 'observeEditors') {
+      bike.session.observeEditors(function (editors) {
+        context.postMessage({ id: msg.id, editorsCount: editors.length });
       }).then(
         function (sub) { subs[msg.id] = sub; context.postMessage({ id: msg.id, value: { subscribed: true } }); },
         function (err) { context.postMessage({ id: msg.id, error: String((err && err.message) || err) }); }
@@ -94,7 +101,13 @@ describe("bike.session DOM API", () => {
     const trees = new Map<number, (m: any) => void>()
     const editorCbs = new Map<number, (e: any) => void>()
     const editorEventCbs = new Map<number, (t: string) => void>()
+    const editorsCbs = new Map<number, (n: number) => void>()
     handle.onmessage = (m: any) => {
+      if (typeof m.editorsCount === "number") {
+        const cb = editorsCbs.get(m.id)
+        if (cb) cb(m.editorsCount)
+        return
+      }
       if (typeof m.editorEvent === "string") {
         const cb = editorEventCbs.get(m.id)
         if (cb) cb(m.editorEvent)
@@ -184,6 +197,16 @@ describe("bike.session DOM API", () => {
             dispose: () => handle.postMessage({ type: "dispose", subId: id, id: nextId++ }),
           })))
           handle.postMessage({ type: "observeEditorChanges", id, params })
+        })
+      },
+      observeEditors(onSnap: (count: number) => void): Promise<{ dispose: () => void }> {
+        const id = nextId++
+        editorsCbs.set(id, onSnap)
+        return new Promise((resolve, reject) => {
+          pending.set(id, (m) => (m.error !== undefined ? reject(new Error(m.error)) : resolve({
+            dispose: () => handle.postMessage({ type: "dispose", subId: id, id: nextId++ }),
+          })))
+          handle.postMessage({ type: "observeEditors", id })
         })
       },
       observeEditorOutline(onSync: (s: { head: number | null; headInOutline: boolean; ids: number[] }) => void): Promise<{ dispose: () => void }> {
@@ -446,7 +469,7 @@ describe("bike.session DOM API", () => {
     } finally { s.dispose() }
   })
 
-  it("observeEditor({ outline: true }) keeps selection valid against the synced outline", async () => {
+  it("observeOutlineEditor keeps selection valid against the synced outline", async () => {
     bike.testEditor()
     const s = await openSession()
     try {
@@ -467,6 +490,33 @@ describe("bike.session DOM API", () => {
       const sync = await withTimeout(aGone, 5000, "row removed from synced outline")
       assert(sync.ids.indexOf(a.id) === -1, "deleted row is gone from the maintained outline")
       assert(sync.headInOutline, "selection.head is still a live row in the synced outline (delivered together)")
+      sub.dispose()
+    } finally { s.dispose() }
+  })
+
+  it("observeEditors seeds the open-editor list and re-emits as outlines open and close", async () => {
+    bike.testEditor()
+    const s = await openSession()
+    try {
+      let latest = -1
+      let waiter: { pred: (n: number) => boolean; resolve: () => void } | null = null
+      const sub = await s.observeEditors((count) => {
+        latest = count
+        if (waiter && waiter.pred(count)) { waiter.resolve(); waiter = null }
+      })
+      const waitFor = (pred: (n: number) => boolean, label: string) =>
+        pred(latest) ? Promise.resolve()
+          : withTimeout(new Promise<void>((resolve) => { waiter = { pred, resolve } }), 5000, label)
+
+      await waitFor((n) => n >= 1, "seed lists at least the test editor")
+      const base = latest
+
+      // Opening a new outline adds an editor; closing it removes one.
+      const created = await s.call("newOutline", {})
+      await waitFor((n) => n > base, "editor added after newOutline")
+      await s.call("closeOutline", { outline: created.persistentId, discard: true })
+      await waitFor((n) => n <= base, "editor removed after closeOutline")
+
       sub.dispose()
     } finally { s.dispose() }
   })
