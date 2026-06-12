@@ -1,0 +1,156 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "author": "Hog Bay Software"
+  },
+  "colors": {
+    "base03": "#002b36",
+    "base02": "#073642",
+    "base01": "#586e75",
+    "base00": "#657b83",
+    "base0": "#839496",
+    "base1": "#93a1a1",
+    "base2": "#eee8d5",
+    "base3": "#fdf6e3",
+    "yellow": "#b58900",
+    "orange": "#cb4b16",
+    "red": "#dc322f",
+    "magenta": "#d33682",
+    "violet": "#6c71c4",
+    "blue": "#268bd2",
+    "cyan": "#2aa198",
+    "green": "#859900",
+
+    "text": "light-dark($base00, $base0)",
+    "secondaryText": "light-dark($base1, $base01)",
+    "accent": "$blue",
+    "background": "light-dark($base3, $base03)",
+    "caret": "$accent",
+    "caretLine": "rgb(from $text r g b / 6%)",
+    "caretMessage": "$secondaryText",
+    "textBackgroundSelected": "rgb(from $accent r g b / 25%)",
+    "blockBackgroundSelected": "rgb(from $accent r g b / 25%)",
+    "findMatch": "light-dark(color-mix(in oklch, $yellow 40%, $background), color-mix(in oklch, $yellow 30%, $background))",
+    "findMatchCurrent": "light-dark(oklch(from $yellow calc(l - 0.1) c h), oklch(from $yellow calc(l + 0.1) c h))",
+    "handle": "$text",
+    "handleUnloaded": "light-dark(color-mix(in oklch, $handle 30%, $background), color-mix(in oklch, $handle 15%, $background))",
+    "guideLine": "light-dark(color-mix(in oklch, $handleUnloaded 65%, $background), color-mix(in oklch, $handleUnloaded 5%, $background))",
+    "focusArrow": "$handleUnloaded",
+    "spelling": "$red",
+    "grammar": "$green",
+    "replacement": "$violet",
+
+    "themePanel": "light-dark($base2, $base02)",
+    "themeInactivePanel": "light-dark(color-mix(in oklch, $base2 90%, $base02), color-mix(in oklch, $base02 90%, $base0))",
+    "themeDivider": "light-dark(rgb(from $base01 r g b / 25%), rgb(from $base01 r g b / 40%))",
+    "themeSecondaryDivider": "rgb(from $themeDivider r g b / calc(alpha * 0.5))",
+    "themeContentDivider": "light-dark($themeDivider, black)"
+  },
+  "materials": {
+    "window": {
+      "fill": {
+        "type": "active",
+        "active": "$themePanel",
+        "inactive": "$themeInactivePanel"
+      }
+    },
+    "titlebar": {},
+    "sidebar": {},
+    "editorPane": {
+      "fill": "$background",
+      "cornerRadius": {
+        "topLeading": 8
+      },
+      "borders": {
+        "leading": "$themeContentDivider",
+        "top": "$themeContentDivider",
+        "trailing": "$themeDivider"
+      }
+    },
+    "editor": {},
+    "editorToolbar": {
+      "fill": "$background",
+      "borders": {
+        "bottom": "$themeSecondaryDivider"
+      }
+    },
+    "editorPanel": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeSecondaryDivider"
+      }
+    },
+    "editorStatusBar": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeSecondaryDivider"
+      }
+    },
+    "inspector": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeContentDivider"
+      }
+    }
+  },
+  "rows": {
+    "body": {
+      "color": "$text"
+    },
+    "heading": {
+      "color": "$orange",
+      "fontWeight": "semibold"
+    },
+    "note": {
+      "color": "$secondaryText"
+    },
+    "blockquote": {
+      "color": "$cyan",
+      "fontTraits": ["italic"]
+    },
+    "codeblock": {
+      "color": "$green",
+      "fontTraits": ["monospace"]
+    },
+    "task": {
+      "color": "$text"
+    },
+    "orderedList": {
+      "color": "$text"
+    },
+    "unorderedList": {
+      "color": "$text"
+    },
+    "horizontalRule": {
+      "color": "$themeDivider"
+    }
+  },
+  "runs": {
+    "strong": {
+      "color": "light-dark($base01, $base1)",
+      "fontWeight": "semibold"
+    },
+    "emphasis": {
+      "fontTraits": ["italic"]
+    },
+    "strikethrough": {
+      "color": "$secondaryText",
+      "strikethrough": {
+        "single": true
+      }
+    },
+    "code": {
+      "color": "$magenta",
+      "fontTraits": ["monospace"]
+    },
+    "mark": {
+      "backgroundColor": "rgb(from $yellow r g b / 20%)"
+    },
+    "link": {
+      "color": "$accent",
+      "underline": {
+        "single": true
+      }
+    }
+  }
+}

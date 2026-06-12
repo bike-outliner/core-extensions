@@ -4,9 +4,6 @@
     "author": "Jesse Grosjean"
   },
   "colors": {
-    // Enabled light mode #F5F7F9
-    // Disable light mode #E9EBEE
-
     "themePanel": "light-dark(#F5F7F9, #383A3B)",
     "themeInactivePanel": "light-dark(#E9EBEE, #2D3234)",
     "themeDivider": "light-dark(separator, rgb(from separator r g b / calc(alpha * 1.5)))",

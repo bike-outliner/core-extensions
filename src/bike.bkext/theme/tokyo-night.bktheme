@@ -5,7 +5,6 @@
     "appearance": "dark"
   },
   "colors": {
-    // 1. Source palette — (tokyo night)
     "tnBg": "#1a1b26",
     "tnBgDark": "#16161e",
     "tnBgHighlight": "#292e42",
@@ -27,13 +26,10 @@
     "tnGreen1": "#73daca",
     "tnRed": "#f7768e",
 
-    // 2. Common set of theme named values, everything else should be defined in
-    //    terms of these
     "themeText": "$tnFg",
     "themeAccent": "$tnBlue",
     "themeBackground": "$tnBg",
     "themeHeading": "$tnOrange",
-    "themeDivider": "$themePanel",
     "themeSelectionBackground": "rgb(from $tnCyan r g b / 50%)",
     "themeLink": "$tnBlue",
     "themeMark": "$tnYellow",
@@ -41,11 +37,7 @@
     "themeGrammar": "$tnGreen",
     "themeReplacement": "$tnMagenta",
     "themeMarkBackground": "rgb(from $themeMark r g b / 30%)",
-    "themePanel": "color-mix(in oklch, $themeBackground 80%, $themeText)",
-    "themePanelBottom": "oklch(from $themePanel calc(l - 0.05) c h)",
-    "themeInactivePanel": "color-mix(in oklch, $themePanel 60%, $themeBackground)",
 
-    // 3. Bike style semantic colors
     "text": "$themeText",
     "accent": "$themeAccent",
     "background": "$themeBackground",
@@ -64,29 +56,58 @@
     "grammar": "$themeGrammar",
     "spelling": "$themeError",
     "replacement": "$themeReplacement",
-    "titlebarSeparator": "$themeDivider",
-    "sidebarSeparators": "$themeDivider",
-    "editorBarSeparators": "color-mix(in oklch, $themeDivider 75%, $themeBackground)"
+
+    "themePanel": "color-mix(in oklch, $themeBackground 80%, $themeText)",
+    "themeInactivePanel": "color-mix(in oklch, $themePanel 60%, $themeBackground)",
+    "themeDivider": "$themePanel",
+    "themeSecondaryDivider": "rgb(from $themeDivider r g b / calc(alpha * 0.5))",
+    "themeContentDivider": "black"
   },
   "materials": {
-    "window": "$themeBackground",
-    "editor": "$themeBackground",
-    "titlebar": {
-      "type": "active",
-      "active": "$themePanel",
-      "inactive": "$themeInactivePanel"
+    "window": {
+      "fill": {
+        "type": "active",
+        "active": "$themePanel",
+        "inactive": "$themeInactivePanel"
+      }
     },
-    "sidebar": {
-      "type": "active",
-      "active": {
-        "type": "linear",
-        "angle": 0,
-        "stops": [
-          { "color": "$themePanel", "position": 0 },
-          { "color": "$themePanelBottom", "position": 1 }
-        ]
+    "titlebar": {},
+    "sidebar": {},
+    "editorPane": {
+      "fill": "$background",
+      "cornerRadius": {
+        "topLeading": 8
       },
-      "inactive": "$themeInactivePanel"
+      "borders": {
+        "leading": "$themeContentDivider",
+        "top": "$themeContentDivider",
+        "trailing": "$themeDivider"
+      }
+    },
+    "editor": {},
+    "editorToolbar": {
+      "fill": "$background",
+      "borders": {
+        "bottom": "$themeSecondaryDivider"
+      }
+    },
+    "editorPanel": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeSecondaryDivider"
+      }
+    },
+    "editorStatusBar": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeSecondaryDivider"
+      }
+    },
+    "inspector": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeContentDivider"
+      }
     }
   },
   "rows": {

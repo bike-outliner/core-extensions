@@ -5,7 +5,6 @@
     "appearance": "dark"
   },
   "colors": {
-    // 1. Source palette — (ayu dark)
     "ayuBg": "#0b0e14",
     "ayuFg": "#bfbdb6",
     "ayuUi": "#565b66",
@@ -26,13 +25,10 @@
     "ayuVcsModified": "#73b8ff",
     "ayuVcsRemoved": "#f26d78",
 
-    // 2. Common set of theme named values, everything else should be defined in
-    //    terms of these
     "themeText": "$ayuFg",
     "themeAccent": "$ayuAccent",
     "themeBackground": "$ayuBg",
     "themeHeading": "$ayuKeyword",
-    "themeDivider": "$themePanel",
     "themeSelectionBackground": "rgb(from $ayuEntity r g b / 50%)",
     "themeLink": "$ayuAccent",
     "themeMark": "$ayuFunc",
@@ -40,11 +36,7 @@
     "themeGrammar": "$ayuString",
     "themeReplacement": "$ayuConstant",
     "themeMarkBackground": "rgb(from $themeMark r g b / 30%)",
-    "themePanel": "color-mix(in oklch, $themeBackground 80%, $themeText)",
-    "themePanelBottom": "oklch(from $themePanel calc(l - 0.05) c h)",
-    "themeInactivePanel": "color-mix(in oklch, $themePanel 60%, $themeBackground)",
 
-    // 3. Bike style semantic colors
     "text": "$themeText",
     "accent": "$themeAccent",
     "background": "$themeBackground",
@@ -62,64 +54,58 @@
     "focusArrow": "$handleUnloaded",
     "grammar": "$themeGrammar",
     "spelling": "$themeError",
-    "replacement": "$themeReplacement"
+    "replacement": "$themeReplacement",
+
+    "themePanel": "color-mix(in oklch, $themeBackground 80%, $themeText)",
+    "themeInactivePanel": "color-mix(in oklch, $themePanel 60%, $themeBackground)",
+    "themeDivider": "$themePanel",
+    "themeSecondaryDivider": "rgb(from $themeDivider r g b / calc(alpha * 0.5))",
+    "themeContentDivider": "black"
   },
   "materials": {
     "window": {
-      "fill": "$themeBackground"
-    },
-    "titlebar": {
       "fill": {
         "type": "active",
         "active": "$themePanel",
         "inactive": "$themeInactivePanel"
       }
     },
-    "sidebar": {
-      "fill": {
-        "type": "active",
-        "active": {
-          "type": "linear",
-          "angle": 0,
-          "stops": [
-            { "color": "$themePanel", "position": 0 },
-            { "color": "$themePanelBottom", "position": 1 }
-          ]
-        },
-        "inactive": "$themeInactivePanel"
+    "titlebar": {},
+    "sidebar": {},
+    "editorPane": {
+      "fill": "$background",
+      "cornerRadius": {
+        "topLeading": 8
       },
       "borders": {
+        "leading": "$themeContentDivider",
+        "top": "$themeContentDivider",
         "trailing": "$themeDivider"
       }
     },
-    "editor": {
-      "fill": "$themeBackground",
-      "borders": {
-        "top": "$themeDivider"
-      }
-    },
+    "editor": {},
     "editorToolbar": {
-      "fill": "$themeBackground",
+      "fill": "$background",
       "borders": {
-        "top": "$themeDivider"
+        "bottom": "$themeSecondaryDivider"
       }
     },
     "editorPanel": {
-      "fill": "$themeBackground",
+      "fill": "$background",
       "borders": {
-        "top": "$themeDivider"
+        "top": "$themeSecondaryDivider"
       }
     },
     "editorStatusBar": {
-      "fill": "$themeBackground",
+      "fill": "$background",
       "borders": {
-        "top": "$themeDivider"
+        "top": "$themeSecondaryDivider"
       }
     },
     "inspector": {
-      "fill": "$themeInactivePanel",
+      "fill": "$background",
       "borders": {
-        "leading": "$themeDivider"
+        "top": "$themeContentDivider"
       }
     }
   },

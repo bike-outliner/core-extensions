@@ -5,25 +5,22 @@
     "appearance": "dark"
   },
   "colors": {
-    "bg": "#011627",
-    "foreground": "#d6deeb",
-    "lineHighlight": "#0e293f",
-    "selection": "#1d3b53",
-    "comment": "#637777",
-    "purple": "#c792ea",
-    "pink": "#ff5874",
-    "cyan": "#7fdbca",
-    "yellow": "#ecc48d",
-    "blue": "#82aaff",
-    "green": "#addb67",
-    "orange": "#f78c6c",
-    "gold": "#ffcb8b",
-    "red": "#ef5350",
+    "darkBackground": "#272822",
+    "lineHighlight": "#3e3d32",
+    "selection": "#49483e",
+    "comment": "#75715e",
+    "foreground": "#f8f8f2",
+    "pink": "#f92672",
+    "orange": "#fd971f",
+    "yellow": "#e6db74",
+    "green": "#a6e22e",
+    "blue": "#66d9ef",
+    "purple": "#ae81ff",
 
     "text": "$foreground",
     "secondaryText": "$comment",
     "accent": "$blue",
-    "background": "$bg",
+    "background": "$darkBackground",
     "caret": "$accent",
     "caretLine": "rgb(from $lineHighlight r g b / 50%)",
     "caretMessage": "$secondaryText",
@@ -35,28 +32,61 @@
     "handleUnloaded": "color-mix(in oklch, $handle 15%, $background)",
     "guideLine": "color-mix(in oklch, $handleUnloaded 5%, $background)",
     "focusArrow": "$handleUnloaded",
-    "spelling": "$red",
+    "spelling": "$pink",
     "grammar": "$green",
     "replacement": "$purple",
-    "titlebarSeparator": "$divider",
-    "sidebarSeparators": "$divider",
-    "editorBarSeparators": "$panel",
 
-    "panel": "$selection",
-    "divider": "rgb(from $comment r g b / 40%)"
+    "themePanel": "$selection",
+    "themeInactivePanel": "color-mix(in oklch, $themePanel 90%, $text)",
+    "themeDivider": "rgb(from $comment r g b / 40%)",
+    "themeSecondaryDivider": "rgb(from $themeDivider r g b / calc(alpha * 0.5))",
+    "themeContentDivider": "black"
   },
   "materials": {
-    "window": "$background",
-    "editor": "$background",
-    "titlebar": {
-      "type": "active",
-      "active": "$panel",
-      "inactive": "color-mix(in oklch, $panel 90%, $text)"
+    "window": {
+      "fill": {
+        "type": "active",
+        "active": "$themePanel",
+        "inactive": "$themeInactivePanel"
+      }
     },
-    "sidebar": {
-      "type": "active",
-      "active": "$panel",
-      "inactive": "color-mix(in oklch, $panel 90%, $text)"
+    "titlebar": {},
+    "sidebar": {},
+    "editorPane": {
+      "fill": "$background",
+      "cornerRadius": {
+        "topLeading": 8
+      },
+      "borders": {
+        "leading": "$themeContentDivider",
+        "top": "$themeContentDivider",
+        "trailing": "$themeDivider"
+      }
+    },
+    "editor": {},
+    "editorToolbar": {
+      "fill": "$background",
+      "borders": {
+        "bottom": "$themeSecondaryDivider"
+      }
+    },
+    "editorPanel": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeSecondaryDivider"
+      }
+    },
+    "editorStatusBar": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeSecondaryDivider"
+      }
+    },
+    "inspector": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeContentDivider"
+      }
     }
   },
   "rows": {
@@ -64,14 +94,14 @@
       "color": "$text"
     },
     "heading": {
-      "color": "$gold",
+      "color": "$orange",
       "fontWeight": "semibold"
     },
     "note": {
       "color": "$secondaryText"
     },
     "blockquote": {
-      "color": "$cyan",
+      "color": "$yellow",
       "fontTraits": ["italic"]
     },
     "codeblock": {
@@ -88,7 +118,7 @@
       "color": "$text"
     },
     "horizontalRule": {
-      "color": "$divider"
+      "color": "$themeDivider"
     }
   },
   "runs": {

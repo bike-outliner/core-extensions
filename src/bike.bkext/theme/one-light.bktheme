@@ -39,25 +39,58 @@
     "spelling": "$red",
     "grammar": "$green",
     "replacement": "$purple",
-    "titlebarSeparator": "$divider",
-    "sidebarSeparators": "$divider",
-    "editorBarSeparators": "$panel",
 
-    "panel": "$panelBg",
-    "divider": "rgb(from $mono3 r g b / 40%)"
+    "themePanel": "$panelBg",
+    "themeInactivePanel": "color-mix(in oklch, $themePanel 90%, $text)",
+    "themeDivider": "rgb(from $mono3 r g b / 40%)",
+    "themeSecondaryDivider": "rgb(from $themeDivider r g b / calc(alpha * 0.5))",
+    "themeContentDivider": "$themeDivider"
   },
   "materials": {
-    "window": "$background",
-    "editor": "$background",
-    "titlebar": {
-      "type": "active",
-      "active": "$panel",
-      "inactive": "color-mix(in oklch, $panel 90%, $text)"
+    "window": {
+      "fill": {
+        "type": "active",
+        "active": "$themePanel",
+        "inactive": "$themeInactivePanel"
+      }
     },
-    "sidebar": {
-      "type": "active",
-      "active": "$panel",
-      "inactive": "color-mix(in oklch, $panel 90%, $text)"
+    "titlebar": {},
+    "sidebar": {},
+    "editorPane": {
+      "fill": "$background",
+      "cornerRadius": {
+        "topLeading": 8
+      },
+      "borders": {
+        "leading": "$themeContentDivider",
+        "top": "$themeContentDivider",
+        "trailing": "$themeDivider"
+      }
+    },
+    "editor": {},
+    "editorToolbar": {
+      "fill": "$background",
+      "borders": {
+        "bottom": "$themeSecondaryDivider"
+      }
+    },
+    "editorPanel": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeSecondaryDivider"
+      }
+    },
+    "editorStatusBar": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeSecondaryDivider"
+      }
+    },
+    "inspector": {
+      "fill": "$background",
+      "borders": {
+        "top": "$themeContentDivider"
+      }
     }
   },
   "rows": {
@@ -89,7 +122,7 @@
       "color": "$text"
     },
     "horizontalRule": {
-      "color": "$divider"
+      "color": "$themeDivider"
     }
   },
   "runs": {
