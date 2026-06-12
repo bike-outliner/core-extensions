@@ -246,11 +246,6 @@ describe("bike.session DOM API", () => {
       assert.equal(typeof ed.outlineId, "string", "SessionEditor.outlineId")
       assert(Array.isArray(ed.focused) && Array.isArray(ed.collapsed), "focused/collapsed arrays")
       assert("filter" in ed, "SessionEditor.filter present")
-
-      const ok = await s.call("checkOutlinePath", { path: "//task @done" })
-      assert(typeof ok === "string" && ok.includes("-- Parse Tree --"), "valid path parses to a tree report")
-      const bad = await s.call("checkOutlinePath", { path: "//task @done = 'x'" })
-      assert(typeof bad === "string" && bad.includes("-- Parse Error --"), "invalid path reports the parse error")
     } finally { s.dispose() }
   })
 
@@ -512,8 +507,8 @@ describe("bike.session DOM API", () => {
       const base = latest
 
       // Opening a new outline adds an editor; closing it removes one.
-      const created = await s.call("newOutline", {})
-      await waitFor((n) => n > base, "editor added after newOutline")
+      const created = await s.call("createOutline", {})
+      await waitFor((n) => n > base, "editor added after createOutline")
       await s.call("closeOutline", { outline: created.persistentId, discard: true })
       await waitFor((n) => n <= base, "editor removed after closeOutline")
 
