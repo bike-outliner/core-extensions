@@ -1,6 +1,13 @@
 import { Color, Text, Image, EditorStyle } from 'bike/style'
-import { computeValues, symbolImage } from './util'
+import { computeValues, symbolImage, buildCircleImage } from './util'
 import { underlineHighlight, dropLine } from './style-helpers'
+
+// iOS block-selection drag handles: filled dots at the selection band's
+// leading-top and trailing-bottom corners. Drawn by the style so they track
+// the band's exact geometry for any theme; the iOS host hit-tests them (by
+// commandName) to start the drag interaction. macOS uses the mouse and never
+// draws these.
+const SELECTION_HANDLE_DIAMETER = 22
 
 export function registerInteractionLayers(style: EditorStyle) {
   style.layer('selection', (row, run, caret, viewport, include) => {
@@ -25,6 +32,46 @@ export function registerInteractionLayers(style: EditorStyle) {
       })
     })
 
+    // Leading handle: dot at the band's top-leading corner (first block row).
+    row(`.selection-first() = true`, (context, row) => {
+      if (context.os !== 'iOS') return
+      let values = computeValues(context)
+      let diameter = SELECTION_HANDLE_DIAMETER * values.uiScale
+      let image = buildCircleImage(diameter, context.theme.colors.accent)
+      row.decoration('selectionHandleLeading', (handle, layout) => {
+        handle.commandName = 'bike:.selection-handle-leading'
+        handle.anchor.x = 0.5
+        handle.anchor.y = 0.5
+        handle.x = layout.leadingContent
+        handle.y = layout.top.offset(-diameter / 2 - values.uiScale)
+        handle.width = layout.fixed(diameter)
+        handle.height = layout.fixed(diameter)
+        handle.contents.image = image
+        handle.contents.gravity = 'center'
+        handle.zPosition = 10
+      })
+    })
+
+    // Trailing handle: dot at the band's bottom-trailing corner (last block row).
+    row(`.selection-last() = true`, (context, row) => {
+      if (context.os !== 'iOS') return
+      let values = computeValues(context)
+      let diameter = SELECTION_HANDLE_DIAMETER * values.uiScale
+      let image = buildCircleImage(diameter, context.theme.colors.accent)
+      row.decoration('selectionHandleTrailing', (handle, layout) => {
+        handle.commandName = 'bike:.selection-handle-trailing'
+        handle.anchor.x = 0.5
+        handle.anchor.y = 0.5
+        handle.x = layout.trailing
+        handle.y = layout.text.bottom.offset(row.text.margin.bottom + diameter / 2 + values.uiScale)
+        handle.width = layout.fixed(diameter)
+        handle.height = layout.fixed(diameter)
+        handle.contents.image = image
+        handle.contents.gravity = 'center'
+        handle.zPosition = 10
+      })
+    })
+
     run(`.@view-selected-range and not @view-marked-range`, (context, text) => {
       let values = computeValues(context)
       let colors = context.theme.colors
@@ -41,6 +88,51 @@ export function registerInteractionLayers(style: EditorStyle) {
         sel.color = selection
         sel.corners.radius = 3 * values.uiScale
         sel.mergable = true
+      })
+    })
+
+    // Text-selection leading handle: dot above the selection start (first
+    // selected run's leading edge). Same command name as the block handle —
+    // the host resolves the edge and re-anchors per selection kind.
+    run(`.start-of-matches(.@view-selected-range) = true`, (context, text) => {
+      if (context.os !== 'iOS') return
+      let values = computeValues(context)
+      let diameter = SELECTION_HANDLE_DIAMETER * values.uiScale
+      let image = buildCircleImage(diameter, context.theme.colors.accent)
+      text.decoration('selectionHandleLeading', (handle, layout) => {
+        handle.commandName = 'bike:.selection-handle-leading'
+        handle.fragmentPlacement = 'first'
+        handle.anchor.x = 0.5
+        handle.anchor.y = 0.5
+        handle.x = layout.leading
+        handle.y = layout.top.offset(-diameter / 2 - values.uiScale)
+        handle.width = layout.fixed(diameter)
+        handle.height = layout.fixed(diameter)
+        handle.contents.image = image
+        handle.contents.gravity = 'center'
+        handle.zPosition = 10
+      })
+    })
+
+    // Text-selection trailing handle: dot below the selection end (last
+    // selected run's trailing edge).
+    run(`.end-of-matches(.@view-selected-range) = true`, (context, text) => {
+      if (context.os !== 'iOS') return
+      let values = computeValues(context)
+      let diameter = SELECTION_HANDLE_DIAMETER * values.uiScale
+      let image = buildCircleImage(diameter, context.theme.colors.accent)
+      text.decoration('selectionHandleTrailing', (handle, layout) => {
+        handle.commandName = 'bike:.selection-handle-trailing'
+        handle.fragmentPlacement = 'last'
+        handle.anchor.x = 0.5
+        handle.anchor.y = 0.5
+        handle.x = layout.trailing
+        handle.y = layout.bottom.offset(diameter / 2 + values.uiScale)
+        handle.width = layout.fixed(diameter)
+        handle.height = layout.fixed(diameter)
+        handle.contents.image = image
+        handle.contents.gravity = 'center'
+        handle.zPosition = 10
       })
     })
 

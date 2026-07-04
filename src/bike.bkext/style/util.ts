@@ -7,6 +7,7 @@ import {
   Insets,
   Path,
   Point,
+  Rect,
   Shape,
   SymbolConfiguration,
 } from 'bike/style'
@@ -18,18 +19,28 @@ const VIEWPORT_PADDING_BASE = 10
 const ROW_TEXT_PADDING_MULTIPLIER = 5
 const HANDLE_WIDTH_MULTIPLIER = 6
 const HANDLE_HEIGHT_MULTIPLIER = 10
-const GOLDEN_RATIO = 1.618
 const OUTLINE_FOCUS_ALPHA = 0.0
 const TEXT_FOCUS_ALPHA = 0.15
 const BOTTOM_VIEWPORT_FRACTION = 0.5
 
-// Vertical padding breakpoints: when viewport has this many lineHeights of
-// extra width beyond the row wrap width, apply the corresponding top padding
-const VERTICAL_PADDING_TIERS = [
-  { extraWidthInLineHeights: 64, paddingInLineHeights: 8 },
-  { extraWidthInLineHeights: 32, paddingInLineHeights: 4 },
-  { extraWidthInLineHeights: 16, paddingInLineHeights: 2 },
-  { extraWidthInLineHeights: 2, paddingInLineHeights: 1 },
+// Font-scaling + top-margin tiers, selected by how many *unscaled* row widths
+// fit across the viewport (fillRatio = viewportSize.width / baseRowWidth).
+// Font scale and top padding step together at these breakpoints, so the wrap
+// width is constant while resizing inside a tier — a re-wrap happens only once,
+// when a boundary is crossed. Grow boundaries sit at scale * 1.6 so each tier
+// reaches ~golden fill (≈0.618 of the viewport) at its low edge.
+const FONT_SCALE_TIERS = [
+  { minFillRatio: 4.4, scale: 2.75, paddingInLineHeights: 8 },
+  { minFillRatio: 4.0, scale: 2.5, paddingInLineHeights: 4 },
+  { minFillRatio: 3.6, scale: 2.25, paddingInLineHeights: 4 },
+  { minFillRatio: 3.2, scale: 2.0, paddingInLineHeights: 4 },
+  { minFillRatio: 2.8, scale: 1.75, paddingInLineHeights: 2 },
+  { minFillRatio: 2.4, scale: 1.5, paddingInLineHeights: 2 },
+  { minFillRatio: 2.0, scale: 1.25, paddingInLineHeights: 1 },
+  { minFillRatio: 1.6, scale: 1.0, paddingInLineHeights: 1 },
+  { minFillRatio: 0.5, scale: 1.0, paddingInLineHeights: 0 },
+  { minFillRatio: 0.4, scale: 0.9, paddingInLineHeights: 0 },
+  { minFillRatio: 0.0, scale: 0.8, paddingInLineHeights: 0 },
 ]
 
 /**
@@ -83,28 +94,34 @@ export function computeValues(context: StyleContext): {
       geometry.viewportPadding.top = visibleViewportHeight * typewriterMode
     }
   } else {
-    let inverseGolden = 1 / GOLDEN_RATIO
     let xWidth = geometry.fontAttributes.xWidth
     let textWidth = Math.ceil(xWidth * lineWidth)
-    let rowWidth =
+    // Row width of the user's UNSCALED font. Stateless anchor: never derived
+    // from the scaled result, so there is no feedback loop with rowWrapWidth.
+    let baseRowWidth =
       textWidth +
       geometry.rowPadding.width +
       Math.max(geometry.rowTextMargin.width, geometry.rowTextPadding.width)
-    let rowToViewRatio = rowWidth / viewportSize.width
+    let fillRatio = viewportSize.width / baseRowWidth
 
-    if (context.settings.allowFontScaling == true) {
-      if (rowToViewRatio > 2) {
-        font = font.withPointSize(geometry.fontAttributes.pointSize - 1)
-        geometry = computeGeometryForFont(font, context)
-      } else if (rowToViewRatio < inverseGolden) {
-        let desiredRowWidth = viewportSize.width * inverseGolden
-        let neededScale = 1.0 + (desiredRowWidth - rowWidth) / desiredRowWidth
-        let newPointSize = geometry.fontAttributes.pointSize * neededScale
-        // Round to whole point sizes to avoid sub-pixel flickering during resize
-        newPointSize = Math.round(newPointSize)
-        font = font.withPointSize(newPointSize)
-        geometry = computeGeometryForFont(font, context)
+    // Coarse, stateless step function of viewport width. Font scale and top
+    // margin both come from this single tier, so they jump together and stay
+    // constant (no re-wrap) while dragging inside a tier.
+    let tier = FONT_SCALE_TIERS[FONT_SCALE_TIERS.length - 1]
+    for (const candidate of FONT_SCALE_TIERS) {
+      if (fillRatio >= candidate.minFillRatio) {
+        tier = candidate
+        break
       }
+    }
+
+    if (context.settings.allowFontScaling == true && tier.scale != 1) {
+      // Snap to a whole point once per tier. tier.scale is constant across the
+      // whole tier, so the rounded size is constant too: no sub-pixel flicker
+      // and no re-wrap while resizing within a tier.
+      let scaledPointSize = Math.round(geometry.fontAttributes.pointSize * tier.scale)
+      font = font.withPointSize(scaledPointSize)
+      geometry = computeGeometryForFont(font, context)
     }
 
     let rowWrapWidth = geometry.rowWrapWidth
@@ -119,14 +136,12 @@ export function computeValues(context: StyleContext): {
 
     if (typewriterMode) {
       geometry.viewportPadding.top = visibleViewportHeight * typewriterMode
-    } else {
+    } else if (tier.paddingInLineHeights > 0) {
+      // Tiers only *raise* the top margin. When paddingInLineHeights is 0 the
+      // default VIEWPORT_PADDING_BASE * uiScale set in computeGeometryForFont is
+      // left in place, so the minimum top margin matches the pre-tier behavior.
       let lineHeight = geometry.fontAttributes.pointSize * context.settings.lineHeightMultiple
-      for (const tier of VERTICAL_PADDING_TIERS) {
-        if (rowWrapWidth + lineHeight * tier.extraWidthInLineHeights < viewportSize.width) {
-          geometry.viewportPadding.top = lineHeight * tier.paddingInLineHeights
-          break
-        }
-      }
+      geometry.viewportPadding.top = lineHeight * tier.paddingInLineHeights
     }
   }
 
@@ -189,9 +204,15 @@ function computeGeometryForFont(
 
   let rowTextMargin = new Insets(rowTextMarginBase, 0, rowTextMarginBase, 0)
   let rowTextPadding = new Insets(0, rowTextPaddingBase, 0, rowTextPaddingBase)
+  // macOS balances the leading handle indent with trailing whitespace; iOS
+  // keeps that horizontal space for text.
+  let viewportTrailingPadding =
+    context.os === 'iOS'
+      ? VIEWPORT_PADDING_BASE * uiScale
+      : VIEWPORT_PADDING_BASE * uiScale + indent
   let viewportPadding = new Insets(
     VIEWPORT_PADDING_BASE * uiScale,
-    VIEWPORT_PADDING_BASE * uiScale + indent,
+    viewportTrailingPadding,
     visibleViewportHeight * BOTTOM_VIEWPORT_FRACTION,
     VIEWPORT_PADDING_BASE * uiScale,
   )
@@ -232,4 +253,11 @@ function buildHandleImage(width: number, height: number, color: Color): Image {
 export function symbolImage(name: string, color: Color, font: Font): Image {
   let symbol = new SymbolConfiguration(name).withHierarchicalColor(color).withFont(font)
   return Image.fromSymbol(symbol)
+}
+
+export function buildCircleImage(diameter: number, color: Color): Image {
+  let shape = new Shape(Path.elipseInRect(new Rect(0, 0, diameter, diameter)))
+  shape.fill.color = color
+  shape.line.width = 0
+  return Image.fromShape(shape)
 }
