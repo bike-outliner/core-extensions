@@ -190,27 +190,39 @@ export function registerFormattingLayers(style: EditorStyle) {
       text.baselineOffset = baseSize * 0.25
     })
 
-    // Attachment chips (non-image / missing files) take their label text
-    // color and background fill from here — the label text and file icon are
-    // composed in Swift (only it resolves the file), but appearance is
-    // themeable. Image embeds ignore these; hr atoms clear them in Swift.
+    // Attachment/tag chips: the label text and file icon are composed in
+    // Swift (only it resolves the file / attribute value), but the chip's
+    // text color and its box appearance are themeable here. `text.color` is
+    // the label color; the `background` decoration gives the box its fill,
+    // border, and corner radius — Swift reads it and folds the label into the
+    // same decoration. hr atoms also match `.@embed`, so Swift drops the
+    // `background` decoration on them.
     run(`.@embed`, (context, text) => {
+      let values = computeValues(context)
       text.color = Color.label()
-      text.backgroundColor = Color.systemFillSecondary()
+      text.decoration('background', (bg, layout) => {
+        // Attachment fill — distinct from tags below.
+        bg.color = Color.systemFillSecondary()
+        // Match the text-selection box geometry (radius, no border).
+        bg.corners.radius = 3 * values.uiScale
+        bg.border.width = 0
+      })
     })
 
     run(`.@embed/parent::hr`, (context, text) => {
       text.embedSize.width = 1
     })
 
-    // Tag chips (@name / @name(value)) project a row attribute. The label
-    // text and value are composed in Swift (only it sees the attribute
-    // value), but its text color and background fill are taken from the run
-    // style set here — so the chip is themeable. Border and corner radius
-    // remain fixed in Swift.
     run(`.@tag`, (context, text) => {
+      let values = computeValues(context)
       text.color = Color.label()
-      text.backgroundColor = Color.systemFillSecondary()
+      text.decoration('background', (bg, layout) => {
+        // Tag fill — accent-tinted so tags read differently from attachments.
+        bg.color = Color.accent().alphaSet(0.25)
+        // Match the text-selection box geometry (radius, no border).
+        bg.corners.radius = 3 * values.uiScale
+        bg.border.width = 0
+      })
     })
   })
 }
