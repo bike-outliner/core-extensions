@@ -190,8 +190,27 @@ export function registerFormattingLayers(style: EditorStyle) {
       text.baselineOffset = baseSize * 0.25
     })
 
+    // Attachment chips (non-image / missing files) take their label text
+    // color and background fill from here — the label text and file icon are
+    // composed in Swift (only it resolves the file), but appearance is
+    // themeable. Image embeds ignore these; hr atoms clear them in Swift.
+    run(`.@embed`, (context, text) => {
+      text.color = Color.label()
+      text.backgroundColor = Color.systemFillSecondary()
+    })
+
     run(`.@embed/parent::hr`, (context, text) => {
       text.embedSize.width = 1
+    })
+
+    // Tag chips (@name / @name(value)) project a row attribute. The label
+    // text and value are composed in Swift (only it sees the attribute
+    // value), but its text color and background fill are taken from the run
+    // style set here — so the chip is themeable. Border and corner radius
+    // remain fixed in Swift.
+    run(`.@tag`, (context, text) => {
+      text.color = Color.label()
+      text.backgroundColor = Color.systemFillSecondary()
     })
   })
 }
