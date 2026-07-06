@@ -145,6 +145,48 @@ describe("AttributedString text attributes", () => {
     })
 })
 
+describe("AttributedString index bounds", () => {
+    const outline = bike.testOutline()
+
+    outline.insertRows(["Hello World", ""], outline.root)
+
+    it("attributesAt throws on out of bounds index", () => {
+        const text = outline.root.firstChild!.text
+        assert.throws(() => { text.attributesAt(12) })
+        assert.throws(() => { text.attributesAt(-1) })
+    })
+
+    it("attributeAt throws on out of bounds index", () => {
+        const text = outline.root.firstChild!.text
+        assert.throws(() => { text.attributeAt("strong", 12) })
+        assert.throws(() => { text.attributeAt("strong", -1) })
+    })
+
+    it("insert throws on out of bounds position", () => {
+        const text = outline.root.firstChild!.text
+        assert.throws(() => { text.insert(12, "!") })
+        assert.throws(() => { text.insert(-1, "!") })
+        assert.equal(text.string, "Hello World")
+    })
+
+    it("attributesAt allows end index", () => {
+        const text = outline.root.firstChild!.text
+        const range: [number, number] = [0, 0]
+        text.attributesAt(11, "upstream", range)
+        assert.equal(range[0], 0)
+        assert.equal(range[1], 11)
+    })
+
+    it("attributesAt effective range on empty text does not crash", () => {
+        const text = outline.root.lastChild!.text
+        assert.equal(text.count, 0)
+        const range: [number, number] = [-1, -1]
+        text.attributesAt(0, "upstream", range)
+        assert.equal(range[0], 0)
+        assert.equal(range[1], 0)
+    })
+})
+
 describe("AttributedString export", () => {
     const outline = bike.testOutline()
 
