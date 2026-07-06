@@ -1,4 +1,4 @@
-import { Color, Text, Image, SymbolConfiguration, EditorStyle } from 'bike/style'
+import { Text, Image, SymbolConfiguration, EditorStyle } from 'bike/style'
 import { computeValues, symbolImage } from './util'
 import { listMark } from './style-helpers'
 
@@ -194,18 +194,29 @@ export function registerFormattingLayers(style: EditorStyle) {
     // Swift (only it resolves the file / attribute value), but the chip's
     // text color and its box appearance are themeable here. `text.color` is
     // the label color; the `background` decoration gives the box its fill,
-    // border, and corner radius — Swift reads it and folds the label into the
-    // same decoration. hr atoms also match `.@embed`, so Swift drops the
-    // `background` decoration on them.
+    // border, and corner radius; and `text.padding` sets the interior gap
+    // between the label and the box edge — Swift reads all of these and folds
+    // the label into the same decoration. hr atoms also match `.@embed`, so
+    // Swift drops the `background` decoration on them.
     run(`.@embed`, (context, text) => {
       let values = computeValues(context)
-      text.color = Color.label()
+      let colors = context.theme.colors
+      text.color = colors.text
+      // Chip label font — the box height follows this too, so size it here
+      // rather than in Swift.
+      text.font = text.font.withPointSize(0.85 * text.font.resolve(context).pointSize)
+      // Interior horizontal padding between the label and the chip box edge.
+      text.padding.left = 8 * values.uiScale
+      text.padding.right = 8 * values.uiScale
+
       text.decoration('background', (bg, layout) => {
-        // Attachment fill — distinct from tags below.
-        bg.color = Color.systemFillSecondary()
+        // Attachment fill — a faint, neutral tint of the theme text color so
+        // it reads differently from the accent-tinted tags below.
+        bg.color = colors.text.alphaSet(0.025)
         // Match the text-selection box geometry (radius, no border).
         bg.corners.radius = 3 * values.uiScale
-        bg.border.width = 0
+        bg.border.width = 1
+        bg.border.color = colors.text.alphaSet(0.25)
       })
     })
 
@@ -215,10 +226,17 @@ export function registerFormattingLayers(style: EditorStyle) {
 
     run(`.@tag`, (context, text) => {
       let values = computeValues(context)
-      text.color = Color.label()
+      let colors = context.theme.colors
+      //text.color = colors.text
+      // Chip label font — the box height follows this too, so size it here
+      // rather than in Swift.
+      text.font = text.font.withPointSize(0.85 * text.font.resolve(context).pointSize)
+      // Interior horizontal padding between the label and the chip box edge.
+      text.padding.left = 6 * values.uiScale
+      text.padding.right = 6 * values.uiScale
       text.decoration('background', (bg, layout) => {
         // Tag fill — accent-tinted so tags read differently from attachments.
-        bg.color = Color.accent().alphaSet(0.25)
+        bg.color = colors.accent.alphaSet(0.1)
         // Match the text-selection box geometry (radius, no border).
         bg.corners.radius = 3 * values.uiScale
         bg.border.width = 0
