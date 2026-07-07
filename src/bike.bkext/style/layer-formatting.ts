@@ -202,21 +202,14 @@ export function registerFormattingLayers(style: EditorStyle) {
       let values = computeValues(context)
       let colors = context.theme.colors
       text.color = colors.text
-      // Chip label font — the box height follows this too, so size it here
-      // rather than in Swift.
-      text.font = text.font.withPointSize(0.85 * text.font.resolve(context).pointSize)
-      // Interior horizontal padding between the label and the chip box edge.
-      text.padding.left = 8 * values.uiScale
-      text.padding.right = 8 * values.uiScale
-
+      //text.font = text.font.withPointSize(0.85 * text.font.resolve(context).pointSize)
+      text.padding.left = 4 * values.uiScale
+      text.padding.right = 4 * values.uiScale
       text.decoration('background', (bg, layout) => {
-        // Attachment fill — a faint, neutral tint of the theme text color so
-        // it reads differently from the accent-tinted tags below.
         bg.color = colors.text.alphaSet(0.025)
-        // Match the text-selection box geometry (radius, no border).
         bg.corners.radius = 3 * values.uiScale
-        bg.border.width = 1
-        bg.border.color = colors.text.alphaSet(0.25)
+        bg.border.color = colors.text.alphaSet(0.1)
+        bg.border.width = 1 * values.uiScale
       })
     })
 
@@ -227,19 +220,14 @@ export function registerFormattingLayers(style: EditorStyle) {
     run(`.@tag`, (context, text) => {
       let values = computeValues(context)
       let colors = context.theme.colors
-      //text.color = colors.text
-      // Chip label font — the box height follows this too, so size it here
-      // rather than in Swift.
-      text.font = text.font.withPointSize(0.85 * text.font.resolve(context).pointSize)
-      // Interior horizontal padding between the label and the chip box edge.
-      text.padding.left = 6 * values.uiScale
-      text.padding.right = 6 * values.uiScale
+      //text.font = text.font.withPointSize(0.85 * text.font.resolve(context).pointSize)
+      text.padding.left = 2.5 * values.uiScale
+      text.padding.right = 2.5 * values.uiScale
       text.decoration('background', (bg, layout) => {
-        // Tag fill — accent-tinted so tags read differently from attachments.
-        bg.color = colors.accent.alphaSet(0.1)
-        // Match the text-selection box geometry (radius, no border).
+        bg.color = colors.accent.alphaSet(0.025)
         bg.corners.radius = 3 * values.uiScale
-        bg.border.width = 0
+        bg.border.color = colors.accent.alphaSet(0.2)
+        bg.border.width = 1 * values.uiScale
       })
     })
   })

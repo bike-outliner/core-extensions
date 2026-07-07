@@ -7,7 +7,11 @@ export function registerControlsLayer(style: EditorStyle) {
       if (context.settings.showFocusArrows) {
         let values = computeValues(context)
         row.text.decoration('focus', (focus, layout) => {
-          let size = layout.lastLine.height
+          // Cap at a text-height strip anchored to the bottom of the last
+          // line, so a tall image line gets a normal-sized arrow at its
+          // trailing-bottom corner. For text lines this is exactly the old
+          // full-line size centered on the line.
+          let size = layout.lastLine.height.min(values.lineHeight)
           focus.commandName = 'bike:.click-focus'
           focus.contents.gravity = 'center'
           focus.contents.image = symbolImage(
@@ -16,7 +20,7 @@ export function registerControlsLayer(style: EditorStyle) {
             values.font,
           )
           focus.x = layout.lastLine.trailing.offset(size.scale(0.5)).offset(row.text.padding.right)
-          focus.y = layout.lastLine.centerY
+          focus.y = layout.lastLine.bottom.offset(size.scale(-0.5))
           focus.width = size
           focus.height = size
           focus.transitions.position = false
@@ -47,8 +51,11 @@ export function registerControlsLayer(style: EditorStyle) {
         handle.rotation = 1.57
       })
       if (context.settings.showGuideLines) {
+        let values = computeValues(context)
         row.decoration('guide', (guide, layout) => {
-          guide.height = layout.bottom.minus(layout.firstLine.bottom)
+          // Match the guide's capped-strip top set in the base layer.
+          let strip = layout.firstLine.height.min(values.lineHeight)
+          guide.height = layout.bottom.minus(layout.firstLine.top.offset(strip))
         })
       }
     })

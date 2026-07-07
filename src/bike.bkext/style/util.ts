@@ -67,6 +67,7 @@ export function computeValues(context: StyleContext): {
   font: Font
   fontAttributes: FontAttributes
   indent: number
+  lineHeight: number
   uiScale: number
   rowPadding: Insets
   rowTextMargin: Insets
@@ -157,10 +158,20 @@ export function computeValues(context: StyleContext): {
   let handleImage = buildHandleImage(handleWidth, handleHeight, context.theme.colors.handle)
   let handleUnloadedImage = buildHandleImage(handleWidth, handleHeight, context.theme.colors.handleUnloaded)
 
+  // A single text line's height (descender is negative), with headroom so it
+  // always exceeds a real line fragment: capping a line anchor with
+  // `.min(lineHeight)` leaves text lines untouched while taming lines made
+  // tall by inline images.
+  let lineHeight =
+    (geometry.fontAttributes.ascender - geometry.fontAttributes.descender) *
+    context.settings.lineHeightMultiple *
+    1.3
+
   let values = {
     font: font,
     fontAttributes: geometry.fontAttributes,
     indent: geometry.indent,
+    lineHeight: lineHeight,
     uiScale: uiScale,
     rowPadding: geometry.rowPadding,
     rowTextMargin: geometry.rowTextMargin,
