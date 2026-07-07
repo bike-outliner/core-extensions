@@ -67,13 +67,19 @@ describe("Outline scheduleQuery", () => {
     })
 })
 
-describe("Outline streamQuery", () => {
+describe("Outline observeQuery", () => {
     const outline = bike.testOutline()
 
     it("returns a disposable", () => {
-        const disposable = outline.streamQuery("//row", () => {})
+        const disposable = outline.observeQuery("//row", () => {})
         assert(disposable, "should return a disposable")
         assert(typeof disposable.dispose === "function")
+        disposable.dispose()
+    })
+
+    it("supports the deprecated streamQuery alias", () => {
+        const disposable = outline.streamQuery("//row", () => {})
+        assert(disposable, "should return a disposable")
         disposable.dispose()
     })
 })

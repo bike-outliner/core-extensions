@@ -267,7 +267,7 @@ export function symbolImage(name: string, color: Color, font: Font): Image {
 }
 
 export function buildCircleImage(diameter: number, color: Color): Image {
-  let shape = new Shape(Path.elipseInRect(new Rect(0, 0, diameter, diameter)))
+  let shape = new Shape(Path.ellipseInRect(new Rect(0, 0, diameter, diameter)))
   shape.fill.color = color
   shape.line.width = 0
   return Image.fromShape(shape)

@@ -3,6 +3,7 @@
   "include": [
     "../src/*/app/**/*",
     "../src/*/tests/**/*",
+    "../node_modules/@bike-outliner/extension-kit/api/app/globals.d.ts",
     "../node_modules/@bike-outliner/extension-kit/api/app/test.d.ts"
   ]
 }
