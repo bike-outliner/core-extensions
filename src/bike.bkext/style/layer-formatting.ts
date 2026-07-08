@@ -216,19 +216,5 @@ export function registerFormattingLayers(style: EditorStyle) {
     run(`.@embed/parent::hr`, (context, text) => {
       text.embedSize.width = 1
     })
-
-    run(`.@tag`, (context, text) => {
-      let values = computeValues(context)
-      let colors = context.theme.colors
-      //text.font = text.font.withPointSize(0.85 * text.font.resolve(context).pointSize)
-      text.padding.left = 2.5 * values.uiScale
-      text.padding.right = 2.5 * values.uiScale
-      text.decoration('background', (bg, layout) => {
-        bg.color = colors.accent.alphaSet(0.025)
-        bg.corners.radius = 3 * values.uiScale
-        bg.border.color = colors.accent.alphaSet(0.2)
-        bg.border.width = 1 * values.uiScale
-      })
-    })
   })
 }

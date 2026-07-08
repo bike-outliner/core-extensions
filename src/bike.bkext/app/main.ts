@@ -1,11 +1,7 @@
 import { AppExtensionContext, CommandContext, Window } from 'bike/app'
 import { clickHandleCommand, clickLinkCommand, clickFocusCommand } from './commands'
-import { registerTagEntry } from './tags'
 
 export async function activate(context: AppExtensionContext) {
-  // Tag entry: @name completion (Space/Return/=) and tag-name autocomplete.
-  registerTagEntry()
-
   // Hidden commands for style interactions (not shown in command palette)
   bike.commands.addCommands({
     commands: {
