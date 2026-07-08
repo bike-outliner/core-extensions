@@ -3,15 +3,35 @@ import { computeValues, symbolImage } from './util'
 
 export function registerControlsLayer(style: EditorStyle) {
   style.layer('controls', (row, run, caret, viewport, include) => {
+    row(`.attributes() = true`, (context, row) => {
+      let values = computeValues(context)
+      row.decoration('attributes', (attributes, layout) => {
+        let size = layout.lastLine.height.min(values.lineHeight)
+        attributes.flow = 'trailing'
+        attributes.order = 1
+        attributes.commandName = 'format:.row-attributes-button'
+        attributes.contents.gravity = 'center'
+        attributes.contents.image = symbolImage(
+          'at',
+          context.theme.colors.focusArrow,
+          values.font
+        )
+        attributes.width = size
+        attributes.height = size
+        attributes.transitions.position = false
+        if (context.isTyping && context.settings.hideControlsWhenTyping) {
+          attributes.opacity = 0
+        }
+      })
+    })
+
     row(`.parent() = true`, (context, row) => {
       if (context.settings.showFocusArrows) {
         let values = computeValues(context)
-        row.text.decoration('focus', (focus, layout) => {
-          // Cap at a text-height strip anchored to the bottom of the last
-          // line, so a tall image line gets a normal-sized arrow at its
-          // trailing-bottom corner. For text lines this is exactly the old
-          // full-line size centered on the line.
+        row.decoration('focus', (focus, layout) => {
           let size = layout.lastLine.height.min(values.lineHeight)
+          focus.flow = 'trailing'
+          focus.order = 2
           focus.commandName = 'bike:.click-focus'
           focus.contents.gravity = 'center'
           focus.contents.image = symbolImage(
@@ -19,8 +39,6 @@ export function registerControlsLayer(style: EditorStyle) {
             context.theme.colors.focusArrow,
             values.font,
           )
-          focus.x = layout.lastLine.trailing.offset(size.scale(0.5)).offset(row.text.padding.right)
-          focus.y = layout.lastLine.bottom.offset(size.scale(-0.5))
           focus.width = size
           focus.height = size
           focus.transitions.position = false
@@ -33,7 +51,7 @@ export function registerControlsLayer(style: EditorStyle) {
 
     row(`.parent() = true and focused-root() = true`, (context, row) => {
       if (context.settings.showFocusArrows) {
-        row.text.decoration('focus', (focus, _) => {
+        row.decoration('focus', (focus, _) => {
           focus.rotation = 3.14
         })
       }
