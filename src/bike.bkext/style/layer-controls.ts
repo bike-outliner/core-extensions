@@ -8,7 +8,7 @@ export function registerControlsLayer(style: EditorStyle) {
       row.decoration('attributes', (attributes, layout) => {
         let size = layout.lastLine.height.min(values.lineHeight)
         attributes.flow = 'trailing'
-        attributes.order = 1
+        attributes.order = 9
         attributes.commandName = 'format:.row-attributes-button'
         attributes.contents.gravity = 'center'
         attributes.contents.image = symbolImage(
@@ -31,7 +31,7 @@ export function registerControlsLayer(style: EditorStyle) {
         row.decoration('focus', (focus, layout) => {
           let size = layout.lastLine.height.min(values.lineHeight)
           focus.flow = 'trailing'
-          focus.order = 2
+          focus.order = 10
           focus.commandName = 'bike:.click-focus'
           focus.contents.gravity = 'center'
           focus.contents.image = symbolImage(
