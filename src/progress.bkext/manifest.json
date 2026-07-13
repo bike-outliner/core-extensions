@@ -1,0 +1,10 @@
+{
+  "$schema": "../../node_modules/@bike-outliner/extension-kit/schemas/manifest.schema.json",
+  "description": "Progress badge — shows done/total task completion on rows with tasks below them.",
+  "author": "Jesse Grosjean",
+  "url": "https://github.com/bike-outliner/core-extensions/tree/main/src/progress.bkext",
+  "version": "0.1.0",
+  "api_version": "0.0.0",
+  "permissions": [],
+  "host_permissions": []
+}
