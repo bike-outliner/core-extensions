@@ -8,6 +8,9 @@ export function registerBaseLayer(style: EditorStyle) {
       let colors = context.theme.colors
       viewport.padding = values.viewportPadding
       viewport.backgroundColor = colors.background
+      // The outline's base font: row-independent chrome (badges) renders
+      // with this so a badge never changes weight/size between rows.
+      viewport.font = values.font
     })
 
     caret((context, caret) => {
