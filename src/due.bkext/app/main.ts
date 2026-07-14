@@ -76,11 +76,20 @@ export async function activate(context: AppExtensionContext) {
     },
     onAction: (id, { editor }) => {
       if (id === 'filter-today') {
-        editor.filter = '//@due >=[d] today() and @due <[d] today() + days(1)'
+        editor.filter = {
+          path: '//@due >=[d] today() and @due <[d] today() + days(1)',
+          label: 'Due Today',
+        }
       } else if (id === 'filter-tomorrow') {
-        editor.filter = '//@due >=[d] today() + days(1) and @due <[d] today() + days(2)'
+        editor.filter = {
+          path: '//@due >=[d] today() + days(1) and @due <[d] today() + days(2)',
+          label: 'Due Tomorrow',
+        }
       } else if (id === 'filter-week') {
-        editor.filter = '//@due >=[d] start-of-week(0) and @due <[d] start-of-week(1)'
+        editor.filter = {
+          path: '//@due >=[d] start-of-week(0) and @due <[d] start-of-week(1)',
+          label: 'Due This Week',
+        }
       }
     },
   })

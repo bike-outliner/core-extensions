@@ -59,8 +59,17 @@ describe("OutlineEditor filter", () => {
 
     it("can set filter", () => {
         editor.filter = "//heading"
-        assert.equal(editor.filter, "//heading")
-        editor.filter = undefined as any
+        assert.equal(editor.filter?.path, "//heading")
+        assert.equal(editor.filter?.label, undefined)
+        editor.filter = undefined
+    })
+
+    it("can set filter with label", () => {
+        editor.filter = { path: "//heading", label: "Headings" }
+        assert.equal(editor.filter?.path, "//heading")
+        assert.equal(editor.filter?.label, "Headings")
+        editor.filter = undefined
+        assert.equal(editor.filter, undefined)
     })
 })
 
