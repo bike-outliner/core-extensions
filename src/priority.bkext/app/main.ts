@@ -1,8 +1,8 @@
-import { AppExtensionContext, CommandContext, Image, SymbolConfiguration } from 'bike/app'
+import { AppExtensionContext, CommandContext, Image, MenuRowItem, Text } from 'bike/app'
 
 // The "priority" feature: four commands (Priority 1/2/3 and Clear) that set or
 // remove the `priority` attribute on the selected rows, plus a value-aware row
-// badge. The badge's click card is built from `kind: 'command'` items, so each
+// badge. The badge's click card is built from `command:<id>` buttons, so each
 // card row dispatches the same command — with the clicked row as its selection —
 // that the command palette and keybindings use. The behavior lives in the
 // commands; the card just points at them.
@@ -24,20 +24,63 @@ export async function activate(context: AppExtensionContext) {
     render: (values, env) => {
       const value = values['priority'] ?? ''
       const n = clampPriority(value)
+      // A drawn number tag on the full badge-metrics recipe (fontSize +
+      // padding size the tag, stroke/radius draw its border) — the same
+      // recipe as the due badge's tag, so the two read as one family.
+      const bm = env.badgeMetrics
       return {
-        image: Image.fromSymbol(
-          new SymbolConfiguration(`${n}.square`).withHierarchicalColor(env.color.alphaSet(0.6)).withFont(env.font)
-        ),
+        image: Image.fromText(new Text('P' + n, env.font.withPointSize(bm.fontSize), env.color.alphaSet(0.8)))
+          .withBackground({
+            stroke: env.color.alphaSet(0.3),
+            strokeWidth: bm.strokeWidth,
+            cornerRadius: bm.cornerRadius,
+            padding: bm.padding,
+          }),
         items: [
-          { kind: 'command', command: 'priority:1', title: 'Priority 1', state: value === '1' ? 'on' : 'off', filter: '//@priority = 1' },
-          { kind: 'command', command: 'priority:2', title: 'Priority 2', state: value === '2' ? 'on' : 'off', filter: '//@priority = 2' },
-          { kind: 'command', command: 'priority:3', title: 'Priority 3', state: value === '3' ? 'on' : 'off', filter: '//@priority = 3' },
-          { kind: 'separator' },
-          { kind: 'command', command: 'priority:clear', title: 'Clear Priority' },
+          ...([1, 2, 3] as const).map((n) => priorityRow(n, value)),
+          { type: 'separator' },
+          { type: 'button', id: 'command:priority:clear', title: 'Clear Priority' },
         ],
       }
     },
+    onAction: (id, { editor }) => {
+      const n = id.startsWith(FILTER_PREFIX) ? id.slice(FILTER_PREFIX.length) : undefined
+      if (!n) return
+      editor.filter = { path: `//@priority = "${n}"`, label: `Priority ${n}` }
+    },
   })
+}
+
+const FILTER_PREFIX = 'filter:'
+
+// One priority row: two independent buttons sharing a menu row — the titled
+// command button, and an icon that filters the outline to that priority. A
+// `row` (rather than a button with an accessory) is what makes them highlight
+// separately: a row owns no highlight of its own, so each control lights up
+// under the pointer on its own.
+//
+// The titled button is the row's PRIMARY: the keyboard highlights it and
+// Return activates it, so priorities stay settable without the mouse. The
+// filter icon is pointer-only, like every row button.
+function priorityRow(n: 1 | 2 | 3, value: string): MenuRowItem {
+  return {
+    type: 'row',
+    id: `priority:${n}`,
+    items: [
+      {
+        type: 'button',
+        id: `command:priority:${n}`,
+        title: `Priority ${n}`,
+        state: value === String(n) ? 'on' : 'off',
+      },
+      {
+        type: 'button',
+        id: `${FILTER_PREFIX}${n}`,
+        title: `Filter to Priority ${n}`,
+        symbol: 'line.3.horizontal.decrease',
+      },
+    ],
+  }
 }
 
 // Set `priority` to a fixed value on every selected row, in one undo step.
