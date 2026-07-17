@@ -4,17 +4,16 @@ import { DueValue, dayDiffFromToday, dayKey, dueUrgency, parseDue } from '../dom
 // The "due" feature: two commands (Set Due stamps today, Clear Due removes)
 // that manage a `due` attribute on the selected rows, plus a value-aware
 // badge showing the date relative when near ("Today", "Tomorrow", a weekday
-// within the week). The badge's click card holds an inline calendar picker,
-// an Include Time toggle, and Due Today / Tomorrow / This Week filters.
+// within the week). The badge's click card holds an inline calendar picker
+// with a time picker, and Due Today / Tomorrow / This Week filters.
 // The calendar inspector renders the same attribute as day marks and a
 // day agenda (dom/Calendar.tsx) — that coupling is why due lives in the
 // calendar extension.
 //
 // A due value is `YYYY-MM-DD` (local calendar date), or a full ISO-8601 UTC
-// timestamp when a time is included. When the value has a time, the card's
-// calendar carries a time picker too and commits both together — so the day
-// and the time are picked in one place, and picking a day no longer closes
-// the card out from under the time.
+// timestamp when a time is included. The card's time picker is always shown
+// and defaults to 12am; leaving it there means "no specific time" — a
+// midnight commit stores date-only, anything else stores the timestamp.
 //
 // TIME ZONES are the thing to be careful about here: the card speaks LOCAL
 // wall-clock with no zone, while a timed `due` is stored as UTC. Everything
@@ -61,14 +60,9 @@ export function activateDue() {
           }),
         items: [
           { type: 'header', title: 'Due' },
-          // `time: true` only asks for the picker — the converted value
-          // carries the actual time, so the two can't disagree. `undefined`
-          // for a date-only due, which keeps that card closing on the
-          // day-pick exactly as it always has. (A plain property, not a
-          // conditional spread: TypeScript doesn't excess-property-check
-          // spreads, so a misspelled key there would build happily.)
-          { type: 'calendar', id: 'due', value: serializeCardValue(due), time: due.hasTime || undefined },
-          { type: 'toggle', id: 'time', title: 'Include Time', value: due.hasTime },
+          // `time: true` only sets the picker's default (midnight) — a time
+          // in the converted value wins, so the two can't disagree.
+          { type: 'calendar', id: 'due', value: serializeCardValue(due), time: true },
           { type: 'separator' },
           { type: 'button', id: 'filter-today', title: 'Due Today' },
           { type: 'button', id: 'filter-tomorrow', title: 'Due Tomorrow' },
@@ -80,26 +74,18 @@ export function activateDue() {
     },
     onChange: (id, value, { editor, row }) => {
       if (id === 'due' && typeof value === 'string') {
-        // The calendar commits `YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm:ss` (local)
-        // when it carries a time — both of which `parseDue` reads. The card
-        // owns the time now, so there is no time-of-day to graft on: whatever
-        // it reports IS the value, restated as UTC for storage.
+        // The card's calendar always carries a time, so it commits
+        // `YYYY-MM-DDTHH:mm:ss` (local). A time left at the midnight default
+        // means "no specific time" and stores date-only; anything else is a
+        // real time, restated as UTC for storage.
         const picked = parseDue(value)
         if (!picked) return
-        const next = picked.hasTime ? serializeTimestamp(picked.date) : serializeDateOnly(picked.date)
+        const hasTime =
+          picked.hasTime &&
+          (picked.date.getHours() !== 0 || picked.date.getMinutes() !== 0 || picked.date.getSeconds() !== 0)
+        const next = hasTime ? serializeTimestamp(picked.date) : serializeDateOnly(picked.date)
         editor.outline.transaction({ label: 'Set Due' }, () => {
           row.setAttribute('due', next)
-        })
-      } else if (id === 'time') {
-        const due = parseDue(row.getAttribute('due') ?? '')
-        if (!due) return
-        editor.outline.transaction({ label: 'Set Due' }, () => {
-          if (value === true) {
-            due.date.setHours(9, 0, 0, 0)
-            row.setAttribute('due', serializeTimestamp(due.date))
-          } else {
-            row.setAttribute('due', serializeDateOnly(due.date))
-          }
         })
       }
     },
