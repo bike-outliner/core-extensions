@@ -1,0 +1,126 @@
+/**
+ * Pure helpers behind the calendar's @due day marks and agenda list.
+ * Deliberately free of React and the session API so the tests (typechecked
+ * in the app project, where the DOM-only ambient Session* types don't
+ * exist) can import them — row shapes are structural stand-ins that a real
+ * SessionRow satisfies.
+ */
+
+/** The structural subset of SessionRow these helpers read. */
+export interface DueRow {
+  attributes?: Record<string, string>
+  text: { string: string }[]
+}
+
+export interface DueValue {
+  date: Date
+  hasTime: boolean
+}
+
+/**
+ * Parse a `due` attribute value: `YYYY-MM-DD` (local calendar date) or a
+ * full ISO-8601 timestamp when timed. Mirrors due.bkext's parseDue — see
+ * the time-zone caveat at the top of its app/main.ts: a date-only value
+ * must be built from LOCAL components (`new Date('YYYY-MM-DD')` parses as
+ * UTC midnight, shifting the day west of Greenwich), while a timed value
+ * carries its own zone and lands on whatever LOCAL day it falls in.
+ * Duplicated rather than imported — extensions can't import across bkexts.
+ */
+export function parseDue(value: string): DueValue | null {
+  if (!value) return null
+  if (value.includes('T')) {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? null : { date, hasTime: true }
+  }
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return null
+  return { date: new Date(+match[1], +match[2] - 1, +match[3]), hasTime: false }
+}
+
+/** Local calendar day of `date` as `YYYY-MM-DD` — the bucket key. */
+export function dayKey(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/**
+ * The date range worth querying while `activeStartDate`'s month is
+ * displayed: the month padded by a week on both sides, so react-calendar's
+ * neighboring-month tiles get marks too. `end` is EXCLUSIVE (pairs with a
+ * `<[d]` compare).
+ */
+export function visibleRange(activeStartDate: Date): { start: Date; end: Date } {
+  const year = activeStartDate.getFullYear()
+  const month = activeStartDate.getMonth()
+  return {
+    start: new Date(year, month, 1 - 7),
+    end: new Date(year, month + 1, 1 + 7),
+  }
+}
+
+/**
+ * Outline path matching rows due inside `range`. Bare date literals
+ * resolve to local midnight, matching dayKey's local-day semantics; the
+ * `[d]` modifier makes date-only and timed `due` values compare as dates.
+ */
+export function dueQueryPath(range: { start: Date; end: Date }): string {
+  return `//@due >=[d] "${dayKey(range.start)}" and @due <[d] "${dayKey(range.end)}"`
+}
+
+/**
+ * Bucket query-result rows by the local day their `due` falls on.
+ * Rows without a parseable `due` are skipped. Insertion order (= document
+ * order from the query) is preserved within each day.
+ */
+export function bucketByDay<R extends DueRow>(
+  rows: readonly R[] | undefined
+): Map<string, R[]> {
+  const buckets = new Map<string, R[]>()
+  for (const row of rows ?? []) {
+    const due = parseDue(row.attributes?.['due'] ?? '')
+    if (!due) continue
+    const key = dayKey(due.date)
+    const bucket = buckets.get(key)
+    if (bucket) {
+      bucket.push(row)
+    } else {
+      buckets.set(key, [row])
+    }
+  }
+  return buckets
+}
+
+/** A row's plain display text — all runs concatenated, not just the first. */
+export function rowDisplayText(row: DueRow): string {
+  return row.text.map((run) => run.string).join('')
+}
+
+/**
+ * Agenda display order for one day's rows: date-only items first (calendar
+ * apps put all-day entries on top), then timed items by time ascending.
+ * Document order breaks ties — Array.prototype.sort is stable.
+ */
+export function sortAgendaRows<R extends DueRow>(rows: readonly R[]): R[] {
+  const sortKey = (row: R): number => {
+    const due = parseDue(row.attributes?.['due'] ?? '')
+    if (!due || !due.hasTime) return -1
+    return due.date.getTime()
+  }
+  return [...rows].sort((a, b) => sortKey(a) - sortKey(b))
+}
+
+/**
+ * The local wall-clock time to lead a timed agenda item with, or null for
+ * a date-only due. A timed due at exactly midnight also gets null,
+ * matching the due badge (the bare day reads cleaner than a redundant
+ * "12:00 AM").
+ */
+export function agendaTimeLabel(row: DueRow, locale?: string): string | null {
+  const due = parseDue(row.attributes?.['due'] ?? '')
+  if (!due || !due.hasTime) return null
+  if (due.date.getHours() === 0 && due.date.getMinutes() === 0) return null
+  return new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(due.date)
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0')
+}

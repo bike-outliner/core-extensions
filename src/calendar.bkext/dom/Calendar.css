@@ -52,7 +52,8 @@
   flex-shrink: unset !important;
 }
 
-/* All tiles — fixed height so week number rows match day rows exactly */
+/* All tiles — fixed height so week number rows match day rows exactly.
+   position: relative anchors the absolutely-placed due mark. */
 .react-calendar__tile {
   height: 2em;
   padding: 0;
@@ -61,6 +62,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .react-calendar__tile abbr {
@@ -86,4 +88,67 @@
 /* Neighboring month days */
 .react-calendar button.react-calendar__month-view__days__day--neighboringMonth {
   color: var(--tertiary-label);
+}
+
+/* Due mark — a dot under the day number, tinted by urgency */
+.due-mark {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.due-mark--urgent {
+  background: var(--system-red);
+}
+
+.due-mark--soon {
+  background: var(--system-orange);
+}
+
+.due-mark--later {
+  background: var(--control-accent);
+}
+
+/* Agenda — due items for the selected day, below the month grid */
+.calendar-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 0.5px solid var(--separator);
+  padding-top: 4px;
+}
+
+.calendar-agenda-header {
+  font: -apple-system-caption1;
+  color: var(--secondary-label);
+  padding: 1px 2px;
+}
+
+.calendar-agenda-item {
+  font: -apple-system-body;
+  color: var(--label);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 1px 2px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-agenda-item:hover {
+  text-decoration: underline;
+}
+
+.calendar-agenda-time {
+  color: var(--secondary-label);
+  font-variant-numeric: tabular-nums;
+  margin-right: 0.4em;
 }

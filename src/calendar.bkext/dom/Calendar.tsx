@@ -5,11 +5,26 @@ import { useState, useEffect } from 'react'
 import Calendar from 'react-calendar'
 import './Calendar.css'
 import { CalendarProtocol } from './protocols'
+import {
+  agendaTimeLabel,
+  bucketByDay,
+  dayKey,
+  dueQueryPath,
+  rowDisplayText,
+  sortAgendaRows,
+  visibleRange,
+} from './due-marks'
 
 function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProtocol> }) {
   const [activeStartDate, setActiveStartDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showWeekNumbers, setShowWeekNumbers] = useState(() => bike.defaults.get('showWeekNumbers') !== false)
+  const [dueByDay, setDueByDay] = useState<Map<string, SessionRow[]>>(new Map())
+  // The agenda's day is STICKY: it follows every day selection (calendar
+  // click or selection sync) but survives clearSelection — otherwise
+  // clicking an agenda item to navigate would clear the agenda out from
+  // under the click.
+  const [agendaDate, setAgendaDate] = useState<Date | null>(null)
 
   useEffect(() => {
     context.onmessage = (message) => {
@@ -17,6 +32,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         case 'selectDate': {
           const date = new Date(message.date)
           setSelectedDate(date)
+          setAgendaDate(date)
           setActiveStartDate(date)
           break
         }
@@ -35,16 +51,60 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     return () => disposable.dispose()
   }, [])
 
+  // Live @due rows for the displayed month (padded a week each side for
+  // neighboring-month tiles). The session query targets the host window's
+  // outline by default and follows tab/document switches; re-subscribe only
+  // when the visible MONTH changes — day-level activeStartDate changes keep
+  // the same range. A null snapshot (nothing open) and onClose both clear.
+  useEffect(() => {
+    let sub: SessionSubscription | undefined
+    let canceled = false
+    bike.session
+      .observeOutlineQuery(
+        { path: dueQueryPath(visibleRange(activeStartDate)), shape: 'flat' },
+        (snapshot) => setDueByDay(bucketByDay(snapshot?.root.children)),
+        { onClose: () => setDueByDay(new Map()) },
+      )
+      .then((s) => {
+        if (canceled) {
+          s.dispose()
+        } else {
+          sub = s
+        }
+      })
+    return () => {
+      canceled = true
+      sub?.dispose()
+    }
+  }, [activeStartDate.getFullYear(), activeStartDate.getMonth()])
+
   const monthYear = activeStartDate.toLocaleDateString(bike.systemLocale, { month: 'long', year: 'numeric' })
 
   function onChange(nextValue: any) {
     const date = nextValue instanceof Date ? nextValue : new Date(String(nextValue))
     setSelectedDate(date)
+    setAgendaDate(date)
     context.postMessage({
       type: 'dateChange',
       date: date.toISOString(),
     })
   }
+
+  // Urgency tint matching the due badge: overdue/today red, tomorrow
+  // orange, later the accent color. Count goes in a tooltip — tiles are
+  // too small for a number.
+  function dueTileMark({ date, view }: { date: Date; view: string }) {
+    if (view !== 'month') return null
+    const rows = dueByDay.get(dayKey(date))
+    if (!rows || rows.length === 0) return null
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const dayDiff = Math.round((date.getTime() - startOfToday.getTime()) / 86400000)
+    const urgency = dayDiff <= 0 ? 'urgent' : dayDiff === 1 ? 'soon' : 'later'
+    return <span className={`due-mark due-mark--${urgency}`} title={`${rows.length} due`} />
+  }
+
+  const agendaRows = sortAgendaRows((agendaDate && dueByDay.get(dayKey(agendaDate))) || [])
 
   const navBar = (
     <div className="calendar-nav-bar">
@@ -81,7 +141,29 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         locale={bike.systemLocale}
         calendarType={bike.systemFirstWeekday === 0 ? 'gregory' : bike.systemFirstWeekday === 6 ? 'islamic' : 'iso8601'}
         formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(bike.systemLocale, { weekday: 'narrow' })}
+        tileContent={dueTileMark}
       />
+      {agendaDate && agendaRows.length > 0 && (
+        <div className="calendar-agenda">
+          <div className="calendar-agenda-header">
+            {agendaDate.toLocaleDateString(bike.systemLocale, { dateStyle: 'long' })}
+          </div>
+          {agendaRows.map((row) => {
+            const time = agendaTimeLabel(row, bike.systemLocale)
+            return (
+              <button
+                key={row.id}
+                className="calendar-agenda-item"
+                type="button"
+                onClick={() => bike.session.updateEditor({ select: row.id })}
+              >
+                {time && <span className="calendar-agenda-time">{time}</span>}
+                {rowDisplayText(row) || 'Untitled'}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </Disclosure>
   )
 }
