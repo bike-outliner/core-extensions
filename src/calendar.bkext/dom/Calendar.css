@@ -114,19 +114,13 @@
   --due-mark-color: var(--control-accent);
 }
 
+/* A day whose due items are all @done — history, not a fire. */
+.due-mark--done {
+  --due-mark-color: var(--tertiary-label);
+}
+
 .due-mark {
   background: var(--due-mark-color);
-}
-
-.due-mark--past {
-  --due-mark-past-mix: 35%;
-  background: color-mix(in oklab, var(--due-mark-color) var(--due-mark-past-mix), var(--background));
-}
-
-@media (prefers-color-scheme: dark) {
-  .due-mark--past {
-    --due-mark-past-mix: 50%;
-  }
 }
 
 /* Agenda — due items for the selected day, below the month grid */

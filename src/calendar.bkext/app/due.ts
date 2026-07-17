@@ -106,17 +106,17 @@ export function activateDue() {
     onAction: (id, { editor }) => {
       if (id === 'filter-today') {
         editor.filter = {
-          path: '//@due >=[d] today() and @due <[d] today() + days(1)',
+          path: '//@due >=[d] today() and @due <[d] today() + days(1) and not @done',
           label: 'Due Today',
         }
       } else if (id === 'filter-tomorrow') {
         editor.filter = {
-          path: '//@due >=[d] today() + days(1) and @due <[d] today() + days(2)',
+          path: '//@due >=[d] today() + days(1) and @due <[d] today() + days(2) and not @done',
           label: 'Due Tomorrow',
         }
       } else if (id === 'filter-week') {
         editor.filter = {
-          path: '//@due >=[d] start-of-week(0) and @due <[d] start-of-week(1)',
+          path: '//@due >=[d] start-of-week(0) and @due <[d] start-of-week(1) and not @done',
           label: 'Due This Week',
         }
       }

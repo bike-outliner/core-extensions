@@ -93,19 +93,19 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     })
   }
 
-  // Urgency tint matching the due badge, from OPEN items only: red when
-  // due today or overdue, orange when due tomorrow. A day whose due items
-  // are all @done keeps the neutral mark — a checked row's overdue date is
-  // history. Count goes in a tooltip — tiles are too small for a number.
+  // Urgency tint matching the due badge, from OPEN items only: red when due
+  // today or overdue (an overdue item is a fire whether or not the day is
+  // past), orange when due tomorrow, the accent when further out. A day whose
+  // due items are ALL @done is history, not a fire — it draws a neutral
+  // (tertiary) mark. Count goes in a tooltip — tiles are too small for a number.
   function dueTileMark({ date, view }: { date: Date; view: string }) {
     if (view !== 'month') return null
     const rows = dueByDay.get(dayKey(date))
     if (!rows || rows.length === 0) return null
     const dayDiff = dayDiffFromToday(date, new Date())
     const anyOpen = rows.some((row) => !isDone(row))
-    const urgency = anyOpen ? dueUrgency(dayDiff) : 'later'
-    const past = dayDiff < 0 ? ' due-mark--past' : ''
-    return <span className={`due-mark due-mark--${urgency}${past}`} title={`${rows.length} due`} />
+    const variant = anyOpen ? dueUrgency(dayDiff) : 'done'
+    return <span className={`due-mark due-mark--${variant}`} title={`${rows.length} due`} />
   }
 
   const agendaRows = sortAgendaRows((agendaDate && dueByDay.get(dayKey(agendaDate))) || [])
