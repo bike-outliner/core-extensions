@@ -1,10 +1,19 @@
-import { AppExtensionContext, Image, Text } from 'bike/app'
+import { AppExtensionContext, CommandContext, Image, Row, Text } from 'bike/app'
 
 // A "progress" feature demonstrating subtree summaries: two incrementally
 // maintained branch aggregates (total tasks / done tasks below a row), consumed
-// by a badge that shows "done/total" on any row that has a task somewhere below.
+// by a badge that shows "done/total" on any row that has a task somewhere
+// below. The badge's click card holds Show Done / Show Remaining filters and
+// Mark Branch Done / Undone commands.
 
 export async function activate(context: AppExtensionContext) {
+  bike.commands.addCommands({
+    commands: {
+      'progress:mark-branch-done': markBranchDone,
+      'progress:mark-branch-undone': markBranchUndone,
+    },
+  })
+
   // Self-only contributions folded up every branch by `count`; read O(1) as
   // `summary('...')` from the badge inputs below.
   bike.summary('tasks', { where: '.task', reduce: 'count' })
@@ -27,11 +36,14 @@ export async function activate(context: AppExtensionContext) {
         // baseline. (The U+2044 fraction slash conflicts with `frac` in SF and
         // leaves the denominator at superior height — use the solidus.)
         image: Image.fromText(
-          new Text(`${done}/${total}`, env.font.withFractions(), env.color.alphaSet(0.6)),
+          new Text(`${done}/${total}`, env.font.withFractions()),
         ),
         items: [
-          { kind: 'action', id: 'show-done', title: 'Show Done Tasks' },
-          { kind: 'action', id: 'show-remaining', title: 'Show Remaining Tasks' },
+          { type: 'button', id: 'show-done', title: 'Show Done Tasks' },
+          { type: 'button', id: 'show-remaining', title: 'Show Remaining Tasks' },
+          { type: 'separator' },
+          { type: 'button', id: 'command:progress:mark-branch-done', title: 'Mark Branch Done', enabled: done !== total },
+          { type: 'button', id: 'command:progress:mark-branch-undone', title: 'Mark Branch Undone', enabled: done !== '0' },
         ],
       }
     },
@@ -42,10 +54,47 @@ export async function activate(context: AppExtensionContext) {
       // editor filter directly.
       const pid = row.ensuredPersistentId
       if (id === 'show-done') {
-        editor.filter = `//@id = "${pid}"//@done`
+        editor.filter = { label: "Done Tasks", path: `//@id = "${pid}"//@done` }
       } else if (id === 'show-remaining') {
-        editor.filter = `//@id = "${pid}"//not @done`
+        editor.filter = { label: "Remaining Tasks", path: `//@id = "${pid}"//not @done` }
       }
     },
   })
+}
+
+// Set `done` on every open task in the selected rows' branches, in one undo
+// step. Rows already done keep their original completion timestamps.
+function markBranchDone({ editor, selection }: CommandContext): boolean {
+  const rows = selection?.rows ?? []
+  if (!editor || rows.length === 0) return false
+  const tasks = branchTasks(rows).filter((task) => task.getAttribute('done') == null)
+  if (tasks.length === 0) return false
+  // The same `done` value the native Toggle Done stamps: an ISO-8601 UTC
+  // timestamp without fractional seconds.
+  const now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
+  editor.outline.transaction({ label: 'Mark Branch Done' }, () => {
+    for (const task of tasks) task.setAttribute('done', now)
+  })
+  return true
+}
+
+// Remove `done` from every task in the selected rows' branches.
+function markBranchUndone({ editor, selection }: CommandContext): boolean {
+  const rows = selection?.rows ?? []
+  if (!editor || rows.length === 0) return false
+  const tasks = branchTasks(rows).filter((task) => task.getAttribute('done') != null)
+  if (tasks.length === 0) return false
+  editor.outline.transaction({ label: 'Mark Branch Undone' }, () => {
+    for (const task of tasks) task.removeAttribute('done')
+  })
+  return true
+}
+
+// Every task row in the branches rooted at `rows`, deduplicated so nested or
+// overlapping selections don't visit a task twice.
+function branchTasks(rows: Row[]): Row[] {
+  const seen = new Set<number>()
+  return rows
+    .flatMap((row) => row.descendantsWithSelf)
+    .filter((row) => row.type === 'task' && !seen.has(row.id) && (seen.add(row.id), true))
 }
