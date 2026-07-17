@@ -1,15 +1,27 @@
-import { AppExtensionContext, Color, CommandContext, Image, Insets, Text } from 'bike/app'
+import { Color, CommandContext, Image, Text } from 'bike/app'
+import { DueValue, dayDiffFromToday, dayKey, dueUrgency, parseDue } from '../dom/due-marks'
 
 // The "due" feature: two commands (Set Due stamps today, Clear Due removes)
 // that manage a `due` attribute on the selected rows, plus a value-aware
 // badge showing the date relative when near ("Today", "Tomorrow", a weekday
 // within the week). The badge's click card holds an inline calendar picker,
-// an optional time-of-day toggle, and Due Today / Tomorrow / This Week
-// filters. A due value is `YYYY-MM-DD` (local calendar date), or a full
-// ISO-8601 UTC timestamp when a time is included — the two forms the card's
-// date picker itself commits and parses.
+// an Include Time toggle, and Due Today / Tomorrow / This Week filters.
+// The calendar inspector renders the same attribute as day marks and a
+// day agenda (dom/Calendar.tsx) — that coupling is why due lives in the
+// calendar extension.
+//
+// A due value is `YYYY-MM-DD` (local calendar date), or a full ISO-8601 UTC
+// timestamp when a time is included. When the value has a time, the card's
+// calendar carries a time picker too and commits both together — so the day
+// and the time are picked in one place, and picking a day no longer closes
+// the card out from under the time.
+//
+// TIME ZONES are the thing to be careful about here: the card speaks LOCAL
+// wall-clock with no zone, while a timed `due` is stored as UTC. Everything
+// crossing that boundary goes through `serializeCardValue` / `parseDue`
+// (shared with the inspector in dom/due-marks.ts).
 
-export async function activate(context: AppExtensionContext) {
+export function activateDue() {
   bike.commands.addCommands({
     commands: {
       'due:set': setDue,
@@ -19,7 +31,7 @@ export async function activate(context: AppExtensionContext) {
 
   bike.badge('due', {
     where: '.@due',
-    inputs: { due: '@due' },
+    inputs: { due: '@due', done: '@done' },
     // Relative labels depend on the wall clock, not just the row's value —
     // tick supplies env.now so "Tomorrow" rolls over to "Today" at midnight.
     tick: true,
@@ -29,43 +41,60 @@ export async function activate(context: AppExtensionContext) {
       if (!due) return null
       const now = new Date((env.now ?? 0) * 1000)
       const dayDiff = dayDiffFromToday(due.date, now)
-      // Urgency tint: due today = red, due tomorrow = orange, else the
-      // row's inherited color.
-      const color = dayDiff === 0 ? Color.systemRed() : dayDiff === 1 ? Color.systemOrange() : env.color
+      // Urgency tint for OPEN items: red when due today or overdue, orange
+      // when due tomorrow. A @done row's due date is history — it keeps the
+      // row's inherited color no matter the date.
+      const urgency = values['done'] != null ? 'later' : dueUrgency(dayDiff)
+      const color =
+        urgency === 'urgent' ? Color.systemRed() : urgency === 'soon' ? Color.systemOrange() : env.color
+      // The full badge-metrics recipe (fontSize + padding size the tag,
+      // stroke/radius draw its border), so this tag matches every other
+      // drawn badge on the row.
+      const bm = env.badgeMetrics
       return {
-        // A rounded-border tag; color, size, and radius tuned to sit beside
-        // the priority badge's `N.square` symbol (hierarchical env.color at
-        // 0.6).
-        image: Image.fromText(new Text(dueLabel(due, now), env.font.withScale(0.65), color.alphaSet(0.8)))
+        image: Image.fromText(new Text(dueLabel(due, now), env.font.withPointSize(bm.fontSize), color.alphaSet(0.8)))
           .withBackground({
             stroke: color.alphaSet(0.3),
-            strokeWidth: 1,
-            cornerRadius: 2,
-            padding: new Insets(0.5, 4, 1.5, 4),
+            strokeWidth: bm.strokeWidth,
+            cornerRadius: bm.cornerRadius,
+            padding: bm.padding,
           }),
         items: [
-          { kind: 'header', title: 'Due' },
-          { kind: 'date', id: 'due', label: '', value, time: due.hasTime, display: 'calendar' },
-          { kind: 'toggle', id: 'time', title: 'Include Time', value: due.hasTime },
-          { kind: 'separator' },
-          { kind: 'action', id: 'filter-today', title: 'Due Today' },
-          { kind: 'action', id: 'filter-tomorrow', title: 'Due Tomorrow' },
-          { kind: 'action', id: 'filter-week', title: 'Due This Week' },
-          { kind: 'separator' },
-          { kind: 'command', command: 'due:clear', title: 'Clear Due' },
+          { type: 'header', title: 'Due' },
+          // `time: true` only asks for the picker — the converted value
+          // carries the actual time, so the two can't disagree. `undefined`
+          // for a date-only due, which keeps that card closing on the
+          // day-pick exactly as it always has. (A plain property, not a
+          // conditional spread: TypeScript doesn't excess-property-check
+          // spreads, so a misspelled key there would build happily.)
+          { type: 'calendar', id: 'due', value: serializeCardValue(due), time: due.hasTime || undefined },
+          { type: 'toggle', id: 'time', title: 'Include Time', value: due.hasTime },
+          { type: 'separator' },
+          { type: 'button', id: 'filter-today', title: 'Due Today' },
+          { type: 'button', id: 'filter-tomorrow', title: 'Due Tomorrow' },
+          { type: 'button', id: 'filter-week', title: 'Due This Week' },
+          { type: 'separator' },
+          { type: 'button', id: 'command:due:clear', title: 'Clear Due' },
         ],
       }
     },
     onChange: (id, value, { editor, row }) => {
-      if (id === 'due') {
+      if (id === 'due' && typeof value === 'string') {
+        // The calendar commits `YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm:ss` (local)
+        // when it carries a time — both of which `parseDue` reads. The card
+        // owns the time now, so there is no time-of-day to graft on: whatever
+        // it reports IS the value, restated as UTC for storage.
+        const picked = parseDue(value)
+        if (!picked) return
+        const next = picked.hasTime ? serializeTimestamp(picked.date) : serializeDateOnly(picked.date)
         editor.outline.transaction({ label: 'Set Due' }, () => {
-          row.setAttribute('due', value)
+          row.setAttribute('due', next)
         })
       } else if (id === 'time') {
         const due = parseDue(row.getAttribute('due') ?? '')
         if (!due) return
         editor.outline.transaction({ label: 'Set Due' }, () => {
-          if (value === 'true') {
+          if (value === true) {
             due.date.setHours(9, 0, 0, 0)
             row.setAttribute('due', serializeTimestamp(due.date))
           } else {
@@ -116,27 +145,18 @@ function clearDue({ editor, selection }: CommandContext): boolean {
   return true
 }
 
-interface DueValue {
-  date: Date
-  hasTime: boolean
-}
+// `parseDue` / `DueValue` / `dayKey` (the `YYYY-MM-DD` serialization) are
+// shared with the calendar inspector via dom/due-marks.ts.
+const serializeDateOnly = dayKey
 
-// `new Date('YYYY-MM-DD')` parses as UTC midnight, shifting the day in
-// western timezones — date-only values are built from local components,
-// matching outline-path date() semantics (bare date = local midnight).
-function parseDue(value: string): DueValue | null {
-  if (!value) return null
-  if (value.includes('T')) {
-    const date = new Date(value)
-    return Number.isNaN(date.getTime()) ? null : { date, hasTime: true }
-  }
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) return null
-  return { date: new Date(+match[1], +match[2] - 1, +match[3]), hasTime: false }
-}
-
-function serializeDateOnly(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+// What the card's calendar wants: a local date, plus local wall-clock time
+// when the value has one. Handing it the STORED string instead would be
+// wrong for a timed due — that's UTC, so its date part is the wrong day
+// whenever the two disagree (23:00 on the 14th in New York is the 15th UTC).
+function serializeCardValue(due: DueValue): string {
+  const day = serializeDateOnly(due.date)
+  if (!due.hasTime) return day
+  return `${day}T${pad(due.date.getHours())}:${pad(due.date.getMinutes())}:${pad(due.date.getSeconds())}`
 }
 
 // The card's ISO-8601 parser rejects fractional seconds, so build the UTC
@@ -171,12 +191,6 @@ function dueFormatters() {
   return formatters
 }
 
-function dayDiffFromToday(date: Date, now: Date): number {
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const startOfDue = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  return Math.round((startOfDue.getTime() - startOfToday.getTime()) / 86400000)
-}
-
 function dueLabel(due: DueValue, now: Date): string {
   const { date, hasTime } = due
   const f = dueFormatters()
@@ -189,7 +203,9 @@ function dueLabel(due: DueValue, now: Date): string {
   } else {
     label = (date.getFullYear() === now.getFullYear() ? f.shortDate : f.shortDateYear).format(date)
   }
-  if (hasTime) {
+  // A timed due at exactly midnight (12am) shows no time component — the day
+  // alone reads cleaner than a redundant "12:00 AM".
+  if (hasTime && (date.getHours() !== 0 || date.getMinutes() !== 0)) {
     label += ` ${f.time.format(date)}`
   }
   return label

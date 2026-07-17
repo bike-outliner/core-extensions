@@ -4,6 +4,8 @@ import {
   bucketByDay,
   dayKey,
   dueQueryPath,
+  dueUrgency,
+  isDone,
   parseDue,
   rowDisplayText,
   sortAgendaRows,
@@ -149,6 +151,32 @@ describe('sortAgendaRows', () => {
     const sorted = sortAgendaRows(rows)
     assert.equal(sorted.map(rowDisplayText).join(','), 'first,second')
     assert.notEqual(sorted, rows, 'returns a copy')
+  })
+})
+
+describe('isDone', () => {
+  it('is true when @done is present, even with an empty value', () => {
+    assert.equal(isDone({ attributes: { done: '' }, text: [] }), true)
+    assert.equal(isDone({ attributes: { done: '2026-07-16' }, text: [] }), true)
+  })
+
+  it('is false when @done is absent', () => {
+    assert.equal(isDone({ attributes: { due: '2026-07-16' }, text: [] }), false)
+    assert.equal(isDone({ text: [] }), false)
+  })
+})
+
+describe('dueUrgency', () => {
+  it('is urgent for today AND any day before', () => {
+    assert.equal(dueUrgency(-30), 'urgent')
+    assert.equal(dueUrgency(-1), 'urgent')
+    assert.equal(dueUrgency(0), 'urgent')
+  })
+
+  it('is soon for tomorrow, later beyond', () => {
+    assert.equal(dueUrgency(1), 'soon')
+    assert.equal(dueUrgency(2), 'later')
+    assert.equal(dueUrgency(30), 'later')
   })
 })
 

@@ -8,8 +8,11 @@ import { CalendarProtocol } from './protocols'
 import {
   agendaTimeLabel,
   bucketByDay,
+  dayDiffFromToday,
   dayKey,
   dueQueryPath,
+  dueUrgency,
+  isDone,
   rowDisplayText,
   sortAgendaRows,
   visibleRange,
@@ -90,18 +93,19 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     })
   }
 
-  // Urgency tint matching the due badge: overdue/today red, tomorrow
-  // orange, later the accent color. Count goes in a tooltip — tiles are
-  // too small for a number.
+  // Urgency tint matching the due badge, from OPEN items only: red when
+  // due today or overdue, orange when due tomorrow. A day whose due items
+  // are all @done keeps the neutral mark — a checked row's overdue date is
+  // history. Count goes in a tooltip — tiles are too small for a number.
   function dueTileMark({ date, view }: { date: Date; view: string }) {
     if (view !== 'month') return null
     const rows = dueByDay.get(dayKey(date))
     if (!rows || rows.length === 0) return null
-    const startOfToday = new Date()
-    startOfToday.setHours(0, 0, 0, 0)
-    const dayDiff = Math.round((date.getTime() - startOfToday.getTime()) / 86400000)
-    const urgency = dayDiff <= 0 ? 'urgent' : dayDiff === 1 ? 'soon' : 'later'
-    return <span className={`due-mark due-mark--${urgency}`} title={`${rows.length} due`} />
+    const dayDiff = dayDiffFromToday(date, new Date())
+    const anyOpen = rows.some((row) => !isDone(row))
+    const urgency = anyOpen ? dueUrgency(dayDiff) : 'later'
+    const past = dayDiff < 0 ? ' due-mark--past' : ''
+    return <span className={`due-mark due-mark--${urgency}${past}`} title={`${rows.length} due`} />
   }
 
   const agendaRows = sortAgendaRows((agendaDate && dueByDay.get(dayKey(agendaDate))) || [])

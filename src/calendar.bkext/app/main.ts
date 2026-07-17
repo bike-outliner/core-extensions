@@ -2,10 +2,15 @@ import { AppExtensionContext, Window } from 'bike/app'
 import { todayCommand, monthCommand, yearCommand } from './commands'
 import { getDayRow } from './calendar-rows'
 import { getDateComponents, findDateId } from './util'
+import { activateDue } from './due'
 import { CalendarProtocol, calendarDefaults } from '../dom/protocols'
 
 export async function activate(context: AppExtensionContext) {
   bike.defaults.registerDefaults(calendarDefaults)
+
+  // The due badge/commands live here too — the calendar inspector renders
+  // the same @due attribute as day marks and a day agenda.
+  activateDue()
 
   bike.commands.addCommands({
     commands: {

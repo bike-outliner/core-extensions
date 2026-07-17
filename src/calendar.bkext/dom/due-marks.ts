@@ -1,8 +1,10 @@
 /**
- * Pure helpers behind the calendar's @due day marks and agenda list.
- * Deliberately free of React and the session API so the tests (typechecked
- * in the app project, where the DOM-only ambient Session* types don't
- * exist) can import them — row shapes are structural stand-ins that a real
+ * Pure helpers behind the `due` attribute: parsing/serialization shared by
+ * the due badge (app/due.ts) and the calendar inspector's day marks and
+ * agenda list (dom/Calendar.tsx). Deliberately free of React, the session
+ * API, and `bike` globals so both contexts — and the tests, typechecked in
+ * the app project where the DOM-only ambient Session* types don't exist —
+ * can import them; row shapes are structural stand-ins that a real
  * SessionRow satisfies.
  */
 
@@ -24,7 +26,6 @@ export interface DueValue {
  * must be built from LOCAL components (`new Date('YYYY-MM-DD')` parses as
  * UTC midnight, shifting the day west of Greenwich), while a timed value
  * carries its own zone and lands on whatever LOCAL day it falls in.
- * Duplicated rather than imported — extensions can't import across bkexts.
  */
 export function parseDue(value: string): DueValue | null {
   if (!value) return null
@@ -37,9 +38,39 @@ export function parseDue(value: string): DueValue | null {
   return { date: new Date(+match[1], +match[2] - 1, +match[3]), hasTime: false }
 }
 
-/** Local calendar day of `date` as `YYYY-MM-DD` — the bucket key. */
+/**
+ * Local calendar day of `date` as `YYYY-MM-DD` — the bucket key, and the
+ * serialization of a date-only due value.
+ */
 export function dayKey(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/** Whole local days from the start of `now`'s day to the start of `date`'s. */
+export function dayDiffFromToday(date: Date, now: Date): number {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfDue = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  return Math.round((startOfDue.getTime() - startOfToday.getTime()) / 86400000)
+}
+
+/**
+ * Whether a row is checked off — the `done` attribute is present (its
+ * value may legitimately be empty).
+ */
+export function isDone(row: DueRow): boolean {
+  return row.attributes?.['done'] != null
+}
+
+export type DueUrgency = 'urgent' | 'soon' | 'later'
+
+/**
+ * Urgency of OPEN (not @done) work due `dayDiff` days from today: urgent
+ * (red) when due today or any time before, soon (orange) when due
+ * tomorrow. Done items carry no urgency — callers exclude them first (a
+ * checked row's overdue date is history, not a fire).
+ */
+export function dueUrgency(dayDiff: number): DueUrgency {
+  return dayDiff <= 0 ? 'urgent' : dayDiff === 1 ? 'soon' : 'later'
 }
 
 /**
