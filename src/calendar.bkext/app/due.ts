@@ -1,21 +1,27 @@
-import { Color, CommandContext, Image, Text } from 'bike/app'
+import { Color, CommandContext, Image, MenuItem, OutlineEditor, Row, Text } from 'bike/app'
 import { DueValue, dayDiffFromToday, dayKey, dueUrgency, parseDue } from '../dom/due-marks'
 
-// The "due" feature: two commands (Set Due stamps today, Clear Due removes)
-// that manage a `due` attribute on the selected rows, plus a value-aware
-// badge showing the date relative when near ("Today", "Tomorrow", a weekday
-// within the week). The badge's click card holds an inline calendar picker
-// with a time picker, and Due Today / Tomorrow / This Week filters.
+// The "due" feature: two commands (Set Due opens the due menu, Clear Due
+// removes) that manage a `due` attribute on the selected rows, plus a
+// value-aware badge showing the date relative when near ("Today", "Tomorrow",
+// a weekday within the week). Clicking the badge opens a menu holding an
+// inline calendar picker with a time picker, and Due Today / Tomorrow /
+// This Week filters; picked values apply when the menu commits
+// (Return/click-out), not per interaction — Esc discards. Clear Due leads
+// the menu, but only when the row has a due to clear. The menu is built
+// imperatively from the row (`showDueMenu`), which is how `due:set` offers
+// it on fresh rows the badge doesn't decorate — seeded to today, Return
+// commits the first value.
 // The calendar inspector renders the same attribute as day marks and a
 // day agenda (dom/Calendar.tsx) — that coupling is why due lives in the
 // calendar extension.
 //
 // A due value is `YYYY-MM-DD` (local calendar date), or a full ISO-8601 UTC
-// timestamp when a time is included. The card's time picker is always shown
+// timestamp when a time is included. The menu's time picker is always shown
 // and defaults to 12am; leaving it there means "no specific time" — a
 // midnight commit stores date-only, anything else stores the timestamp.
 //
-// TIME ZONES are the thing to be careful about here: the card speaks LOCAL
+// TIME ZONES are the thing to be careful about here: the menu speaks LOCAL
 // wall-clock with no zone, while a timed `due` is stored as UTC. Everything
 // crossing that boundary goes through `serializeCardValue` / `parseDue`
 // (shared with the inspector in dom/due-marks.ts).
@@ -33,11 +39,13 @@ export function activateDue() {
     inputs: { due: '@due', done: '@done' },
     // Relative labels depend on the wall clock, not just the row's value —
     // tick supplies env.now so "Tomorrow" rolls over to "Today" at midnight.
-    tick: true,
+    // Once a minute is plenty for a date label (it catches the rollover within
+    // a minute), so it doesn't re-render every second like the clock badge.
+    tick: 60,
     render: (values, env) => {
-      const value = values['due'] ?? ''
-      const due = parseDue(value)
+      const due = parseDue(values['due'] ?? '')
       if (!due) return null
+
       const now = new Date((env.now ?? 0) * 1000)
       const dayDiff = dayDiffFromToday(due.date, now)
       // Urgency tint for OPEN items: red when due today or overdue, orange
@@ -50,31 +58,46 @@ export function activateDue() {
       // stroke/radius draw its border), so this tag matches every other
       // drawn badge on the row.
       const bm = env.badgeMetrics
-      return {
-        image: Image.fromText(new Text(dueLabel(due, now), env.font.withPointSize(bm.fontSize), color.alphaSet(0.8)))
-          .withBackground({
-            stroke: color.alphaSet(0.3),
-            strokeWidth: bm.strokeWidth,
-            cornerRadius: bm.cornerRadius,
-            padding: bm.padding,
-          }),
-        items: [
-          { type: 'header', title: 'Due' },
-          // `time: true` only sets the picker's default (midnight) — a time
-          // in the converted value wins, so the two can't disagree.
-          { type: 'calendar', id: 'due', value: serializeCardValue(due), time: true },
-          { type: 'separator' },
-          { type: 'button', id: 'filter-today', title: 'Due Today' },
-          { type: 'button', id: 'filter-tomorrow', title: 'Due Tomorrow' },
-          { type: 'button', id: 'filter-week', title: 'Due This Week' },
-          { type: 'separator' },
-          { type: 'button', id: 'command:due:clear', title: 'Clear Due' },
-        ],
-      }
+      return Image.fromText(new Text(dueLabel(due, now), env.font.withPointSize(bm.fontSize), color.alphaSet(0.8)))
+        .withBackground({
+          stroke: color.alphaSet(0.3),
+          strokeWidth: bm.strokeWidth,
+          cornerRadius: bm.cornerRadius,
+          padding: bm.padding,
+        })
     },
+    onClick: ({ editor, row }) => showDueMenu(editor, row),
+  })
+}
+
+// Present the due menu for a row — from the badge's onClick, and from
+// `due:set` on rows with no due yet (where there's no badge to click).
+// Nothing applies until the menu commits (Return/click-out).
+function showDueMenu(editor: OutlineEditor, row: Row) {
+  const due = parseDue(row.getAttribute('due') ?? '')
+
+  const items: MenuItem[] = []
+  if (due) {
+    items.push({ type: 'button', id: 'command:due:clear', title: 'Clear Due' })
+    items.push({ type: 'separator' })
+  }
+  items.push(
+    // `time: true` only sets the picker's default (midnight) — a time
+    // in the converted value wins, so the two can't disagree. No value
+    // (row without a due) opens on today with nothing selected.
+    { type: 'calendar', id: 'due', value: due ? serializeCardValue(due) : undefined, time: true },
+    { type: 'separator' },
+    { type: 'button', id: 'filter-today', title: 'Due Today' },
+    { type: 'button', id: 'filter-tomorrow', title: 'Due Tomorrow' },
+    { type: 'button', id: 'filter-week', title: 'Due This Week' }
+  )
+
+  editor.showMenu(row, {
+    items,
+    anchor: 'due',
     onChange: (id, value, { editor, row }) => {
       if (id === 'due' && typeof value === 'string') {
-        // The card's calendar always carries a time, so it commits
+        // The menu's calendar always carries a time, so it commits
         // `YYYY-MM-DDTHH:mm:ss` (local). A time left at the midnight default
         // means "no specific time" and stores date-only; anything else is a
         // real time, restated as UTC for storage.
@@ -110,14 +133,12 @@ export function activateDue() {
   })
 }
 
-// Stamp `due` with today's date on every selected row; adjust via the badge.
+// Open the due menu for the (first) selected row. The menu is where the
+// value gets set — nothing applies until the menu commits (Return).
 function setDue({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
-  const today = serializeDateOnly(new Date())
-  editor.outline.transaction({ label: 'Set Due' }, () => {
-    for (const row of rows) row.setAttribute('due', today)
-  })
+  showDueMenu(editor, rows[0])
   return true
 }
 
@@ -135,7 +156,7 @@ function clearDue({ editor, selection }: CommandContext): boolean {
 // shared with the calendar inspector via dom/due-marks.ts.
 const serializeDateOnly = dayKey
 
-// What the card's calendar wants: a local date, plus local wall-clock time
+// What the menu's calendar wants: a local date, plus local wall-clock time
 // when the value has one. Handing it the STORED string instead would be
 // wrong for a timed due — that's UTC, so its date part is the wrong day
 // whenever the two disagree (23:00 on the 14th in New York is the 15th UTC).
@@ -145,7 +166,7 @@ function serializeCardValue(due: DueValue): string {
   return `${day}T${pad(due.date.getHours())}:${pad(due.date.getMinutes())}:${pad(due.date.getSeconds())}`
 }
 
-// The card's ISO-8601 parser rejects fractional seconds, so build the UTC
+// The menu's ISO-8601 parser rejects fractional seconds, so build the UTC
 // timestamp by hand instead of using toISOString().
 function serializeTimestamp(date: Date): string {
   return (

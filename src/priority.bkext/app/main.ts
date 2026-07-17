@@ -2,10 +2,10 @@ import { AppExtensionContext, CommandContext, Image, MenuRowItem, Text } from 'b
 
 // The "priority" feature: four commands (Priority 1/2/3 and Clear) that set or
 // remove the `priority` attribute on the selected rows, plus a value-aware row
-// badge. The badge's click card is built from `command:<id>` buttons, so each
-// card row dispatches the same command — with the clicked row as its selection —
-// that the command palette and keybindings use. The behavior lives in the
-// commands; the card just points at them.
+// badge. Clicking the badge shows a menu built from `command:<id>` buttons, so
+// each menu row dispatches the same command — with the clicked row as its
+// selection — that the command palette and keybindings use. The behavior lives
+// in the commands; the menu just points at them.
 
 export async function activate(context: AppExtensionContext) {
   bike.commands.addCommands({
@@ -22,31 +22,34 @@ export async function activate(context: AppExtensionContext) {
   bike.badge('priority', {
     where: '.@priority',
     render: (values, env) => {
-      const value = values['priority'] ?? ''
-      const n = clampPriority(value)
+      const n = clampPriority(values['priority'] ?? '')
       // A drawn number tag on the full badge-metrics recipe (fontSize +
       // padding size the tag, stroke/radius draw its border) — the same
       // recipe as the due badge's tag, so the two read as one family.
       const bm = env.badgeMetrics
-      return {
-        image: Image.fromText(new Text('P' + n, env.font.withPointSize(bm.fontSize), env.color.alphaSet(0.8)))
-          .withBackground({
-            stroke: env.color.alphaSet(0.3),
-            strokeWidth: bm.strokeWidth,
-            cornerRadius: bm.cornerRadius,
-            padding: bm.padding,
-          }),
+      return Image.fromText(new Text('P' + n, env.font.withPointSize(bm.fontSize), env.color.alphaSet(0.8)))
+        .withBackground({
+          stroke: env.color.alphaSet(0.3),
+          strokeWidth: bm.strokeWidth,
+          cornerRadius: bm.cornerRadius,
+          padding: bm.padding,
+        })
+    },
+    onClick: ({ editor, row }) => {
+      const value = row.getAttribute('priority') ?? ''
+      editor.showMenu(row, {
         items: [
           ...([1, 2, 3] as const).map((n) => priorityRow(n, value)),
           { type: 'separator' },
           { type: 'button', id: 'command:priority:clear', title: 'Clear Priority' },
         ],
-      }
-    },
-    onAction: (id, { editor }) => {
-      const n = id.startsWith(FILTER_PREFIX) ? id.slice(FILTER_PREFIX.length) : undefined
-      if (!n) return
-      editor.filter = { path: `//@priority = "${n}"`, label: `Priority ${n}` }
+        anchor: 'priority',
+        onAction: (id, { editor }) => {
+          const n = id.startsWith(FILTER_PREFIX) ? id.slice(FILTER_PREFIX.length) : undefined
+          if (!n) return
+          editor.filter = { path: `//@priority = "${n}"`, label: `Priority ${n}` }
+        },
+      })
     },
   })
 }

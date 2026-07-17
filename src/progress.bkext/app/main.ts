@@ -3,8 +3,8 @@ import { AppExtensionContext, CommandContext, Image, Row, Text } from 'bike/app'
 // A "progress" feature demonstrating subtree summaries: two incrementally
 // maintained branch aggregates (total tasks / done tasks below a row), consumed
 // by a badge that shows "done/total" on any row that has a task somewhere
-// below. The badge's click card holds Show Done / Show Remaining filters and
-// Mark Branch Done / Undone commands.
+// below. Clicking the badge shows a menu with Show Done / Show Remaining
+// filters and Mark Branch Done / Undone commands.
 
 export async function activate(context: AppExtensionContext) {
   bike.commands.addCommands({
@@ -30,34 +30,40 @@ export async function activate(context: AppExtensionContext) {
     render: (values, env) => {
       const done = values['done'] ?? '0'
       const total = values['total'] ?? '0'
-      return {
-        // A plain solidus + the OpenType `frac` feature renders this as a true
-        // diagonal fraction: raised numerator, denominator dropped to the
-        // baseline. (The U+2044 fraction slash conflicts with `frac` in SF and
-        // leaves the denominator at superior height — use the solidus.)
-        image: Image.fromText(
-          new Text(`${done}/${total}`, env.font.withFractions()),
-        ),
+      // A plain solidus + the OpenType `frac` feature renders this as a true
+      // diagonal fraction: raised numerator, denominator dropped to the
+      // baseline. (The U+2044 fraction slash conflicts with `frac` in SF and
+      // leaves the denominator at superior height — use the solidus.)
+      return Image.fromText(new Text(`${done}/${total}`, env.font.withFractions()))
+    },
+    onClick: ({ editor, row }) => {
+      // The menu is built at click time from the row itself. Summary values
+      // aren't readable per-row from JS, so recompute done/total with a
+      // one-shot branch walk — cheap for a single click, and only needed
+      // for the enabled: flags.
+      const tasks = branchTasks([row])
+      const done = tasks.filter((task) => task.getAttribute('done') != null).length
+      editor.showMenu(row, {
         items: [
           { type: 'button', id: 'show-done', title: 'Show Done Tasks' },
           { type: 'button', id: 'show-remaining', title: 'Show Remaining Tasks' },
           { type: 'separator' },
-          { type: 'button', id: 'command:progress:mark-branch-done', title: 'Mark Branch Done', enabled: done !== total },
-          { type: 'button', id: 'command:progress:mark-branch-undone', title: 'Mark Branch Undone', enabled: done !== '0' },
+          { type: 'button', id: 'command:progress:mark-branch-done', title: 'Mark Branch Done', enabled: done !== tasks.length },
+          { type: 'button', id: 'command:progress:mark-branch-undone', title: 'Mark Branch Undone', enabled: done !== 0 },
         ],
-      }
-    },
-    onAction: (id, { editor, row }) => {
-      // These filters are scoped to the CLICKED row's subtree, which a
-      // `filter` item query (pure render data) can't express — so compose
-      // the query here with the row's (ensured) persistent id and set the
-      // editor filter directly.
-      const pid = row.ensuredPersistentId
-      if (id === 'show-done') {
-        editor.filter = { label: "Done Tasks", path: `//@id = "${pid}"//@done` }
-      } else if (id === 'show-remaining') {
-        editor.filter = { label: "Remaining Tasks", path: `//@id = "${pid}"//not @done` }
-      }
+        anchor: 'progress',
+        onAction: (id, { editor, row }) => {
+          // These filters are scoped to the CLICKED row's subtree — compose
+          // the query with the row's (ensured) persistent id and set the
+          // editor filter directly.
+          const pid = row.ensuredPersistentId
+          if (id === 'show-done') {
+            editor.filter = { label: "Done Tasks", path: `//@id = "${pid}"//@done` }
+          } else if (id === 'show-remaining') {
+            editor.filter = { label: "Remaining Tasks", path: `//@id = "${pid}"//not @done` }
+          }
+        },
+      })
     },
   })
 }
