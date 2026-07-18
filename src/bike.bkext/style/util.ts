@@ -13,7 +13,6 @@ import {
 } from 'bike/style'
 
 // Geometry constants
-const BASE_FONT_SIZE = 14
 const INDENT_MULTIPLIER = 22
 const VIEWPORT_PADDING_BASE = 10
 const ROW_TEXT_PADDING_MULTIPLIER = 5
@@ -206,7 +205,11 @@ function computeGeometryForFont(
   let visibleViewportHeight = viewportSize.height - viewportContentInsets.top - viewportContentInsets.bottom
   let fontAttributes = font.resolve(context)
   let pointSize = fontAttributes.pointSize
-  let uiScale = pointSize / BASE_FONT_SIZE
+  // Native owns the ratio and its 14pt baseline. Resolved off whichever font
+  // this pass was handed, so the tier-scaled call below gets the scaled scale
+  // — and the font published as `viewport.font` is the one whose uiScale the
+  // rest of the editor (chrome, badges) sees.
+  let uiScale = fontAttributes.uiScale
   let indent = INDENT_MULTIPLIER * uiScale
   let rowPaddingBase = context.settings.rowSpacingMultiple * pointSize * uiScale
   let rowTextPaddingBase = ROW_TEXT_PADDING_MULTIPLIER * uiScale
