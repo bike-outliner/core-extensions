@@ -23,11 +23,11 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showWeekNumbers, setShowWeekNumbers] = useState(() => bike.defaults.get('showWeekNumbers') !== false)
   const [dueByDay, setDueByDay] = useState<Map<string, SessionRow[]>>(new Map())
-  // The agenda's day is STICKY: it follows every day selection (calendar
-  // click or selection sync) but survives clearSelection — otherwise
-  // clicking an agenda item to navigate would clear the agenda out from
-  // under the click.
-  const [agendaDate, setAgendaDate] = useState<Date | null>(null)
+  // The agenda shows the selected day, or Today when nothing is selected —
+  // so clicking an agenda item (which navigates the editor and usually
+  // clears the calendar selection) lands on Today's agenda rather than
+  // leaving the panel empty or pinned to a stale day.
+  const agendaDate = selectedDate ?? new Date()
 
   useEffect(() => {
     context.onmessage = (message) => {
@@ -35,7 +35,6 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         case 'selectDate': {
           const date = new Date(message.date)
           setSelectedDate(date)
-          setAgendaDate(date)
           setActiveStartDate(date)
           break
         }
@@ -55,16 +54,18 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
   }, [])
 
   // Live @due rows for the displayed month (padded a week each side for
-  // neighboring-month tiles). The session query targets the host window's
-  // outline by default and follows tab/document switches; re-subscribe only
-  // when the visible MONTH changes — day-level activeStartDate changes keep
-  // the same range. A null snapshot (nothing open) and onClose both clear.
+  // neighboring-month tiles), plus today's rows so the agenda's Today
+  // fallback has data even when paged to a distant month. The session query
+  // targets the host window's outline by default and follows tab/document
+  // switches; re-subscribe only when the visible MONTH changes — day-level
+  // activeStartDate changes keep the same range. A null snapshot (nothing
+  // open) and onClose both clear.
   useEffect(() => {
     let sub: SessionSubscription | undefined
     let canceled = false
     bike.session
       .observeOutlineQuery(
-        { path: dueQueryPath(visibleRange(activeStartDate)), shape: 'flat' },
+        { path: dueQueryPath(visibleRange(activeStartDate), new Date()), shape: 'flat' },
         (snapshot) => setDueByDay(bucketByDay(snapshot?.root.children)),
         { onClose: () => setDueByDay(new Map()) },
       )
@@ -86,7 +87,6 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
   function onChange(nextValue: any) {
     const date = nextValue instanceof Date ? nextValue : new Date(String(nextValue))
     setSelectedDate(date)
-    setAgendaDate(date)
     context.postMessage({
       type: 'dateChange',
       date: date.toISOString(),
@@ -108,7 +108,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     return <span className={`due-mark due-mark--${variant}`} title={`${rows.length} due`} />
   }
 
-  const agendaRows = sortAgendaRows((agendaDate && dueByDay.get(dayKey(agendaDate))) || [])
+  const agendaRows = sortAgendaRows(dueByDay.get(dayKey(agendaDate)) || [])
 
   const navBar = (
     <div className="calendar-nav-bar">
@@ -147,27 +147,26 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(bike.systemLocale, { weekday: 'narrow' })}
         tileContent={dueTileMark}
       />
-      {agendaDate && agendaRows.length > 0 && (
-        <div className="calendar-agenda">
-          <div className="calendar-agenda-header">
-            {agendaDate.toLocaleDateString(bike.systemLocale, { dateStyle: 'long' })}
-          </div>
-          {agendaRows.map((row) => {
-            const time = agendaTimeLabel(row, bike.systemLocale)
-            return (
-              <button
-                key={row.id}
-                className="calendar-agenda-item"
-                type="button"
-                onClick={() => bike.session.updateEditor({ select: row.id })}
-              >
-                {time && <span className="calendar-agenda-time">{time}</span>}
-                {rowDisplayText(row) || 'Untitled'}
-              </button>
-            )
-          })}
+      <div className="calendar-agenda">
+        <div className="calendar-agenda-header">
+          {agendaDate.toLocaleDateString(bike.systemLocale, { dateStyle: 'long' })}
         </div>
-      )}
+        {agendaRows.length === 0 && <div className="calendar-agenda-empty">Nothing due</div>}
+        {agendaRows.map((row) => {
+          const time = agendaTimeLabel(row, bike.systemLocale)
+          return (
+            <button
+              key={row.id}
+              className="calendar-agenda-item"
+              type="button"
+              onClick={() => bike.session.updateEditor({ select: row.id })}
+            >
+              {time && <span className="calendar-agenda-time">{time}</span>}
+              {rowDisplayText(row) || 'Untitled'}
+            </button>
+          )
+        })}
+      </div>
     </Disclosure>
   )
 }

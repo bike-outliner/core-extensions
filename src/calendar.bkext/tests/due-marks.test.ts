@@ -95,9 +95,22 @@ describe('visibleRange', () => {
 })
 
 describe('dueQueryPath', () => {
-  it('builds a half-open [d] range over local-date literals', () => {
-    const path = dueQueryPath(visibleRange(new Date(2026, 6, 15)))
-    assert.equal(path, '//@due >=[d] "2026-06-24" and @due <[d] "2026-08-08"')
+  it('builds a half-open [d] range over local-date literals, plus a today clause', () => {
+    const path = dueQueryPath(visibleRange(new Date(2026, 6, 15)), new Date(2026, 6, 16))
+    assert.equal(
+      path,
+      '//(@due >=[d] "2026-06-24" and @due <[d] "2026-08-08")' +
+        ' or (@due >=[d] "2026-07-16" and @due <[d] "2026-07-17")'
+    )
+  })
+
+  it("today's clause spans month and year boundaries", () => {
+    const path = dueQueryPath(visibleRange(new Date(2026, 0, 15)), new Date(2026, 11, 31))
+    assert.equal(
+      path,
+      '//(@due >=[d] "2025-12-25" and @due <[d] "2026-02-08")' +
+        ' or (@due >=[d] "2026-12-31" and @due <[d] "2027-01-01")'
+    )
   })
 })
 

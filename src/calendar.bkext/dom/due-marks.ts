@@ -89,12 +89,20 @@ export function visibleRange(activeStartDate: Date): { start: Date; end: Date } 
 }
 
 /**
- * Outline path matching rows due inside `range`. Bare date literals
- * resolve to local midnight, matching dayKey's local-day semantics; the
- * `[d]` modifier makes date-only and timed `due` values compare as dates.
+ * Outline path matching rows due inside `range`, plus rows due on `today`'s
+ * day — the agenda falls back to Today when no date is selected, so today's
+ * rows must arrive even when the calendar is paged to a distant month. Bare
+ * date literals resolve to local midnight, matching dayKey's local-day
+ * semantics; the `[d]` modifier makes date-only and timed `due` values
+ * compare as raw timestamps (no day truncation), so today is a half-open
+ * day range too, not an `=` compare — `=[d]` would miss timed items.
  */
-export function dueQueryPath(range: { start: Date; end: Date }): string {
-  return `//@due >=[d] "${dayKey(range.start)}" and @due <[d] "${dayKey(range.end)}"`
+export function dueQueryPath(range: { start: Date; end: Date }, today: Date): string {
+  const dayAfterToday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+  return (
+    `//(@due >=[d] "${dayKey(range.start)}" and @due <[d] "${dayKey(range.end)}")` +
+    ` or (@due >=[d] "${dayKey(today)}" and @due <[d] "${dayKey(dayAfterToday)}")`
+  )
 }
 
 /**

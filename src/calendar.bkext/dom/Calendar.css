@@ -138,6 +138,12 @@
   padding: 1px 2px;
 }
 
+.calendar-agenda-empty {
+  font: -apple-system-body;
+  color: var(--tertiary-label);
+  padding: 1px 2px;
+}
+
 .calendar-agenda-item {
   font: -apple-system-body;
   color: var(--label);
