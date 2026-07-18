@@ -5,13 +5,14 @@ import { DueValue, dayDiffFromToday, dayKey, dueUrgency, parseDue } from '../dom
 // removes) that manage a `due` attribute on the selected rows, plus a
 // value-aware badge showing the date relative when near ("Today", "Tomorrow",
 // a weekday within the week). Clicking the badge opens a menu holding an
-// inline calendar picker with a time picker, and Due Today / Tomorrow /
-// This Week filters; picked values apply when the menu commits
-// (Return/click-out), not per interaction — Esc discards. Clear Due leads
-// the menu, but only when the row has a due to clear. The menu is built
-// imperatively from the row (`showDueMenu`), which is how `due:set` offers
-// it on fresh rows the badge doesn't decorate — seeded to today, Return
-// commits the first value.
+// inline calendar picker with a time picker; picked values apply when the
+// menu commits (Return/click-out), not per interaction — Esc discards.
+// Clear Due sits at the bottom, but only when the row has a due to clear.
+// The menu is built imperatively from the row (`showDueMenu`), which is how
+// `due:set` offers it on fresh rows the badge doesn't decorate — seeded to
+// today, Return commits the first value.
+// Due Today / Tomorrow / This Week live in the filter field's autocomplete
+// (registered via `bike.addFilter`), not in the menu.
 // The calendar inspector renders the same attribute as day marks and a
 // day agenda (dom/Calendar.tsx) — that coupling is why due lives in the
 // calendar extension.
@@ -68,6 +69,19 @@ export function activateDue() {
     },
     onClick: ({ editor, row }) => showDueMenu(editor, row),
   })
+
+  bike.addFilter('due-today', {
+    label: 'Due Today',
+    query: '//@due >=[d] today() and @due <[d] today() + days(1) and not @done',
+  })
+  bike.addFilter('due-tomorrow', {
+    label: 'Due Tomorrow',
+    query: '//@due >=[d] today() + days(1) and @due <[d] today() + days(2) and not @done',
+  })
+  bike.addFilter('due-this-week', {
+    label: 'Due This Week',
+    query: '//@due >=[d] start-of-week(0) and @due <[d] start-of-week(1) and not @done',
+  })
 }
 
 // Present the due menu for a row — from the badge's onClick, and from
@@ -77,20 +91,16 @@ function showDueMenu(editor: OutlineEditor, row: Row) {
   const due = parseDue(row.getAttribute('due') ?? '')
 
   const items: MenuItem[] = []
-  if (due) {
-    items.push({ type: 'button', id: 'command:due:clear', title: 'Clear Due' })
-    items.push({ type: 'separator' })
-  }
   items.push(
     // `time: true` only sets the picker's default (midnight) — a time
     // in the converted value wins, so the two can't disagree. No value
     // (row without a due) opens on today with nothing selected.
-    { type: 'calendar', id: 'due', value: due ? serializeCardValue(due) : undefined, time: true },
-    { type: 'separator' },
-    { type: 'button', id: 'filter-today', title: 'Due Today' },
-    { type: 'button', id: 'filter-tomorrow', title: 'Due Tomorrow' },
-    { type: 'button', id: 'filter-week', title: 'Due This Week' }
+    { type: 'calendar', id: 'due', value: due ? serializeCardValue(due) : undefined, time: true }
   )
+  if (due) {
+    items.push({ type: 'separator' })
+    items.push({ type: 'button', id: 'command:due:clear', title: 'Clear Due' })
+  }
 
   editor.showMenu(row, {
     items,
@@ -110,24 +120,6 @@ function showDueMenu(editor: OutlineEditor, row: Row) {
         editor.outline.transaction({ label: 'Set Due' }, () => {
           row.setAttribute('due', next)
         })
-      }
-    },
-    onAction: (id, { editor }) => {
-      if (id === 'filter-today') {
-        editor.filter = {
-          path: '//@due >=[d] today() and @due <[d] today() + days(1) and not @done',
-          label: 'Due Today',
-        }
-      } else if (id === 'filter-tomorrow') {
-        editor.filter = {
-          path: '//@due >=[d] today() + days(1) and @due <[d] today() + days(2) and not @done',
-          label: 'Due Tomorrow',
-        }
-      } else if (id === 'filter-week') {
-        editor.filter = {
-          path: '//@due >=[d] start-of-week(0) and @due <[d] start-of-week(1) and not @done',
-          label: 'Due This Week',
-        }
       }
     },
   })
