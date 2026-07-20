@@ -86,7 +86,6 @@ function priorityRow(n: 1 | 2 | 3, value: string): MenuRowItem {
   }
 }
 
-// Set `priority` to a fixed value on every selected row, in one undo step.
 function setPriority(value: string) {
   return ({ editor, selection }: CommandContext): boolean => {
     const rows = selection?.rows ?? []
@@ -98,7 +97,6 @@ function setPriority(value: string) {
   }
 }
 
-// Remove `priority` from every selected row.
 function clearPriority({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
