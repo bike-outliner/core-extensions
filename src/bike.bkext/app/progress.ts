@@ -1,4 +1,4 @@
-import { AppExtensionContext, CommandContext, Image, Row, Text } from 'bike/app'
+import { CommandContext, Image, Row, Text } from 'bike/app'
 
 // A "progress" feature demonstrating subtree summaries: two incrementally
 // maintained branch aggregates (total tasks / done tasks below a row), consumed
@@ -6,7 +6,7 @@ import { AppExtensionContext, CommandContext, Image, Row, Text } from 'bike/app'
 // below. Clicking the badge shows a menu with Show Done / Show Remaining
 // filters and Set / Clear Branch Done commands.
 
-export async function activate(context: AppExtensionContext) {
+export function registerProgress() {
   bike.commands.addCommands({
     commands: {
       'progress:mark-branch-done': markBranchDone,
