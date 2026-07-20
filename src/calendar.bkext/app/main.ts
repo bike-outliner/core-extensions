@@ -4,6 +4,7 @@ import { getDayRow } from './calendar-rows'
 import { getDateComponents, findDateId } from './util'
 import { activateDue } from './due'
 import { CalendarProtocol, calendarDefaults } from '../dom/protocols'
+import { dayKey } from '../dom/due-marks'
 
 export async function activate(context: AppExtensionContext) {
   bike.defaults.registerDefaults(calendarDefaults)
@@ -45,18 +46,68 @@ export async function activate(context: AppExtensionContext) {
       script: 'Calendar.js',
     })
 
-    calendarHandle.onmessage = (message) => {
-      let editor = window.currentOutlineEditor
+    /*
+    const agendaHandle = await window.inspector.addItem<CalendarProtocol>({
+      label: 'Agenda',
+      script: 'Agenda.js',
+    })
+    */
 
-      if (editor && message.type === 'dateChange' && message.date) {
-        let outline = editor.outline
-        let dateRow = getDayRow(editor.outline, new Date(message.date))
-        if (!dateRow.firstChild) {
-          outline.insertRows([{}], dateRow)
+    calendarHandle.onmessage = (message) => {
+      const editor = window.currentOutlineEditor
+      if (!editor || message.type !== 'dateChange' || !message.date) return
+
+      const date = new Date(message.date)
+      const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+      const dueRange = `@due >=[d] "${dayKey(date)}" and @due <[d] "${dayKey(dayEnd)}"`
+      const hasDue = (editor.outline.query(`count(//(${dueRange}))`).value as number) > 0
+      const agenda = !message.option && hasDue
+
+      // Everything in ONE transaction so the layer sees a single old→new
+      // event. Split up (focus, then filter — each JS setter opens its own
+      // top-level transaction), the first event starts branch animations for
+      // rows the second event then filters away, and those layers linger on
+      // screen until their spring ends. One event lets the filter change's
+      // snap/arrival-slide apply to the whole transition.
+      editor.transaction(
+        { label: agenda ? 'Show Agenda' : 'Go to Day', animate: { spring: 'navigation' } },
+        () => {
+          // Always materialize the clicked day's row (with an empty child for
+          // the caret) — so a click lands somewhere real, and so the agenda
+          // filter's day-row union below has a row to match.
+          const dateRow = getDayRow(editor.outline, date)
+          if (!dateRow.firstChild) {
+            editor.outline.insertRows([{}], dateRow)
+          }
+
+          // Plain click on a day with @due items (open or @done): go home and
+          // filter to that day's agenda — the due items plus the day row and
+          // its whole subtree. The `[d]` half-open day range matches the
+          // calendar's day marks (see dueQueryPath); no @done clause, so done
+          // items show too.
+          if (agenda) {
+            const dayId = getDateComponents(date).dayId
+            editor.focus = editor.outline.root
+            editor.filter = {
+              // Union of three //-sets: due-on-day, the day row, and the day
+              // row's descendants — the descendants must be matched or the
+              // filter would collapse them (matches show ancestors, not
+              // descendants).
+              path: `//(${dueRange}) union //@id = "${dayId}" union //@id = "${dayId}"//*`,
+              label: `Agenda ${date.toLocaleDateString(bike.systemLocale, { dateStyle: 'medium' })}`,
+            }
+          } else {
+            // ⌥-click, or a day with no due items: clear any filter and focus
+            // the day row.
+            editor.filter = undefined
+            editor.focus = dateRow
+          }
+
+          // Either way the caret lands on the day's first row (visible under
+          // the agenda filter too — its day-row union matches the subtree).
+          editor.selectCaret(dateRow.firstChild!, 0)
         }
-        editor.focus = dateRow
-        editor.selectCaret(dateRow.firstChild!, 0)
-      }
+      )
     }
 
     window.observeCurrentOutlineEditor((editor) => {
@@ -64,6 +115,7 @@ export async function activate(context: AppExtensionContext) {
         editor.observeSelection((selection) => {
           if (!selection) {
             calendarHandle.postMessage({ type: 'clearSelection' })
+            // agendaHandle.postMessage({ type: 'clearSelection' })
             return
           }
           const dateId = findDateId(selection.row)
@@ -71,8 +123,10 @@ export async function activate(context: AppExtensionContext) {
             const [year, month, day] = dateId.split('/').map(Number)
             const date = new Date(year, month - 1, day)
             calendarHandle.postMessage({ type: 'selectDate', date: date.toISOString() })
+            // agendaHandle.postMessage({ type: 'selectDate', date: date.toISOString() })
           } else {
             calendarHandle.postMessage({ type: 'clearSelection' })
+            // agendaHandle.postMessage({ type: 'clearSelection' })
           }
         }, 300)
       }

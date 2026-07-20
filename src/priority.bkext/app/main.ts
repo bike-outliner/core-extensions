@@ -1,4 +1,4 @@
-import { AppExtensionContext, CommandContext, Image, MenuRowItem, Text } from 'bike/app'
+import { AppExtensionContext, CommandContext, Image, MenuItem, Text } from 'bike/app'
 
 // The "priority" feature: four commands (Priority 1/2/3 and Clear) that set or
 // remove the `priority` attribute on the selected rows, plus a value-aware row
@@ -36,49 +36,35 @@ export async function activate(context: AppExtensionContext) {
         })
     },
     onClick: ({ editor, row }) => {
-      // `items` is a builder, re-invoked after each pick (a non-dismissing
-      // command button keeps the menu open) so the checkmark tracks the
-      // chosen priority live. "Filter Priority" at the top filters to the
-      // row's current priority.
+      // Radio group from checked command buttons: the active priority carries
+      // the checkmark, picking one dispatches its command and closes the
+      // menu. "Show Priority" at the top filters to prioritized rows.
       editor.showMenu(row, {
         items: () => {
           const value = row.getAttribute('priority') ?? ''
           return [
-            { type: 'button', id: 'filter', title: 'Show Priority' },
+            { type: 'button', id: 'filter', title: 'Show Priority', symbol: 'line.3.horizontal.decrease' },
             { type: 'separator' },
-            ...([1, 2, 3] as const).map((n) => priorityRow(n, value)),
+            ...([1, 2, 3] as const).map(
+              (n): MenuItem => ({
+                type: 'button',
+                id: `command:priority:${n}`,
+                title: `Priority ${n}`,
+                state: value === String(n) ? 'on' : 'off',
+              })
+            ),
             { type: 'separator' },
             { type: 'button', id: 'command:priority:clear', title: 'Clear Priority' },
           ]
         },
         anchor: 'priority',
-        onAction: (id, { editor, row }) => {
+        onAction: (id, _value, { editor }) => {
           if (id !== 'filter') return
           editor.filter = { path: `//@priority`, label: `Show Priority` }
         },
       })
     },
   })
-}
-
-// One priority row: a single titled command button. It's a `row` (not a plain
-// button) so its `state` renders as a checkmark AND the menu stays open on
-// activation — the checkmark then tracks the pick as the items rebuild. The
-// button is the row's PRIMARY: the keyboard highlights it and Return activates
-// it, so priorities stay settable without the mouse.
-function priorityRow(n: 1 | 2 | 3, value: string): MenuRowItem {
-  return {
-    type: 'row',
-    id: `priority:${n}`,
-    items: [
-      {
-        type: 'button',
-        id: `command:priority:${n}`,
-        title: `Priority ${n}`,
-        state: value === String(n) ? 'on' : 'off',
-      },
-    ],
-  }
 }
 
 function setPriority(value: string) {

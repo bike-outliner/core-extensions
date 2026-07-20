@@ -4,20 +4,20 @@ import { AppExtensionContext, CommandContext, Image, Row, Text } from 'bike/app'
 // maintained branch aggregates (total tasks / done tasks below a row), consumed
 // by a badge that shows "done/total" on any row that has a task somewhere
 // below. Clicking the badge shows a menu with Show Done / Show Remaining
-// filters and Mark Branch Done / Undone commands.
+// filters and Set / Clear Branch Done commands.
 
 export async function activate(context: AppExtensionContext) {
   bike.commands.addCommands({
     commands: {
       'progress:mark-branch-done': markBranchDone,
-      'progress:mark-branch-undone': markBranchUndone,
+      'progress:clear-branch-done': clearBranchDone,
     },
   })
 
   // Self-only contributions folded up every branch by `count`; read O(1) as
   // `summary('...')` from the badge inputs below.
-  bike.summary('tasks', { where: '.task', reduce: 'count' })
-  bike.summary('doneTasks', { where: '.task @done', reduce: 'count' })
+  bike.summary('todo', { where: '.task', reduce: 'count' })
+  bike.summary('done', { where: '.@done', reduce: 'count' })
 
   bike.badge('progress', {
     // Rows with a task in their subtree — via the summary, an O(1) read (a
@@ -25,8 +25,8 @@ export async function activate(context: AppExtensionContext) {
     // every style pass, and is rejected at registration). A task LEAF's
     // subtree count is just itself, so tasks only show progress when they
     // contain further tasks (count > 1).
-    where: '.summary("tasks") > 0 and ((not @type = task) or summary("tasks") > 1)',
-    inputs: { done: 'summary("doneTasks")', total: 'summary("tasks")' },
+    where: '.summary("todo") > 0 and ((not @type = task) or summary("todo") > 1)',
+    inputs: { done: 'summary("done")', total: 'summary("todo")' },
     render: (values, env) => {
       const done = values['done'] ?? '0'
       const total = values['total'] ?? '0'
@@ -45,22 +45,19 @@ export async function activate(context: AppExtensionContext) {
       const done = tasks.filter((task) => task.getAttribute('done') != null).length
       editor.showMenu(row, {
         items: () => [
-          { type: 'button', id: 'show-done', title: 'Show Done Tasks' },
-          { type: 'button', id: 'show-remaining', title: 'Show Remaining Tasks' },
+          { type: 'button', id: 'show-todos', title: 'Branch Todos', symbol: 'line.3.horizontal.decrease' },
+          { type: 'button', id: 'show-completed', title: 'Branch Completed', symbol: 'line.3.horizontal.decrease' },
           { type: 'separator' },
-          { type: 'button', id: 'command:progress:mark-branch-done', title: 'Mark Branch Done', enabled: done !== tasks.length },
-          { type: 'button', id: 'command:progress:mark-branch-undone', title: 'Mark Branch Undone', enabled: done !== 0 },
+          { type: 'button', id: 'command:progress:mark-branch-done', title: 'Mark Branch Done', symbol: 'checkmark.square', enabled: done !== tasks.length },
+          { type: 'button', id: 'command:progress:clear-branch-done', title: 'Clear Branch Done', symbol: 'square', enabled: done !== 0 },
         ],
         anchor: 'progress',
-        onAction: (id, { editor, row }) => {
-          // These filters are scoped to the CLICKED row's subtree — compose
-          // the query with the row's (ensured) persistent id and set the
-          // editor filter directly.
+        onAction: (id, _value, { editor, row }) => {
           const pid = row.ensuredPersistentId
-          if (id === 'show-done') {
+          if (id === 'show-completed') {
             editor.filter = { label: "Done Tasks", path: `//@id = "${pid}"//@done` }
-          } else if (id === 'show-remaining') {
-            editor.filter = { label: "Remaining Tasks", path: `//@id = "${pid}"//not @done` }
+          } else if (id === 'show-todos') {
+            editor.filter = { label: "Todo Tasks", path: `//@id = "${pid}"//task not @done` }
           }
         },
       })
@@ -78,19 +75,19 @@ function markBranchDone({ editor, selection }: CommandContext): boolean {
   // The same `done` value the native Toggle Done stamps: an ISO-8601 UTC
   // timestamp without fractional seconds.
   const now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
-  editor.outline.transaction({ label: 'Mark Branch Done' }, () => {
+  editor.outline.transaction({ label: 'Set Branch Done' }, () => {
     for (const task of tasks) task.setAttribute('done', now)
   })
   return true
 }
 
 // Remove `done` from every task in the selected rows' branches.
-function markBranchUndone({ editor, selection }: CommandContext): boolean {
+function clearBranchDone({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
   const tasks = branchTasks(rows).filter((task) => task.getAttribute('done') != null)
   if (tasks.length === 0) return false
-  editor.outline.transaction({ label: 'Mark Branch Undone' }, () => {
+  editor.outline.transaction({ label: 'Clear Branch Done' }, () => {
     for (const task of tasks) task.removeAttribute('done')
   })
   return true

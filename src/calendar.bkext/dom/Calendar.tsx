@@ -6,15 +6,12 @@ import Calendar from 'react-calendar'
 import './Calendar.css'
 import { CalendarProtocol } from './protocols'
 import {
-  agendaTimeLabel,
   bucketByDay,
   dayDiffFromToday,
   dayKey,
   dueQueryPath,
   dueUrgency,
   isDone,
-  rowDisplayText,
-  sortAgendaRows,
   visibleRange,
 } from './due-marks'
 
@@ -27,11 +24,6 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
   // effect) so day marks, the agenda's Today fallback, and urgency tints don't
   // freeze at the day the panel was opened when it stays up overnight.
   const [today, setToday] = useState(() => new Date())
-  // The agenda shows the selected day, or Today when nothing is selected —
-  // so clicking an agenda item (which navigates the editor and usually
-  // clears the calendar selection) lands on Today's agenda rather than
-  // leaving the panel empty or pinned to a stale day.
-  const agendaDate = selectedDate ?? today
 
   useEffect(() => {
     context.onmessage = (message) => {
@@ -57,6 +49,50 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     return () => disposable.dispose()
   }, [])
 
+  // Native row drags (bike:rowdrag* events, delegated on the context
+  // element). Dropping rows on a day tile sets their @due to that day —
+  // the payload's outline/rows ids are bike.session's, so this works even
+  // for rows dragged from a different document. The date rides on the
+  // tile's `cal-day-YYYY-MM-DD` class (tileContent spans are
+  // pointer-events: none, invisible to the dispatcher's hit-test). Hover
+  // highlight is a manual class — native drags don't trigger CSS :hover.
+  useEffect(() => {
+    const el = context.element
+    let hoverTile: Element | null = null
+    const tileFor = (target: EventTarget | null) => {
+      const tile = (target as HTMLElement | null)?.closest?.('.react-calendar__tile')
+      const match = tile && Array.from(tile.classList).find((c) => c.startsWith('cal-day-'))
+      return match ? { tile, date: match.slice('cal-day-'.length) } : null
+    }
+    const setHover = (tile: Element | null) => {
+      if (hoverTile === tile) return
+      hoverTile?.classList.remove('row-drop-target')
+      hoverTile = tile
+      hoverTile?.classList.add('row-drop-target')
+    }
+    const onOver = (e: RowDragEvent) => {
+      const hit = tileFor(e.target)
+      setHover(hit?.tile ?? null)
+      if (hit) e.preventDefault()
+    }
+    const onLeave = () => setHover(null)
+    const onDrop = (e: RowDragEvent) => {
+      const hit = tileFor(e.target)
+      setHover(null)
+      if (!hit) return
+      const { outline, rows } = e.detail
+      bike.session.updateRows({ outline, rows, attributes: { due: hit.date } })
+    }
+    el.addEventListener('bike:rowdragover', onOver)
+    el.addEventListener('bike:rowdragleave', onLeave)
+    el.addEventListener('bike:rowdrop', onDrop)
+    return () => {
+      el.removeEventListener('bike:rowdragover', onOver)
+      el.removeEventListener('bike:rowdragleave', onLeave)
+      el.removeEventListener('bike:rowdrop', onDrop)
+    }
+  }, [])
+
   // Fire at each local midnight to re-anchor `today`; the query effect below
   // depends on `today`'s day key, so it re-subscribes with a fresh `today()`
   // window after the rollover. The timer re-arms itself for the next midnight.
@@ -75,12 +111,11 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
   }, [])
 
   // Live @due rows for the displayed month (padded a week each side for
-  // neighboring-month tiles), plus today's rows so the agenda's Today
-  // fallback has data even when paged to a distant month. The session query
-  // targets the host window's outline by default and follows tab/document
-  // switches; re-subscribe only when the visible MONTH changes — day-level
+  // neighboring-month tiles), driving the day marks. The session query targets
+  // the host window's outline by default and follows tab/document switches;
+  // re-subscribe only when the visible MONTH changes — day-level
   // activeStartDate changes keep the same range. A null snapshot (nothing
-  // open) and onClose both clear.
+  // open) and onClose both clear. (The agenda has its own subscription.)
   useEffect(() => {
     let sub: SessionSubscription | undefined
     let canceled = false
@@ -105,12 +140,18 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
 
   const monthYear = activeStartDate.toLocaleDateString(bike.systemLocale, { month: 'long', year: 'numeric' })
 
-  function onChange(nextValue: any) {
+  // react-calendar hands the click's MouseEvent as the second arg; the nav
+  // "today" button calls this with none. A plain click shows the day's agenda
+  // (the app side filters when the day has due items); ⌥-click asks it to jump
+  // straight to the day row instead. Read altKey here at click time, since the
+  // modifier may be released by the time the async message reaches the app.
+  function onChange(nextValue: any, event?: { altKey?: boolean }) {
     const date = nextValue instanceof Date ? nextValue : new Date(String(nextValue))
     setSelectedDate(date)
     context.postMessage({
       type: 'dateChange',
       date: date.toISOString(),
+      option: event?.altKey === true,
     })
   }
 
@@ -128,8 +169,6 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     const variant = anyOpen ? dueUrgency(dayDiff) : 'done'
     return <span className={`due-mark due-mark--${variant}`} title={`${rows.length} due`} />
   }
-
-  const agendaRows = sortAgendaRows(dueByDay.get(dayKey(agendaDate)) || [])
 
   const navBar = (
     <div className="calendar-nav-bar">
@@ -167,27 +206,10 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         calendarType={bike.systemFirstWeekday === 0 ? 'gregory' : bike.systemFirstWeekday === 6 ? 'islamic' : 'iso8601'}
         formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(bike.systemLocale, { weekday: 'narrow' })}
         tileContent={dueTileMark}
+        tileClassName={({ date, view }: { date: Date; view: string }) =>
+          view === 'month' ? `cal-day-${dayKey(date)}` : null
+        }
       />
-      <div className="calendar-agenda">
-        <div className="calendar-agenda-header">
-          {agendaDate.toLocaleDateString(bike.systemLocale, { dateStyle: 'long' })}
-        </div>
-        {agendaRows.length === 0 && <div className="calendar-agenda-empty">Nothing due</div>}
-        {agendaRows.map((row) => {
-          const time = agendaTimeLabel(row, bike.systemLocale)
-          return (
-            <button
-              key={row.id}
-              className="calendar-agenda-item"
-              type="button"
-              onClick={() => bike.session.updateEditor({ select: row.id })}
-            >
-              {time && <span className="calendar-agenda-time">{time}</span>}
-              {rowDisplayText(row) || 'Untitled'}
-            </button>
-          )
-        })}
-      </div>
     </Disclosure>
   )
 }

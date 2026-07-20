@@ -104,5 +104,8 @@ export interface CalendarProtocol extends DOMProtocol {
   toDOM:
     | { type: 'selectDate'; date: string }
     | { type: 'clearSelection' }
-  toApp: { type: 'dateChange'; date: string }
+  // `option` is set when the day was Option(⌥)-clicked. A plain click shows the
+  // day's agenda (the app filters when the day has due items); ⌥-click jumps
+  // straight to the day row instead.
+  toApp: { type: 'dateChange'; date: string; option?: boolean }
 }

@@ -30,7 +30,7 @@ describe("Progress commands", () => {
     it("registers the branch commands", () => {
         const commands = bike.commands.toString()
         assert(commands.includes("progress:mark-branch-done"), "should register mark-branch-done")
-        assert(commands.includes("progress:mark-branch-undone"), "should register mark-branch-undone")
+        assert(commands.includes("progress:clear-branch-done"), "should register clear-branch-done")
     })
 
     it("marks every task in the branch done", () => {
@@ -59,7 +59,7 @@ describe("Progress commands", () => {
     it("marks the branch undone", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("progress:mark-branch-undone", { editor }), true)
+        assert.equal(bike.commands.performCommand("progress:clear-branch-done", { editor }), true)
         for (const task of project.children.filter((row) => row.type === "task")) {
             assert(task.getAttribute("done") == null, "done should be removed")
         }
@@ -68,7 +68,7 @@ describe("Progress commands", () => {
     it("mark undone is a no-op when nothing is done", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("progress:mark-branch-undone", { editor }), false)
+        assert.equal(bike.commands.performCommand("progress:clear-branch-done", { editor }), false)
     })
 })
 
@@ -112,7 +112,7 @@ describe("Progress summaries", () => {
             return result.type === "number" && result.value === 3
         })
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("progress:mark-branch-undone", { editor }), true)
+        assert.equal(bike.commands.performCommand("progress:clear-branch-done", { editor }), true)
         await eventually(() => {
             const result = outline.query('summary("doneTasks")') as { type: string; value: number }
             return result.type === "number" && result.value === 0

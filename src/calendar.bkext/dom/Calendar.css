@@ -90,6 +90,14 @@
   color: var(--tertiary-label);
 }
 
+/* Row-drop hover target — ring on the day number while a native row drag
+   hovers the tile (manual class; native drags don't trigger :hover) */
+.react-calendar__tile.row-drop-target abbr {
+  outline: 2px solid var(--control-accent);
+  outline-offset: -1px;
+  border-radius: 4px;
+}
+
 /* Due mark — a dot under the day number, tinted by urgency */
 .due-mark {
   position: absolute;
@@ -128,14 +136,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border-top: 0.5px solid var(--separator);
   padding-top: 4px;
-}
-
-.calendar-agenda-header {
-  font: -apple-system-caption1;
-  color: var(--secondary-label);
-  padding: 1px 2px;
 }
 
 .calendar-agenda-empty {
@@ -144,7 +145,22 @@
   padding: 1px 2px;
 }
 
+/* Each agenda row: a leading checkbox + the text button. */
 .calendar-agenda-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* The done checkbox (SFSymbol). Toggling it sets/clears the row's @done. */
+.calendar-agenda-check {
+  color: var(--secondary-label);
+  cursor: pointer;
+  flex: none;
+}
+
+.calendar-agenda-label {
   font: -apple-system-body;
   color: var(--label);
   background: none;
@@ -158,7 +174,7 @@
   text-overflow: ellipsis;
 }
 
-.calendar-agenda-item:hover {
+.calendar-agenda-label:hover {
   text-decoration: underline;
 }
 
