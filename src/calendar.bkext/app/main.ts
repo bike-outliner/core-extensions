@@ -1,4 +1,4 @@
-import { AppExtensionContext, Window } from 'bike/app'
+import { AppExtensionContext, OutlineEditor, Window } from 'bike/app'
 import { todayCommand, monthCommand, yearCommand } from './commands'
 import { getDayRow } from './calendar-rows'
 import { getDateComponents, findDateId } from './util'
@@ -53,15 +53,20 @@ export async function activate(context: AppExtensionContext) {
     })
     */
 
-    calendarHandle.onmessage = (message) => {
-      const editor = window.currentOutlineEditor
-      if (!editor || message.type !== 'dateChange' || !message.date) return
-
-      const date = new Date(message.date)
+    // Visit `date` (any calendar day click/arrow/Return/double-click):
+    // creates the day row if needed and visits it — agenda filter when the
+    // day has due items, else focus the day row. `activate` (Return /
+    // double-click) additionally hands keyboard focus to the editor.
+    function visitDay(
+      editor: OutlineEditor,
+      date: Date,
+      options: { option: boolean; activate: boolean }
+    ) {
       const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
       const dueRange = `@due >=[d] "${dayKey(date)}" and @due <[d] "${dayKey(dayEnd)}"`
       const hasDue = (editor.outline.query(`count(//(${dueRange}))`).value as number) > 0
-      const agenda = !message.option && hasDue
+      const agenda = !options.option && hasDue
+      const dayId = getDateComponents(date).dayId
 
       // Everything in ONE transaction so the layer sees a single old→new
       // event. Split up (focus, then filter — each JS setter opens its own
@@ -72,21 +77,18 @@ export async function activate(context: AppExtensionContext) {
       editor.transaction(
         { label: agenda ? 'Show Agenda' : 'Go to Day', animate: { spring: 'navigation' } },
         () => {
-          // Always materialize the clicked day's row (with an empty child for
-          // the caret) — so a click lands somewhere real, and so the agenda
-          // filter's day-row union below has a row to match.
+          // Materialize the day's row with an empty child for the caret.
           const dateRow = getDayRow(editor.outline, date)
           if (!dateRow.firstChild) {
             editor.outline.insertRows([{}], dateRow)
           }
 
-          // Plain click on a day with @due items (open or @done): go home and
-          // filter to that day's agenda — the due items plus the day row and
-          // its whole subtree. The `[d]` half-open day range matches the
-          // calendar's day marks (see dueQueryPath); no @done clause, so done
-          // items show too.
+          // A day with @due items (open or @done): go home and filter to
+          // that day's agenda — the due items plus the day row and its whole
+          // subtree. The `[d]` half-open day range matches the calendar's
+          // day marks (see dueQueryPath); no @done clause, so done items
+          // show too.
           if (agenda) {
-            const dayId = getDateComponents(date).dayId
             editor.focus = editor.outline.root
             editor.filter = {
               // Union of three //-sets: due-on-day, the day row, and the day
@@ -97,17 +99,30 @@ export async function activate(context: AppExtensionContext) {
               label: `Agenda ${date.toLocaleDateString(bike.systemLocale, { dateStyle: 'medium' })}`,
             }
           } else {
-            // ⌥-click, or a day with no due items: clear any filter and focus
-            // the day row.
+            // ⌥-commit, or a day with no due items: clear any filter and
+            // focus the day row.
             editor.filter = undefined
             editor.focus = dateRow
           }
 
-          // Either way the caret lands on the day's first row (visible under
-          // the agenda filter too — its day-row union matches the subtree).
+          // The caret lands on the day's first row (visible under the agenda
+          // filter too — its day-row union matches the subtree).
           editor.selectCaret(dateRow.firstChild!, 0)
         }
       )
+
+      if (options.activate) {
+        editor.activate()
+      }
+    }
+
+    calendarHandle.onmessage = (message) => {
+      const editor = window.currentOutlineEditor
+      if (!editor || message.type !== 'dateChange' || !message.date) return
+      visitDay(editor, new Date(message.date), {
+        option: message.option === true,
+        activate: message.activate === true,
+      })
     }
 
     window.observeCurrentOutlineEditor((editor) => {

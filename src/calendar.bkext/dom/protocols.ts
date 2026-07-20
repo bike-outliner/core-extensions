@@ -12,6 +12,16 @@ export function isDayId(id: string): boolean {
   return day > 0
 }
 
+/**
+ * The persistent id of `date`'s day row (`YYYY/MM/DD`, zero-padded so lexical
+ * order is chronological). Shared so the DOM's day-row existence checks key
+ * exactly like the app's row generation (see app/util.ts getDateComponents).
+ */
+export function dayIdFromDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`
+}
+
 export const calendarDefaults = {
   yearNameFormat: '{ yyyy }',
   monthNameFormat: '{"year":"numeric","month":"long"}',
@@ -104,8 +114,9 @@ export interface CalendarProtocol extends DOMProtocol {
   toDOM:
     | { type: 'selectDate'; date: string }
     | { type: 'clearSelection' }
-  // `option` is set when the day was Option(⌥)-clicked. A plain click shows the
-  // day's agenda (the app filters when the day has due items); ⌥-click jumps
-  // straight to the day row instead.
-  toApp: { type: 'dateChange'; date: string; option?: boolean }
+  // Every day visit (click, arrow, Return, double-click) creates the day row
+  // if needed and visits it. A plain visit shows the day's agenda when it has
+  // due items; `option` (⌥) jumps straight to the day row. `activate`
+  // (Return / double-click) additionally hands keyboard focus to the editor.
+  toApp: { type: 'dateChange'; date: string; option?: boolean; activate?: boolean }
 }

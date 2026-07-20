@@ -38,6 +38,9 @@ export function todayCommand(context: CommandContext): boolean {
     if (!todayRow.firstChild) {
       outline.insertRows([{}], todayRow)
     }
+    // Clear any filter (e.g. a day agenda) so Today always lands on the
+    // plain unfiltered day row.
+    editor.filter = undefined
     editor.focus = todayRow
     editor.selectCaret(todayRow.firstChild!, 0)
   })

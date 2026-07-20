@@ -1,5 +1,5 @@
 import { Row } from 'bike/app'
-import { isDayId } from '../dom/protocols'
+import { dayIdFromDate, isDayId } from '../dom/protocols'
 
 export function findDateId(row: Row): string | null {
   let current: Row | undefined = row
@@ -38,9 +38,5 @@ export function getDateComponents(date: Date): {
   const year = date.getFullYear()
   const yearId = `${year}/00/00`
   const monthId = `${year}/${String(date.getMonth() + 1).padStart(2, '0')}/00`
-  const dayId = `${year}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(
-    date.getDate()
-  ).padStart(2, '0')}`
-
-  return { yearId, monthId, dayId }
+  return { yearId, monthId, dayId: dayIdFromDate(date) }
 }

@@ -12,6 +12,7 @@ import {
   dueQueryPath,
   dueUrgency,
   isDone,
+  parseDue,
   visibleRange,
 } from './due-marks'
 
@@ -140,20 +141,74 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
 
   const monthYear = activeStartDate.toLocaleDateString(bike.systemLocale, { month: 'long', year: 'numeric' })
 
-  // react-calendar hands the click's MouseEvent as the second arg; the nav
-  // "today" button calls this with none. A plain click shows the day's agenda
-  // (the app side filters when the day has due items); ⌥-click asks it to jump
-  // straight to the day row instead. Read altKey here at click time, since the
-  // modifier may be released by the time the async message reaches the app.
-  function onChange(nextValue: any, event?: { altKey?: boolean }) {
-    const date = nextValue instanceof Date ? nextValue : new Date(String(nextValue))
+  // Visit a day: the app creates its row if needed and shows it — agenda
+  // when the day has due items, `option` (⌥) jumps straight to the day row.
+  // `activate` (Return / double-click) additionally hands keyboard focus to
+  // the editor. Read altKey at event time; the modifier may be released
+  // before the async message reaches the app.
+  function visit(date: Date, options: { activate?: boolean; option?: boolean } = {}) {
     setSelectedDate(date)
     context.postMessage({
       type: 'dateChange',
       date: date.toISOString(),
-      option: event?.altKey === true,
+      option: options.option === true,
+      activate: options.activate === true,
     })
   }
+
+  // react-calendar hands the click's MouseEvent as the second arg; the nav
+  // "today" button calls this with none.
+  function onChange(nextValue: any, event?: { altKey?: boolean }) {
+    const date = nextValue instanceof Date ? nextValue : new Date(String(nextValue))
+    visit(date, { option: event?.altKey })
+  }
+
+  // Arrow keys walk days like clicks (←/→ ±1 day, ↑/↓ ±7 = one grid row);
+  // Return re-visits the selected day and focuses the editor. Listen on
+  // window: WebKit doesn't move DOM focus to a button on click, so after a
+  // tile click key events dispatch to body and never pass through this
+  // panel's element. Capture phase + preventDefault so a focused tile
+  // button's own Enter activation can't double-fire, and so arrows don't
+  // scroll the panel.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const step =
+        e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' ? -7 : e.key === 'ArrowDown' ? 7 : 0
+      if (step !== 0) {
+        e.preventDefault()
+        e.stopPropagation()
+        const base = selectedDate ?? today
+        const next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + step)
+        setActiveStartDate(next)
+        visit(next, { option: e.altKey })
+        return
+      }
+      if (e.key === 'Enter' && selectedDate) {
+        e.preventDefault()
+        e.stopPropagation()
+        visit(selectedDate, { activate: true, option: e.altKey })
+      }
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [selectedDate, today])
+
+  // Double-click a day tile = visit + focus the editor, same as Return.
+  // The pair's first click already visited.
+  useEffect(() => {
+    const el = context.element
+    const onDoubleClick = (e: MouseEvent) => {
+      const tile = (e.target as HTMLElement | null)?.closest?.('.react-calendar__tile')
+      const match = tile && Array.from(tile.classList).find((c) => c.startsWith('cal-day-'))
+      if (!match) return
+      const due = parseDue(match.slice('cal-day-'.length))
+      if (!due) return
+      e.preventDefault()
+      visit(due.date, { activate: true, option: e.altKey })
+    }
+    el.addEventListener('dblclick', onDoubleClick)
+    return () => el.removeEventListener('dblclick', onDoubleClick)
+  }, [])
 
   // Urgency tint matching the due badge, from OPEN items only: red when due
   // today or overdue (an overdue item is a fire whether or not the day is
