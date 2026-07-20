@@ -31,6 +31,7 @@ export function activateDue() {
     commands: {
       'due:schedule': scheduleDue,
       'due:clear': clearDue,
+      'due:show-due': showDue,
     },
   })
 
@@ -89,9 +90,9 @@ function showDueMenu(editor: OutlineEditor, row: Row) {
   const items: MenuItem[] = []
   // Quick-set shortcuts, checkbox style: clicking the checked one removes
   // the due entirely.
-  items.push({ type: 'button', id: 'soon', title: 'Soon', state: isSoon ? 'on' : 'off' })
-  items.push({ type: 'button', id: 'today', title: 'Today', state: isToday ? 'on' : 'off' })
-  items.push({ type: 'button', id: 'tomorrow', title: 'Tomorrow', state: isTomorrow ? 'on' : 'off' })
+  items.push({ type: 'button', id: 'soon', title: 'Soon', symbol: 'calendar', state: isSoon ? 'on' : 'off' })
+  items.push({ type: 'button', id: 'today', title: 'Today', symbol: 'calendar', state: isToday ? 'on' : 'off' })
+  items.push({ type: 'button', id: 'tomorrow', title: 'Tomorrow', symbol: 'calendar', state: isTomorrow ? 'on' : 'off' })
   items.push({ type: 'separator' })
   items.push(
     // Date-only: a timed due seeds its LOCAL day (due.date is local from
@@ -102,7 +103,7 @@ function showDueMenu(editor: OutlineEditor, row: Row) {
   // Gate on attribute presence (not a parsed date) so a Soon row can Clear.
   if (raw != null) {
     items.push({ type: 'separator' })
-    items.push({ type: 'button', id: 'command:due:clear', title: 'Clear Due' })
+    items.push({ type: 'button', id: 'command:due:clear', title: 'Clear Due', symbol: 'trash' })
   }
 
   editor.showMenu(row, {
@@ -150,6 +151,32 @@ function scheduleDue({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
   showDueMenu(editor, rows[0])
+  return true
+}
+
+// Filter the editor to every open due item — rows with @due that aren't
+// checked off. When nothing would match, alert instead of showing an empty
+// filtered view. Focus goes home first so the filter covers the whole
+// outline; one transaction so the layer sees a single old→new event.
+function showDue({ editor }: CommandContext): boolean {
+  if (!editor) return false
+  const duePath = '//(@due and not @done)'
+  if ((editor.outline.query(`count(${duePath})`).value as number) === 0) {
+    bike.showAlert(
+      {
+        title: 'No Due Items',
+        message: 'There are no due items that have not been completed.',
+        style: 'informational',
+        buttons: ['OK'],
+      },
+      bike.frontmostWindow
+    )
+    return true
+  }
+  editor.transaction({ label: 'Show Due', animate: { spring: 'navigation' } }, () => {
+    editor.focus = editor.outline.root
+    editor.filter = { path: duePath, label: 'Due' }
+  })
   return true
 }
 

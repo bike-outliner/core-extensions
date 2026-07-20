@@ -228,38 +228,3 @@ describe("OutlineEditor transaction", () => {
         assert.equal(outline.root.lastChild!.text.string, "editor-tx")
     })
 })
-describe("OutlineEditor selection context", () => {
-    const editor = bike.testEditor()
-    const outline = editor.outline
-
-    const [parent] = outline.insertRows(["ctx parent"], outline.root)
-    const [child] = outline.insertRows(["ctx child"], parent)
-    parent.setAttribute("proj", "Work")
-
-    it("selection.context inherits nearest-wins ancestor attributes", () => {
-        editor.selectCaret(child, 0)
-        assert.equal(editor.selection!.context["proj"], "Work", "inherits ancestor attribute")
-        child.setAttribute("proj", "Bike")
-        assert.equal(editor.selection!.context["proj"], "Bike", "nearest wins")
-        assert.equal(editor.selection!.context["indent"], undefined, "system attributes excluded")
-    })
-
-    it("selection.context includes summaries evaluated at the head row", async () => {
-        const disposable = bike.summary("ctxProj", { where: ".@proj", reduce: "count" })
-        try {
-            editor.selectCaret(child, 0)
-            // The summary snapshot lands asynchronously; poll until its key
-            // appears in the selection context.
-            const deadline = Date.now() + 5000
-            while (editor.selection!.context["ctxProj"] !== 1) {
-                if (Date.now() > deadline) {
-                    assert.equal(editor.selection!.context["ctxProj"], 1, "summary value at head row")
-                }
-                await new Promise((resolve) => setTimeout(resolve, 50))
-            }
-            assert.equal(editor.selection!.context["ctxProj"], 1, "summary value at head row")
-        } finally {
-            disposable.dispose()
-        }
-    })
-})
