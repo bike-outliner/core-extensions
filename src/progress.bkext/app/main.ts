@@ -34,7 +34,7 @@ export async function activate(context: AppExtensionContext) {
       // diagonal fraction: raised numerator, denominator dropped to the
       // baseline. (The U+2044 fraction slash conflicts with `frac` in SF and
       // leaves the denominator at superior height — use the solidus.)
-      return Image.fromText(new Text(`${done}/${total}`, env.font.withFractions()))
+      return Image.fromText(new Text(`${done}/${total}`, env.font.withFractions(), env.color.alphaSet(0.5)))
     },
     onClick: ({ editor, row }) => {
       // The menu is built at click time from the row itself. Summary values
@@ -44,7 +44,7 @@ export async function activate(context: AppExtensionContext) {
       const tasks = branchTasks([row])
       const done = tasks.filter((task) => task.getAttribute('done') != null).length
       editor.showMenu(row, {
-        items: [
+        items: () => [
           { type: 'button', id: 'show-done', title: 'Show Done Tasks' },
           { type: 'button', id: 'show-remaining', title: 'Show Remaining Tasks' },
           { type: 'separator' },

@@ -36,35 +36,36 @@ export async function activate(context: AppExtensionContext) {
         })
     },
     onClick: ({ editor, row }) => {
-      const value = row.getAttribute('priority') ?? ''
+      // `items` is a builder, re-invoked after each pick (a non-dismissing
+      // command button keeps the menu open) so the checkmark tracks the
+      // chosen priority live. "Filter Priority" at the top filters to the
+      // row's current priority.
       editor.showMenu(row, {
-        items: [
-          ...([1, 2, 3] as const).map((n) => priorityRow(n, value)),
-          { type: 'separator' },
-          { type: 'button', id: 'command:priority:clear', title: 'Clear Priority' },
-        ],
+        items: () => {
+          const value = row.getAttribute('priority') ?? ''
+          return [
+            { type: 'button', id: 'filter', title: 'Show Priority' },
+            { type: 'separator' },
+            ...([1, 2, 3] as const).map((n) => priorityRow(n, value)),
+            { type: 'separator' },
+            { type: 'button', id: 'command:priority:clear', title: 'Clear Priority' },
+          ]
+        },
         anchor: 'priority',
-        onAction: (id, { editor }) => {
-          const n = id.startsWith(FILTER_PREFIX) ? id.slice(FILTER_PREFIX.length) : undefined
-          if (!n) return
-          editor.filter = { path: `//@priority = "${n}"`, label: `Priority ${n}` }
+        onAction: (id, { editor, row }) => {
+          if (id !== 'filter') return
+          editor.filter = { path: `//@priority`, label: `Show Priority` }
         },
       })
     },
   })
 }
 
-const FILTER_PREFIX = 'filter:'
-
-// One priority row: two independent buttons sharing a menu row — the titled
-// command button, and an icon that filters the outline to that priority. A
-// `row` (rather than a button with an accessory) is what makes them highlight
-// separately: a row owns no highlight of its own, so each control lights up
-// under the pointer on its own.
-//
-// The titled button is the row's PRIMARY: the keyboard highlights it and
-// Return activates it, so priorities stay settable without the mouse. The
-// filter icon is pointer-only, like every row button.
+// One priority row: a single titled command button. It's a `row` (not a plain
+// button) so its `state` renders as a checkmark AND the menu stays open on
+// activation — the checkmark then tracks the pick as the items rebuild. The
+// button is the row's PRIMARY: the keyboard highlights it and Return activates
+// it, so priorities stay settable without the mouse.
 function priorityRow(n: 1 | 2 | 3, value: string): MenuRowItem {
   return {
     type: 'row',
@@ -75,12 +76,6 @@ function priorityRow(n: 1 | 2 | 3, value: string): MenuRowItem {
         id: `command:priority:${n}`,
         title: `Priority ${n}`,
         state: value === String(n) ? 'on' : 'off',
-      },
-      {
-        type: 'button',
-        id: `${FILTER_PREFIX}${n}`,
-        title: `Filter to Priority ${n}`,
-        symbol: 'line.3.horizontal.decrease',
       },
     ],
   }

@@ -12,7 +12,8 @@ import { DueValue, dayDiffFromToday, dayKey, dueUrgency, parseDue } from '../dom
 // `due:set` offers it on fresh rows the badge doesn't decorate — seeded to
 // today, Return commits the first value.
 // Due Today / Tomorrow / This Week live in the filter field's autocomplete
-// (registered via `bike.addFilter`), not in the menu.
+// (registered via `bike.addFilter`), not in the menu — each one means "open and
+// due by the end of that day/week", so overdue rows always show up.
 // The calendar inspector renders the same attribute as day marks and a
 // day agenda (dom/Calendar.tsx) — that coupling is why due lives in the
 // calendar extension.
@@ -70,17 +71,22 @@ export function activateDue() {
     onClick: ({ editor, row }) => showDueMenu(editor, row),
   })
 
+  // The day filters are open-ended at the front: everything still open that's
+  // due by the end of that day, overdue items included. So "Due Tomorrow" is a
+  // superset of "Due Today" — the point is what you have to deal with by then,
+  // not what happens to fall on that one day. "Due" drops the date bound
+  // entirely: everything still due, whenever it's due.
   bike.addFilter('due-today', {
-    label: 'Due Today',
-    query: '//@due >=[d] today() and @due <[d] today() + days(1) and not @done',
+    label: 'Show Due Today',
+    query: '//@due <[d] today() + days(1) and not @done',
   })
   bike.addFilter('due-tomorrow', {
-    label: 'Due Tomorrow',
-    query: '//@due >=[d] today() + days(1) and @due <[d] today() + days(2) and not @done',
+    label: 'Show Due Tomorrow',
+    query: '//@due <[d] today() + days(2) and not @done',
   })
-  bike.addFilter('due-this-week', {
-    label: 'Due This Week',
-    query: '//@due >=[d] start-of-week(0) and @due <[d] start-of-week(1) and not @done',
+  bike.addFilter('due', {
+    label: 'Show Due',
+    query: '//@due and not @done',
   })
 }
 
@@ -91,6 +97,9 @@ function showDueMenu(editor: OutlineEditor, row: Row) {
   const due = parseDue(row.getAttribute('due') ?? '')
 
   const items: MenuItem[] = []
+  // "Show Due" at the top filters to everything still due.
+  items.push({ type: 'button', id: 'filter', title: 'Show Due' })
+  items.push({ type: 'separator' })
   items.push(
     // `time: true` only sets the picker's default (midnight) — a time
     // in the converted value wins, so the two can't disagree. No value
@@ -103,8 +112,12 @@ function showDueMenu(editor: OutlineEditor, row: Row) {
   }
 
   editor.showMenu(row, {
-    items,
+    items: () => items,
     anchor: 'due',
+    onAction: (id, { editor }) => {
+      if (id !== 'filter') return
+      editor.filter = { path: '//@due and not @done', label: 'Show Due' }
+    },
     onChange: (id, value, { editor, row }) => {
       if (id === 'due' && typeof value === 'string') {
         // The menu's calendar always carries a time, so it commits
