@@ -29,9 +29,9 @@ import { DueValue, dayDiffFromToday, dayKey, dueUrgency, parseDue } from '../dom
 export function activateDue() {
   bike.commands.addCommands({
     commands: {
-      'due:schedule': scheduleDue,
+      'due:set': setDue,
       'due:clear': clearDue,
-      'due:show-due': showDue,
+      'due:filter': filterDue,
     },
   })
 
@@ -88,6 +88,8 @@ function showDueMenu(editor: OutlineEditor, row: Row) {
   const isTomorrow = !!due && dayDiffFromToday(due.date, now) === 1
 
   const items: MenuItem[] = []
+  items.push({ type: 'button', id: 'command:due:filter', title: 'Filter Due', symbol: 'line.3.horizontal.decrease' })
+  items.push({ type: 'separator' })
   // Quick-set shortcuts, checkbox style: clicking the checked one removes
   // the due entirely.
   items.push({ type: 'button', id: 'soon', title: 'Soon', symbol: 'calendar', state: isSoon ? 'on' : 'off' })
@@ -147,7 +149,7 @@ function showDueMenu(editor: OutlineEditor, row: Row) {
 
 // Open the due menu for the (first) selected row. The menu is where the
 // value gets set — nothing applies until the menu commits (Return).
-function scheduleDue({ editor, selection }: CommandContext): boolean {
+function setDue({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
   showDueMenu(editor, rows[0])
@@ -158,7 +160,7 @@ function scheduleDue({ editor, selection }: CommandContext): boolean {
 // checked off. When nothing would match, alert instead of showing an empty
 // filtered view. Focus goes home first so the filter covers the whole
 // outline; one transaction so the layer sees a single old→new event.
-function showDue({ editor }: CommandContext): boolean {
+function filterDue({ editor }: CommandContext): boolean {
   if (!editor) return false
   const duePath = '//(@due and not @done)'
   if ((editor.outline.query(`count(${duePath})`).value as number) === 0) {
