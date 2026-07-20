@@ -23,11 +23,15 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showWeekNumbers, setShowWeekNumbers] = useState(() => bike.defaults.get('showWeekNumbers') !== false)
   const [dueByDay, setDueByDay] = useState<Map<string, SessionRow[]>>(new Map())
+  // "Today" as state, re-anchored at each local midnight (see the timer
+  // effect) so day marks, the agenda's Today fallback, and urgency tints don't
+  // freeze at the day the panel was opened when it stays up overnight.
+  const [today, setToday] = useState(() => new Date())
   // The agenda shows the selected day, or Today when nothing is selected —
   // so clicking an agenda item (which navigates the editor and usually
   // clears the calendar selection) lands on Today's agenda rather than
   // leaving the panel empty or pinned to a stale day.
-  const agendaDate = selectedDate ?? new Date()
+  const agendaDate = selectedDate ?? today
 
   useEffect(() => {
     context.onmessage = (message) => {
@@ -53,6 +57,23 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     return () => disposable.dispose()
   }, [])
 
+  // Fire at each local midnight to re-anchor `today`; the query effect below
+  // depends on `today`'s day key, so it re-subscribes with a fresh `today()`
+  // window after the rollover. The timer re-arms itself for the next midnight.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
+    const scheduleNextMidnight = () => {
+      const now = new Date()
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+      timer = setTimeout(() => {
+        setToday(new Date())
+        scheduleNextMidnight()
+      }, nextMidnight.getTime() - now.getTime())
+    }
+    scheduleNextMidnight()
+    return () => clearTimeout(timer)
+  }, [])
+
   // Live @due rows for the displayed month (padded a week each side for
   // neighboring-month tiles), plus today's rows so the agenda's Today
   // fallback has data even when paged to a distant month. The session query
@@ -65,7 +86,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     let canceled = false
     bike.session
       .observeOutlineQuery(
-        { path: dueQueryPath(visibleRange(activeStartDate), new Date()), shape: 'flat' },
+        { path: dueQueryPath(visibleRange(activeStartDate), today), shape: 'flat' },
         (snapshot) => setDueByDay(bucketByDay(snapshot?.root.children)),
         { onClose: () => setDueByDay(new Map()) },
       )
@@ -80,7 +101,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
       canceled = true
       sub?.dispose()
     }
-  }, [activeStartDate.getFullYear(), activeStartDate.getMonth()])
+  }, [activeStartDate.getFullYear(), activeStartDate.getMonth(), dayKey(today)])
 
   const monthYear = activeStartDate.toLocaleDateString(bike.systemLocale, { month: 'long', year: 'numeric' })
 
@@ -102,7 +123,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
     if (view !== 'month') return null
     const rows = dueByDay.get(dayKey(date))
     if (!rows || rows.length === 0) return null
-    const dayDiff = dayDiffFromToday(date, new Date())
+    const dayDiff = dayDiffFromToday(date, today)
     const anyOpen = rows.some((row) => !isDone(row))
     const variant = anyOpen ? dueUrgency(dayDiff) : 'done'
     return <span className={`due-mark due-mark--${variant}`} title={`${rows.length} due`} />

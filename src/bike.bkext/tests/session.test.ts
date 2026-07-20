@@ -42,7 +42,7 @@ var extensionExports = { activate: function (context) {
       );
     } else if (msg.type === 'observeEditor') {
       bike.session.observeEditor(msg.params, function (editor) {
-        context.postMessage({ id: msg.id, editor: { head: editor && editor.selection ? editor.selection.head : null, focused: editor ? editor.focused.length : 0 } });
+        context.postMessage({ id: msg.id, editor: { head: editor && editor.selection ? editor.selection.head : null, focused: editor ? editor.focused.length : 0, context: editor && editor.selection ? editor.selection.context : null } });
       }).then(
         function (sub) { subs[msg.id] = sub; context.postMessage({ id: msg.id, value: { subscribed: true } }); },
         function (err) { context.postMessage({ id: msg.id, error: String((err && err.message) || err) }); }
@@ -179,7 +179,7 @@ describe("bike.session DOM API", () => {
           handle.postMessage({ type: "observeTree", id, params })
         })
       },
-      observeEditor(params: any, onSnap: (e: { head: number | null; focused: number }) => void): Promise<{ dispose: () => void }> {
+      observeEditor(params: any, onSnap: (e: { head: number | null; focused: number; context: Record<string, string | number | boolean | null> | null }) => void): Promise<{ dispose: () => void }> {
         const id = nextId++
         editorCbs.set(id, onSnap)
         return new Promise((resolve, reject) => {
@@ -324,13 +324,16 @@ describe("bike.session DOM API", () => {
     const s = await openSession()
     try {
       let resolveSnap: (n: number) => void
-      const firstSnap = new Promise<number>((res) => { resolveSnap = res })
-      const sub = await s.observe({ path: "//*", shape: "flat" }, (n) => resolveSnap(n))
+      const editedSnap = new Promise<number>((res) => { resolveSnap = res })
+      // Resolve on the snapshot that REFLECTS the edit. The subscription seeds
+      // with the current (empty) outline immediately, then re-emits after the
+      // edit — wait for the populated one rather than assuming the seed and the
+      // edit coalesce into a single emission.
+      const sub = await s.observe({ path: "//*", shape: "flat" }, (n) => { if (n >= 1) resolveSnap(n) })
 
-      // Trigger a change so a snapshot is emitted (debounced ~500ms).
       await s.call("createRow", { markdown: "observed row" })
 
-      const rows = await withTimeout(firstSnap, 5000, "observeOutlineQuery snapshot")
+      const rows = await withTimeout(editedSnap, 5000, "observeOutlineQuery snapshot")
       assert(rows >= 1, "snapshot reports at least one row")
       sub.dispose()
     } finally { s.dispose() }
@@ -433,6 +436,28 @@ describe("bike.session DOM API", () => {
       await s.call("updateEditor", { select: a.id })
       const head = await withTimeout(selectedA, 5000, "editor selection snapshot")
       assert.equal(head, a.id, "editor snapshot reflects the new selection")
+      sub.dispose()
+    } finally { s.dispose() }
+  })
+
+  it("observeEditor re-emits selection.context when an attribute changes under an unmoved selection", async () => {
+    bike.testEditor()
+    const s = await openSession()
+    try {
+      const a = await s.call("createRow", { markdown: "alpha" })
+      await s.call("updateEditor", { select: a.id })
+
+      let resolveCtx: (ctx: Record<string, string | number | boolean | null>) => void
+      const ctxSeen = new Promise<Record<string, string | number | boolean | null>>((res) => { resolveCtx = res })
+      const sub = await s.observeEditor({ debounce: 0 }, (e) => {
+        if (e && e.head === a.id && e.context && e.context["proj"] === "Work") resolveCtx(e.context)
+      })
+
+      // The selection does not move; only the head row's attribute (part of
+      // its inherited-attribute context) changes.
+      await s.call("updateRows", { rows: [a.id], attributes: { proj: "Work" } })
+      const ctx = await withTimeout(ctxSeen, 5000, "selection.context re-emit")
+      assert.equal(ctx["proj"], "Work", "re-emitted snapshot carries the new context value")
       sub.dispose()
     } finally { s.dispose() }
   })
