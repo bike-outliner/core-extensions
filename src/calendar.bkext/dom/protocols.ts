@@ -110,13 +110,29 @@ export function substituteDate(
   return field.slice(0, open) + formatted + field.slice(close + 1)
 }
 
+/**
+ * What a day/range selection shows: 'all' = day rows & due items (default),
+ * 'due' (⌘) = only due items, 'days' (⌥) = only day rows.
+ */
+export type CalendarSelectMode = 'all' | 'due' | 'days'
+
 export interface CalendarProtocol extends DOMProtocol {
   toDOM:
     | { type: 'selectDate'; date: string }
     | { type: 'clearSelection' }
-  // Every day visit (click, arrow, Return, double-click) creates the day row
-  // if needed and visits it. A plain visit shows the day's agenda when it has
-  // due items; `option` (⌥) jumps straight to the day row. `activate`
-  // (Return / double-click) additionally hands keyboard focus to the editor.
-  toApp: { type: 'dateChange'; date: string; option?: boolean; activate?: boolean }
+  // Calendar navigation (click, arrows, drag) only FILTERS, per `mode` — it
+  // never creates day rows. A single day is a degenerate range (start ===
+  // end); `start`/`end` are inclusive days, normalized start ≤ end. `live`
+  // marks a refinement of an in-progress gesture (a drag growing its
+  // range): the filter applies without pushing a navigation history step.
+  // `openDay` (Return / double-click on a single day) is the create
+  // gesture: it find-or-creates the day row, clears any filter, focuses
+  // into the day, and hands keyboard focus to the editor. `openRange`
+  // (Return on a multi-day selection) find-or-creates a day row for EVERY
+  // day in the inclusive range, clears any filter, block-selects those day
+  // rows in the editor, and hands it keyboard focus.
+  toApp:
+    | { type: 'showRange'; start: string; end: string; mode?: CalendarSelectMode; live?: boolean }
+    | { type: 'openDay'; date: string }
+    | { type: 'openRange'; start: string; end: string }
 }

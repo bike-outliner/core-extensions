@@ -159,6 +159,20 @@ export function dueQueryPath(range: { start: Date; end: Date }, today: Date): st
 }
 
 /**
+ * dueQueryPath plus an id match for every day in `range`, so ONE query
+ * drives both the calendar's due marks and its has-day-row marks. Day-row
+ * ids are `YYYY/MM/DD` (see protocols.dayIdFromDate — formatted inline
+ * here to keep this module import-free).
+ */
+export function calendarQueryPath(range: { start: Date; end: Date }, today: Date): string {
+  const ids: string[] = []
+  for (let d = new Date(range.start.getTime()); d < range.end; d = addDays(d, 1)) {
+    ids.push(`${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`)
+  }
+  return dueQueryPath(range, today) + ids.map((id) => ` or @id = "${id}"`).join('')
+}
+
+/**
  * Bucket query-result rows by the local day their `due` falls on.
  * Rows without a parseable `due` are skipped. Insertion order (= document
  * order from the query) is preserved within each day.

@@ -35,14 +35,13 @@ export function todayCommand(context: CommandContext): boolean {
   editor.outline.transaction({ animate: 'default' }, () => {
     let outline = editor.outline
     let todayRow = getDayRow(outline, new Date())
-    if (!todayRow.firstChild) {
-      outline.insertRows([{}], todayRow)
-    }
     // Clear any filter (e.g. a day agenda) so Today always lands on the
     // plain unfiltered day row.
     editor.filter = undefined
     editor.focus = todayRow
-    editor.selectCaret(todayRow.firstChild!, 0)
+    // Caret at the end of the day row's own text — no auto-created empty
+    // child.
+    editor.selectCaret(todayRow, todayRow.text.string.length)
   })
   return true
 }
