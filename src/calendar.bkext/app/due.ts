@@ -1,5 +1,5 @@
-import { Color, CommandContext, Image, MenuItem, OutlineEditor, Row, Text } from 'bike/app'
-import { DueValue, dayDiffFromToday, dayKey, dueUrgency, parseDue } from '../dom/due-marks'
+import { AttributeValue, Color, CommandContext, Image, MenuItem, OutlineEditor, Row, Text } from 'bike/app'
+import { DueValue, addDays, dayDiffFromToday, dayKey, dueUrgency, parseDue, parseDueInput } from '../dom/due-marks'
 
 // The "due" feature: two commands (Set Due opens the due menu, Clear Due
 // removes) that manage a `due` attribute on the selected rows, plus a
@@ -32,6 +32,49 @@ export function activateDue() {
       'due:set': setDue,
       'due:clear': clearDue,
       'due:filter': filterDue,
+    },
+  })
+
+  // Teach attribute completion about `due`: quick effects under the bare
+  // `@` popup, value suggestions after `@due:` (and behind the `^` sigil),
+  // and free-text parsing (`next fri`, `+2w`, …). Values are date-only
+  // (dayKey, LOCAL components); `Soon` is the valueless due.
+  bike.attribute('due', {
+    title: 'Due',
+    sigil: '^',
+    // This extension presents due itself (the badge below) — opt out of the
+    // built-in catch-all chip.
+    defaultBadge: false,
+    shortcuts: () => {
+      const now = new Date()
+      return [
+        { name: 'Due Today', value: dayKey(now) },
+        { name: 'Due Tomorrow', value: dayKey(addDays(now, 1)) },
+        { name: 'Due Soon', value: '' },
+      ]
+    },
+    values: () => {
+      // Today/Tomorrow/Soon, then the rest of the coming week by weekday —
+      // the popup fuzzy-filters, so "fri" finds "Friday (Jul 24)".
+      const now = new Date()
+      const f = dueFormatters()
+      const suggestions: AttributeValue[] = [
+        { name: 'Soon', value: '' },
+        { name: 'Today', value: dayKey(now) },
+        { name: 'Tomorrow', value: dayKey(addDays(now, 1)) },
+      ]
+      for (let i = 2; i <= 6; i++) {
+        const date = addDays(now, i)
+        suggestions.push({ name: `${f.weekdayLong.format(date)} (${f.shortDate.format(date)})`, value: dayKey(date) })
+      }
+      return suggestions
+    },
+    parse: (text) => {
+      const now = new Date()
+      const parsed = parseDueInput(text, now)
+      if (parsed === null) return undefined
+      if (parsed === 'soon') return { value: '', label: 'Soon' }
+      return { value: dayKey(parsed), label: dueLabel({ date: parsed, hasTime: false }, now) }
     },
   })
 
@@ -202,6 +245,7 @@ let formatters:
   | {
       relative: Intl.RelativeTimeFormat
       weekday: Intl.DateTimeFormat
+      weekdayLong: Intl.DateTimeFormat
       shortDate: Intl.DateTimeFormat
       shortDateYear: Intl.DateTimeFormat
       time: Intl.DateTimeFormat
@@ -212,6 +256,7 @@ function dueFormatters() {
   formatters ??= {
     relative: new Intl.RelativeTimeFormat(bike.systemLocale, { numeric: 'auto' }),
     weekday: new Intl.DateTimeFormat(bike.systemLocale, { weekday: 'short' }),
+    weekdayLong: new Intl.DateTimeFormat(bike.systemLocale, { weekday: 'long' }),
     shortDate: new Intl.DateTimeFormat(bike.systemLocale, { month: 'short', day: 'numeric' }),
     shortDateYear: new Intl.DateTimeFormat(bike.systemLocale, { month: 'short', day: 'numeric', year: 'numeric' }),
     time: new Intl.DateTimeFormat(bike.systemLocale, { hour: 'numeric', minute: '2-digit' }),

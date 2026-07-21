@@ -1,181 +1,220 @@
-import { CompletionAcceptKind, CompletionContext, CompletionItem, CompletionResult } from 'bike/app'
+import { BadgeEnvironment, Disposable, Image, MenuItem, OutlineEditor, Row, Text } from 'bike/app'
 
-// Attribute completion: type `@name` or `@name:value` at the END of a row's
-// text to set a row attribute. The popup completes names (and values) already
-// used in the outline; picking an item erases the typed token and calls
-// `setAttribute` in one undo step. Esc leaves the literal text alone —
-// nothing commits without an explicit pick.
+// Attribute completion is native now: typing `@name` / `@name:value` at the
+// END of a row's text completes and commits row attributes for ANY name (the
+// editor's built-in provider). What lives here:
 //
-// In names mode, Return/click commits the name valueless while Tab or `:`
-// completes just the name — `@p` + `:` becomes `@priority:` in the text and
-// the values popup opens — so `@p:2⏎` sets priority = 2 in four keystrokes.
-//
-// The trigger is deliberately narrow so ordinary prose never fires it: the
-// caret must sit at the end of the row's text, the `@` must be preceded by
-// whitespace (or start the row — emails never trigger), and the name part
-// must be a bare identifier. Because the token is end-anchored, values may
-// contain spaces unquoted: `@due:next fri` is one token.
-//
-// A value is optional both ways — `@done⏎` and `@done:⏎` both set `""`
-// (attribute presence is the test in Bike; `@done` and valueless `@due` =
-// "Soon" are both meaningful).
+// - The `done` definition: a "Done" quick effect under the bare `@` popup.
+//   `defaultBadge: false` — done's presentation is the row's done styling,
+//   not a chip.
+// - The CATCH-ALL chip badge: ONE `bike.badge` whose match-any `where` and
+//   `inputs: '*'` (the row's full attribute map) render a keyed chip per
+//   attribute no extension presents (`defaultBadge: false` definitions are
+//   claimed). The style system re-renders when a row's attributes change;
+//   the only external state — the claims snapshot — is captured in the
+//   render closure, and a claims change re-registers the badge. So
+//   uninstalling e.g. the priority extension hands `priority:2` rendering
+//   to the catch-all with no timers, scans, or reconciliation.
 
-// Mirror of the native reserved set (`Row.untaggableAttributeNames`) plus the
-// names attribute UI never displays — not offered and not committable here.
-const HIDDEN_ATTRIBUTE_NAMES = new Set(['id', 'text', 'type', 'created', 'modified', 'indent'])
+const VALUE_TRUNCATE_LENGTH = 20
 
-// A bare identifier: what the name part must look like for the token to be
-// live. The moment prose makes it invalid (`ping @jesse then…` — the space
-// after `jesse`), the popup closes itself.
-const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/
+export function registerAttributes() {
+  bike.attribute('done', {
+    title: 'Done',
+    // Done renders as the row's done styling — no catch-all chip.
+    defaultBadge: false,
+    // ISO-8601 UTC without fractional seconds — the same stamp shape as
+    // native Toggle Done (and progress.ts's mark-branch-done).
+    shortcuts: () => [{ name: 'Done', value: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') }],
+  })
 
-export interface AttributeToken {
-  /** Index of the `@` in the row's text; the token runs to end of text. */
-  start: number
-  name: string
-  /** Present once a `:` is typed; may be empty (`@due:`). */
-  value?: string
+  // A completion-only definition: no dedicated badge (the catch-all chip
+  // renders it), just canonical values — offered after `@status:` and as
+  // pick rows in the chip's menu.
+  bike.attribute('status', {
+    title: 'Status',
+    standardValues: [
+      { name: 'todo', value: 'todo' },
+      { name: 'doing', value: 'doing' },
+      { name: 'review', value: 'review' },
+    ],
+  })
+
+  registerCatchAllChips()
 }
 
 /**
- * Parse the attribute token at the caret, or undefined when the caret isn't
- * at the end of text / no live token ends there. Pure — exported for tests.
+ * The chip-worthy attribute names of a row's attribute map: everything not
+ * claimed by a `defaultBadge: false` definition, sorted. (`values` already
+ * excludes the reserved names — `inputs: '*'` filters them natively.)
+ * Pure — exported for tests.
  */
-export function parseAttributeToken(text: string, caret: number): AttributeToken | undefined {
-  if (caret !== text.length) return undefined
-  // The last `@` that starts a token (preceded by whitespace or start of
-  // text). Scanning right-to-left skips `@`s inside the value — in
-  // `@email:foo@bar.com` the `.com` `@` isn't space-preceded, so the token
-  // is the whole `email:…` pair.
-  let start = -1
-  for (let i = text.length - 1; i >= 0; i--) {
-    if (text[i] === '@' && (i === 0 || /\s/.test(text[i - 1]))) {
-      start = i
-      break
+export function unclaimedNames(
+  values: Readonly<Record<string, string | undefined>>,
+  claimed: ReadonlySet<string>
+): string[] {
+  return Object.keys(values)
+    .filter((name) => !claimed.has(name))
+    .sort()
+}
+
+function registerCatchAllChips() {
+  let catchAll: Disposable | undefined
+
+  // The claims + standard-values snapshot is the only state the chips
+  // depend on beyond each row's own attributes. Capture it in the render
+  // closure and re-register on every change — a fresh badge identity means
+  // a fresh render cache, so claims changes repaint without any dirtying
+  // protocol. Row-attribute changes re-render through the style system.
+  bike.observeAttributes((infos) => {
+    const claimed = new Set(infos.filter((info) => !info.defaultBadge).map((info) => info.name))
+    standardValuesByName.clear()
+    for (const info of infos) {
+      if (info.standardValues.length > 0) standardValuesByName.set(info.name, info.standardValues)
     }
-  }
-  if (start < 0) return undefined
 
-  const token = text.slice(start + 1)
-  const colon = token.indexOf(':')
-  const name = colon >= 0 ? token.slice(0, colon) : token
-  // A bare `@` (empty name, no colon) is live — it lists every name. With a
-  // colon, or once characters follow, the name must be a bare identifier.
-  if (name !== '' && !NAME_PATTERN.test(name)) return undefined
-  if (name === '' && colon >= 0) return undefined
-  return colon >= 0 ? { start, name, value: token.slice(colon + 1) } : { start, name }
-}
-
-export function registerAttributeCompletions() {
-  bike.input.addHandler({ provideCompletions: provideAttributeCompletions })
-}
-
-/** The completion provider — exported so tests can drive it directly. */
-export function provideAttributeCompletions(context: CompletionContext): CompletionResult | undefined {
-  const { row, editor, caret } = context
-  const text = row.text.string
-  const token = parseAttributeToken(text, caret)
-  if (!token) return undefined
-
-  // Erase the token plus the single space before it (when present), then
-  // set the attribute — one transaction, one ⌘Z.
-  const commit = (item: CompletionItem) => {
-    const eraseStart = token.start > 0 && text[token.start - 1] === ' ' ? token.start - 1 : token.start
-    editor.transaction({ label: 'Set Attribute' }, () => {
-      row.text.delete([eraseStart, text.length])
-      row.setAttribute(item['attrName'], item['attrValue'])
-      editor.selectText(row, eraseStart)
+    catchAll?.dispose()
+    catchAll = bike.badge('attributes', {
+      where: '.*',
+      inputs: '*',
+      render: (values, env) => {
+        const names = unclaimedNames(values, claimed)
+        if (names.length === 0) return null
+        return names.map((name) => ({ key: name, image: chipImage(name, values[name] ?? '', env) }))
+      },
+      onClick: ({ editor, row, key }) => {
+        if (key != null) showChipMenu(editor, row, key)
+      },
     })
-  }
+  })
+}
 
-  const range: [number, number] = [token.start, text.length]
+/**
+ * A generic drawn tag for one attribute: `name` when valueless,
+ * `name:value` otherwise (colon-tight, matching the typed completion
+ * syntax) — the same badge-metrics recipe as the due and priority badges so
+ * all row tags read as one family.
+ */
+function chipImage(name: string, value: string, env: BadgeEnvironment): Image {
+  const label = value === '' ? name : `${name}:${truncate(value, VALUE_TRUNCATE_LENGTH)}`
+  const bm = env.badgeMetrics
+  return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), env.color.alphaSet(0.8))).withBackground({
+    stroke: env.color.alphaSet(0.3),
+    strokeWidth: bm.strokeWidth,
+    cornerRadius: bm.cornerRadius,
+    padding: bm.padding,
+  })
+}
 
-  if (token.value === undefined) {
-    // Names mode: complete against attribute names already used in the
-    // outline. Return/click commits the name valueless; Tab or `:`
-    // (completeChars) expands the token to `@name:` — text only, nothing
-    // committed — and the re-query drops straight into values mode.
-    const accept = (item: CompletionItem, kind: CompletionAcceptKind) => {
-      if (kind === 'complete') {
-        const expanded = '@' + item['attrName'] + ':'
-        editor.transaction({ label: 'Complete Attribute' }, () => {
-          row.text.replace([token.start, text.length], expanded)
-          editor.selectText(row, token.start + expanded.length)
+/**
+ * The chip menu: filter by the attribute (or its exact value), pick one of
+ * its standard values (when the definition declares them), edit it, or
+ * remove it. Items are re-read from the row per open, so the value rows
+ * reflect the current value.
+ */
+function showChipMenu(editor: OutlineEditor, row: Row, name: string) {
+  editor.showMenu(row, {
+    items: () => chipMenuItems(name, row.getAttribute(name) ?? '', standardValuesByName.get(name) ?? []),
+    anchor: { badge: 'attributes', key: name },
+    onAction: (id, _value, { editor, row }) => {
+      // A standard-value pick: radio semantics — set the value.
+      if (id.startsWith('set:')) {
+        const value = id.slice('set:'.length)
+        editor.outline.transaction({ label: 'Set Attribute' }, () => {
+          row.setAttribute(name, value)
         })
         return
       }
-      commit(item)
-    }
-    const names = collectAttributeNames(editor.outline.root.descendants)
-    const items = names.map((name) => ({
-      // Prefixed ids: the popup auto-closes when the sole match's id
-      // equals the typed pattern, which would make a fully-typed name
-      // unpickable.
-      id: 'attr-name:' + name,
-      name,
-      attrName: name,
-      attrValue: '',
-    }))
-    // The pinned escape hatch — creates the name as typed even while an
-    // existing name matches. Omitted for hidden names and when the typed
-    // name IS an existing one (the escape would duplicate the match).
-    const fallback =
-      HIDDEN_ATTRIBUTE_NAMES.has(token.name) || names.includes(token.name)
-        ? undefined
-        : { id: 'attr-add', name: 'Add @' + token.name, attrName: token.name, attrValue: '' }
-    return { range, pattern: token.name, items, fallback, completeChars: ':', accept }
-  }
-
-  // Values mode: complete against this attribute's existing values; the
-  // fallback commits the free text exactly as typed.
-  if (HIDDEN_ATTRIBUTE_NAMES.has(token.name)) return undefined
-  const values = collectAttributeValues(editor.outline.root.descendants, token.name)
-  const items: CompletionItem[] = values.map((value) => ({
-    id: 'attr-value:' + value,
-    name: value,
-    attrName: token.name,
-    attrValue: value,
-  }))
-  if (token.value === '') {
-    // `@due:` — nothing typed yet: offer the valueless commit as a plain
-    // first row so Return still works with no existing values to list.
-    items.unshift({ id: 'attr-set-bare', name: 'Set ' + token.name, attrName: token.name, attrValue: '' })
-  }
-  return {
-    range,
-    pattern: token.value,
-    items,
-    // Escape hatch for the literal typed value; omitted when it IS an
-    // existing value (picking that row commits the same thing).
-    fallback: values.includes(token.value)
-      ? undefined
-      : {
-          id: 'attr-set',
-          name: 'Set ' + token.name + ' = ' + token.value,
-          attrName: token.name,
-          attrValue: token.value,
-        },
-    // No completeChars here — `:` must stay typable inside a value
-    // (`@due:3:30`). A value pick is terminal whatever key accepted it.
-    accept: commit,
-  }
+      switch (id) {
+        case 'filter':
+          applyFilter(editor, `//@${name}`, `@${name}`)
+          break
+        case 'filter-value': {
+          // Read the CURRENT value at action time, not the render capture.
+          const value = row.getAttribute(name) ?? ''
+          applyFilter(editor, `//@${name} = ${JSON.stringify(value)}`, `@${name} = ${value}`)
+          break
+        }
+        case 'edit':
+          appendAttributeToken(editor, row, name)
+          editor.showCompletions()
+          break
+        case 'remove':
+          editor.outline.transaction({ label: 'Remove Attribute' }, () => {
+            row.removeAttribute(name)
+          })
+          break
+      }
+    },
+  })
 }
 
-function collectAttributeNames(rows: { attributes: Record<string, string> }[]): string[] {
-  const names = new Set<string>()
-  for (const row of rows) {
-    for (const name of Object.keys(row.attributes)) {
-      if (!HIDDEN_ATTRIBUTE_NAMES.has(name)) names.add(name)
-    }
+/** The definition-declared standard values per attribute name, from the
+ * `observeAttributes` snapshot — what the chip menu offers as pick rows. */
+const standardValuesByName = new Map<string, { name: string; value: string }[]>()
+
+/** The chip menu's items — pure, exported for tests. */
+export function chipMenuItems(
+  name: string,
+  value: string,
+  standardValues: { name: string; value: string }[] = []
+): MenuItem[] {
+  const items: MenuItem[] = []
+  items.push({ type: 'button', id: 'filter', title: `Filter @${name}`, symbol: 'line.3.horizontal.decrease' })
+  if (value !== '') {
+    items.push({
+      type: 'button',
+      id: 'filter-value',
+      title: `Filter @${name} = ${truncate(value, VALUE_TRUNCATE_LENGTH)}`,
+      symbol: 'line.3.horizontal.decrease',
+    })
   }
-  return [...names].sort()
+  items.push({ type: 'separator' })
+  // Standard values, radio style: the current value carries the checkmark,
+  // picking one sets it.
+  if (standardValues.length > 0) {
+    for (const standard of standardValues) {
+      items.push({
+        type: 'button',
+        id: `set:${standard.value}`,
+        title: standard.name,
+        state: standard.value === value ? 'on' : 'off',
+      })
+    }
+    items.push({ type: 'separator' })
+  }
+  items.push({ type: 'button', id: 'edit', title: `Edit @${name}` })
+  items.push({ type: 'separator' })
+  items.push({ type: 'button', id: 'remove', title: `Remove @${name}`, symbol: 'trash' })
+  return items
 }
 
-function collectAttributeValues(rows: { attributes: Record<string, string> }[], name: string): string[] {
-  const values = new Set<string>()
-  for (const row of rows) {
-    const value = row.attributes[name]
-    if (value) values.add(value)
-  }
-  return [...values].sort()
+/**
+ * Stage the Edit completion flow: append ` @name:` to the end of the row's
+ * text (boundary space only when needed — the token grammar requires it)
+ * and put the caret at the end. Exported for tests; the caller follows with
+ * `editor.showCompletions()`.
+ */
+export function appendAttributeToken(editor: OutlineEditor, row: Row, name: string) {
+  const text = row.text.string
+  const boundary = text.length > 0 && !/\s$/.test(text) ? ' ' : ''
+  editor.transaction({ label: 'Edit Attribute' }, () => {
+    row.text.append(`${boundary}@${name}:`)
+    editor.selectText(row, row.text.count)
+  })
+}
+
+/**
+ * The filterDue commit shape: focus home so the filter covers the whole
+ * outline, one transaction so the layer sees a single old→new event.
+ */
+function applyFilter(editor: OutlineEditor, path: string, label: string) {
+  editor.transaction({ label: 'Filter Attribute', animate: { spring: 'navigation' } }, () => {
+    editor.focus = editor.outline.root
+    editor.filter = { path, label }
+  })
+}
+
+function truncate(value: string, length: number): string {
+  return value.length > length ? value.slice(0, length) + '…' : value
 }

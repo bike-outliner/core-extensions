@@ -2,12 +2,12 @@ import { AppExtensionContext, CommandContext, Window } from 'bike/app'
 import { clickHandleCommand, clickLinkCommand, clickFocusCommand } from './commands'
 import { registerClock } from './clock'
 import { registerProgress } from './progress'
-import { registerAttributeCompletions } from './attributes'
+import { registerAttributes } from './attributes'
 
 export async function activate(context: AppExtensionContext) {
   registerClock()
   registerProgress()
-  registerAttributeCompletions()
+  registerAttributes()
 
   // Hidden commands for style interactions (not shown in command palette)
   bike.commands.addCommands({

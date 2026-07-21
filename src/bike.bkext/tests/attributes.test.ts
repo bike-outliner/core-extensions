@@ -1,236 +1,183 @@
-import { parseAttributeToken, provideAttributeCompletions } from '../app/attributes'
-import { CompletionResult, Row } from 'bike/app'
+import { Image, SymbolConfiguration } from 'bike/app'
+import { appendAttributeToken, chipMenuItems, unclaimedNames } from '../app/attributes'
 
-describe('parseAttributeToken', () => {
-    it('requires the caret at end of text', () => {
-        assert.equal(parseAttributeToken('@due', 2), undefined)
-        assert(parseAttributeToken('@due', 4), 'end-of-text caret should parse')
+// Attribute completion moved native at bikeAPIVersion 0.50.0 — the token
+// grammar, popup fan-out, and commit are covered by Swift tests
+// (OutlineEditorTests/AttributeCompletionTests). What's testable from JS is
+// the `bike.attribute` registration surface, plus the catch-all chip badge's
+// pure reconciliation.
+
+describe('bike.attribute registration', () => {
+    it('registers a minimal definition and disposes it', () => {
+        const disposable = bike.attribute('smoke-test-attr', {})
+        assert(disposable, 'registration should return a Disposable')
+        disposable.dispose()
     })
 
-    it('parses a bare @ (empty name) so the popup can list every name', () => {
-        const token = parseAttributeToken('Buy milk @', 10)!
-        assert(token, 'bare @ should be live')
-        assert.equal(token.start, 9)
-        assert.equal(token.name, '')
-        assert.equal(token.value, undefined)
+    it('registers a full definition', () => {
+        const disposable = bike.attribute('smoke-test-full', {
+            title: 'Smoke',
+            sigil: '~',
+            shortcuts: () => [{ name: 'Smoke Now', value: 'now' }],
+            values: (pattern) => (pattern ? [] : [{ name: 'A', value: 'a' }]),
+            parse: (text) => (text === 'ok' ? { value: 'ok', label: 'OK' } : undefined),
+        })
+        assert(disposable, 'registration should return a Disposable')
+        disposable.dispose()
     })
 
-    it('parses a name-only token', () => {
-        const token = parseAttributeToken('Buy milk @due', 13)!
-        assert.equal(token.start, 9)
-        assert.equal(token.name, 'due')
-        assert.equal(token.value, undefined)
+    it('rejects reserved names', () => {
+        assert.throws(() => bike.attribute('indent', {}))
     })
 
-    it('parses name:value, value may contain spaces', () => {
-        const token = parseAttributeToken('Buy milk @due:next fri', 22)!
-        assert.equal(token.name, 'due')
-        assert.equal(token.value, 'next fri')
+    it('rejects invalid sigils', () => {
+        assert.throws(() => bike.attribute('smoke-test-sigil', { sigil: 'x' }))
+        assert.throws(() => bike.attribute('smoke-test-sigil', { sigil: '@' }))
+        assert.throws(() => bike.attribute('smoke-test-sigil', { sigil: '::' }))
     })
 
-    it('parses an empty value (@name:)', () => {
-        const token = parseAttributeToken('x @due:', 7)!
-        assert.equal(token.name, 'due')
-        assert.equal(token.value, '')
+    it('accepts standardValues and reports them via observeAttributes', () => {
+        const disposable = bike.attribute('smoke-test-standard', {
+            standardValues: [
+                { name: 'Low', value: '1' },
+                { name: 'High', value: '2' },
+            ],
+        })
+
+        let latest: { name: string; standardValues: { name: string; value: string }[] }[] = []
+        const observer = bike.observeAttributes((infos) => (latest = infos))
+        const info = latest.find((candidate) => candidate.name === 'smoke-test-standard')
+        assert(info, 'registered definition should be reported')
+        assert.equal(info!.standardValues.map((v) => `${v.name}=${v.value}`).join(','), 'Low=1,High=2')
+        // Definitions without standard values report an empty array.
+        const done = latest.find((candidate) => candidate.name === 'done')
+        assert.equal(done!.standardValues.length, 0)
+        // The core status definition ships its canonical set.
+        const status = latest.find((candidate) => candidate.name === 'status')
+        assert.equal(status!.standardValues.map((v) => v.value).join(','), 'todo,doing,review')
+
+        observer.dispose()
+        disposable.dispose()
     })
 
-    it('allows a token at the start of text', () => {
-        const token = parseAttributeToken('@done', 5)!
-        assert.equal(token.start, 0)
-        assert.equal(token.name, 'done')
-    })
+    it('accepts defaultBadge: false and reports it via observeAttributes', () => {
+        const disposable = bike.attribute('smoke-test-owned', { defaultBadge: false })
 
-    it('requires whitespace before the @ — emails never fire', () => {
-        assert.equal(parseAttributeToken('jesse@hogbaysoftware.com', 24), undefined)
-    })
+        let snapshots: { name: string; defaultBadge: boolean }[][] = []
+        const observer = bike.observeAttributes((infos) => snapshots.push(infos))
+        assert.equal(snapshots.length, 1, 'observe should emit immediately')
+        const owned = snapshots[0].find((info) => info.name === 'smoke-test-owned')
+        assert(owned, 'registered definition should be reported')
+        assert.equal(owned!.defaultBadge, false)
+        // Core definitions report too, with their explicit flags.
+        const done = snapshots[0].find((info) => info.name === 'done')
+        assert(done, 'done definition should be reported')
+        assert.equal(done!.defaultBadge, false)
 
-    it('dies when prose makes the name invalid', () => {
-        // The space after `jesse` invalidates the name part.
-        assert.equal(parseAttributeToken('ping @jesse then more', 21), undefined)
-    })
+        disposable.dispose()
+        assert(snapshots.length >= 2, 'disposal should re-emit')
+        const latest = snapshots[snapshots.length - 1]
+        assert(!latest.some((info) => info.name === 'smoke-test-owned'), 'disposed definition should vanish')
 
-    it('rejects a colon with no name', () => {
-        assert.equal(parseAttributeToken('x @:value', 9), undefined)
-    })
-
-    it('keeps a value containing @ inside one token', () => {
-        const token = parseAttributeToken('@email:foo@bar.com', 18)!
-        assert.equal(token.name, 'email')
-        assert.equal(token.value, 'foo@bar.com')
-    })
-
-    it('a later space-preceded @ starts a new token', () => {
-        const token = parseAttributeToken('x @email:a b @p2', 16)!
-        assert.equal(token.start, 13)
-        assert.equal(token.name, 'p2')
-    })
-
-    it('rejects names that are not bare identifiers', () => {
-        assert.equal(parseAttributeToken('x @2day', 7), undefined)
-        assert.equal(parseAttributeToken('x @a b', 6), undefined)
-        assert(parseAttributeToken('x @a-b_2', 8), 'dash/underscore/digits are fine after a letter')
+        observer.dispose()
+        const countAfterDispose = snapshots.length
+        const tempDisposable = bike.attribute('smoke-test-after', {})
+        tempDisposable.dispose()
+        assert.equal(snapshots.length, countAfterDispose, 'disposed observer should stop emitting')
     })
 })
 
-describe('attribute completions provider', () => {
-    // Drive the provider directly with a real editor: seed rows with
-    // attributes, put the caret after a typed token, and check the
-    // CompletionResult the popup would show — then accept and check the
-    // terminal commit (token erased + attribute set, one undo step).
-    const editor = bike.testEditor()
-    const outline = editor.outline
-
-    outline.transaction({ label: 'setup' }, () => {
-        outline.insertRows(
-            [{ text: 'Existing', attributes: { due: '2026-01-01', priority: '2', done: '' } }],
-            outline.root
-        )
+describe('catch-all chip names', () => {
+    it('sorts unclaimed names from the values map', () => {
+        const names = unclaimedNames({ foo: 'x', bar: '' }, new Set())
+        assert.equal(names.join(','), 'bar,foo')
     })
 
-    function complete(text: string): { row: Row; result: CompletionResult | undefined } {
-        let row!: Row
-        outline.transaction({ label: 'type' }, () => {
-            ;[row] = outline.insertRows([text], outline.root)
+    it('skips claimed names', () => {
+        const names = unclaimedNames({ foo: 'x', due: '2026-01-01', priority: '2' }, new Set(['due', 'priority']))
+        assert.equal(names.join(','), 'foo')
+    })
+
+    it('empty map or all-claimed yields nothing', () => {
+        assert.equal(unclaimedNames({}, new Set()).length, 0)
+        assert.equal(unclaimedNames({ due: '1' }, new Set(['due'])).length, 0)
+    })
+
+    it('registers a keyed multi-image badge with catch-all inputs', () => {
+        // The API accepts inputs '*' + a keyed render; disposal deregisters.
+        const disposable = bike.badge('smoke-multi', {
+            where: '.*',
+            inputs: '*',
+            render: (values) =>
+                Object.keys(values)
+                    .sort()
+                    .map((name) => ({ key: name, image: Image.fromSymbol(new SymbolConfiguration('circle')) })),
         })
-        editor.selectText(row, text.length)
-        return { row, result: provideAttributeCompletions({ editor, row, caret: text.length }) }
-    }
+        assert(disposable, 'registration should return a Disposable')
+        disposable.dispose()
+    })
+})
 
-    it('offers no completions without a live token', () => {
-        assert.equal(complete('plain prose').result, undefined)
-        assert.equal(complete('jesse@hogbaysoftware.com').result, undefined)
-        assert.equal(complete('ping @jesse then more').result, undefined)
+describe('chip menu', () => {
+    it('builds filter / filter-value / edit / remove with separators', () => {
+        const items = chipMenuItems('foo', 'bar')
+        const shape = items.map((item) => (item.type === 'separator' ? '|' : (item as any).title))
+        assert.equal(shape.join(','), 'Filter @foo,Filter @foo = bar,|,Edit @foo,|,Remove @foo')
     })
 
-    it('bare @ lists names used in the outline, hidden names excluded', () => {
-        const { result } = complete('Buy milk @')
-        assert(result, 'bare @ should complete')
-        assert.equal(result!.pattern, '')
-        const names = result!.items.map((item) => item.name)
-        assert(names.includes('due'), 'due should be listed')
-        assert(names.includes('priority'), 'priority should be listed')
-        assert(names.includes('done'), 'done should be listed')
-        assert(!names.includes('indent'), 'hidden names never offered')
-        // Ids are prefixed so a fully-typed name still shows its popup row.
-        assert(result!.items.every((item) => item.id !== item.name))
+    it('omits the value row for valueless attributes', () => {
+        const items = chipMenuItems('waiting', '')
+        const shape = items.map((item) => (item.type === 'separator' ? '|' : (item as any).title))
+        assert.equal(shape.join(','), 'Filter @waiting,|,Edit @waiting,|,Remove @waiting')
     })
 
-    it('name mode offers an Add fallback for new names', () => {
-        const { result } = complete('Buy milk @foo')
-        assert(result, 'should complete')
-        assert.equal(result!.pattern, 'foo')
-        assert.equal(result!.fallback?.name, 'Add @foo')
-    })
-
-    it('value mode lists existing values and a Set fallback', () => {
-        const { result } = complete('Buy milk @due:tomor')
-        assert(result, 'should complete')
-        assert.equal(result!.pattern, 'tomor')
-        const names = result!.items.map((item) => item.name)
-        assert(names.includes('2026-01-01'), 'existing due value should be listed')
-        assert.equal(result!.fallback?.name, 'Set due = tomor')
-    })
-
-    it('empty value offers a bare Set row so @name:⏎ works', () => {
-        const { result } = complete('Buy milk @due:')
-        assert(result, 'should complete')
-        assert.equal(result!.items[0].name, 'Set due')
-    })
-
-    it('hidden names never reach value mode', () => {
-        assert.equal(complete('x @indent:2').result, undefined)
-    })
-
-    it('accept erases the token plus its leading space and sets the attribute', () => {
-        const { row, result } = complete('Buy milk @foo:next fri')
-        const fallback = result!.fallback!
-        result!.accept(fallback, 'pick')
-        assert.equal(row.text.string, 'Buy milk')
-        assert.equal(row.getAttribute('foo'), 'next fri')
-    })
-
-    it('picking a name row commits it valueless', () => {
-        const { row, result } = complete('Call bank @done')
-        const item = result!.items.find((candidate) => candidate.name === 'done')!
-        result!.accept(item, 'pick')
-        assert.equal(row.text.string, 'Call bank')
-        assert.equal(row.getAttribute('done'), '')
-    })
-
-    it('a token at the start of text erases cleanly (no leading space)', () => {
-        const { row, result } = complete('@foo:bar')
-        result!.accept(result!.fallback!, 'pick')
-        assert.equal(row.text.string, '')
-        assert.equal(row.getAttribute('foo'), 'bar')
-    })
-
-    it('names mode declares : as a complete character; values mode does not', () => {
-        assert.equal(complete('x @pri').result!.completeChars, ':')
-        assert.equal(complete('x @due:tom').result!.completeChars, undefined)
-    })
-
-    it('completing a name expands the token to @name: and commits nothing', () => {
-        const { row, result } = complete('Buy milk @pri')
-        const item = result!.items.find((candidate) => candidate.name === 'priority')!
-        result!.accept(item, 'complete')
-        assert.equal(row.text.string, 'Buy milk @priority:')
-        assert.equal(row.getAttribute('priority'), undefined, 'complete must not commit')
-        // The re-query at the new caret lands in values mode for priority.
-        const followUp = provideAttributeCompletions({ editor, row, caret: row.text.count })
-        assert(followUp, 'expanded token should complete again')
-        assert.equal(followUp!.pattern, '')
-        assert(
-            followUp!.items.some((candidate) => candidate.name === '2'),
-            'existing priority value should be listed'
+    it('inserts standard-value pick rows above Edit, current value checked', () => {
+        const standards = [
+            { name: '1', value: '1' },
+            { name: '2', value: '2' },
+            { name: '3', value: '3' },
+        ]
+        const items = chipMenuItems('priority', '2', standards)
+        const shape = items.map((item) =>
+            item.type === 'separator' ? '|' : `${(item as any).title}${(item as any).state === 'on' ? '*' : ''}`
         )
-    })
-
-    it('completing the Add fallback expands the typed new name', () => {
-        const { row, result } = complete('Buy milk @proj')
-        result!.accept(result!.fallback!, 'complete')
-        assert.equal(row.text.string, 'Buy milk @proj:')
-        assert.equal(row.getAttribute('proj'), undefined)
-    })
-
-    it('a value accept is terminal regardless of kind', () => {
-        const { row, result } = complete('x @foo2:bar')
-        result!.accept(result!.fallback!, 'complete')
-        assert.equal(row.text.string, 'x')
-        assert.equal(row.getAttribute('foo2'), 'bar')
-    })
-
-    it('the escape hatch: fallback is present even while names match', () => {
-        const { result } = complete('x @pri')
-        assert(
-            result!.items.some((candidate) => candidate.name === 'priority'),
-            'priority should still match'
+        assert.equal(
+            shape.join(','),
+            'Filter @priority,Filter @priority = 2,|,1,2*,3,|,Edit @priority,|,Remove @priority'
         )
-        assert.equal(result!.fallback?.name, 'Add @pri', 'fallback should coexist with matches')
+        assert.equal((items.find((item) => (item as any).state === 'on') as any).id, 'set:2')
     })
 
-    it('accepting the fallback while matches exist creates the literal name', () => {
-        const { row, result } = complete('x @pri')
-        result!.accept(result!.fallback!, 'pick')
-        assert.equal(row.text.string, 'x')
-        assert.equal(row.getAttribute('pri'), '', 'literal pri, not priority')
-        assert.equal(row.getAttribute('priority'), undefined)
+    it('truncates long values in the filter-value title', () => {
+        const items = chipMenuItems('notes', 'a really long value that keeps going')
+        const title = (items[1] as any).title as string
+        assert(title.endsWith('…'), 'long values should truncate: ' + title)
     })
 
-    it('no fallback when the typed name is an existing one', () => {
-        const { result } = complete('x @priority')
-        assert(
-            result!.items.some((candidate) => candidate.name === 'priority'),
-            'the exact name still matches'
-        )
-        assert.equal(result!.fallback, undefined, 'escape would duplicate the match')
+    it('appendAttributeToken stages the edit flow with a boundary space', () => {
+        const editor = bike.testEditor()
+        const outline = editor.outline
+        const [row] = outline.insertRows(['Buy milk'], outline.root)
+
+        appendAttributeToken(editor, row, 'foo')
+        assert.equal(row.text.string, 'Buy milk @foo:')
+        assert.equal(editor.selection?.type, 'caret')
+        // Caret at end of text — the completion grammar's requirement.
+        assert.equal((editor.selection as any).detail.char, row.text.count)
+
+        // showCompletions is callable (headless: schedules, no popup).
+        editor.showCompletions()
     })
 
-    it('no fallback when the typed value is an existing one', () => {
-        const { result } = complete('x @due:2026-01-01')
-        assert(
-            result!.items.some((candidate) => candidate.name === '2026-01-01'),
-            'the exact value still matches'
-        )
-        assert.equal(result!.fallback, undefined)
+    it('appendAttributeToken skips the space when the boundary exists', () => {
+        const editor = bike.testEditor()
+        const outline = editor.outline
+        const [empty] = outline.insertRows([''], outline.root)
+        appendAttributeToken(editor, empty, 'foo')
+        assert.equal(empty.text.string, '@foo:')
+
+        const [spaced] = outline.insertRows(['Buy milk '], outline.root)
+        appendAttributeToken(editor, spaced, 'foo')
+        assert.equal(spaced.text.string, 'Buy milk @foo:')
     })
 })

@@ -46,6 +46,59 @@ export function dayKey(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+/**
+ * Parse free-typed due input (the completion popup's `@due:` / `^` text)
+ * into a local calendar day, `'soon'` (a valueless due), or null when the
+ * text doesn't resolve. Keywords: today/tod, tomorrow/tom, yesterday, soon,
+ * a weekday name or unique prefix ≥2 chars ("fri" → the NEXT Friday, never
+ * today — `today` covers that), "next <weekday>" (the one after), `+3d` /
+ * `+2w`, and `YYYY-MM-DD` (LOCAL components — the parseDue caveat).
+ * English keywords; display stays locale-aware via the caller's formatting.
+ */
+export function parseDueInput(text: string, now: Date): Date | 'soon' | null {
+  const input = text.trim().toLowerCase()
+  if (!input) return null
+  if (input === 'soon') return 'soon'
+  if (input === 'today' || input === 'tod') return addDays(now, 0)
+  if (input === 'tomorrow' || input === 'tom') return addDays(now, 1)
+  if (input === 'yesterday') return addDays(now, -1)
+
+  const relative = input.match(/^\+(\d+)([dw])$/)
+  if (relative) return addDays(now, +relative[1] * (relative[2] === 'w' ? 7 : 1))
+
+  const iso = input.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) {
+    const month = +iso[2]
+    const day = +iso[3]
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null
+    return new Date(+iso[1], month - 1, day)
+  }
+
+  const next = input.startsWith('next ')
+  const weekday = matchWeekday(next ? input.slice(5) : input)
+  if (weekday != null) {
+    let ahead = (weekday - now.getDay() + 7) % 7
+    if (ahead === 0) ahead = 7
+    if (next) ahead += 7
+    return addDays(now, ahead)
+  }
+  return null
+}
+
+/** The weekday index a unique name prefix (≥2 chars) resolves to, or null. */
+function matchWeekday(word: string): number | null {
+  if (word.length < 2) return null
+  const matches = WEEKDAYS.filter((name) => name.startsWith(word))
+  return matches.length === 1 ? WEEKDAYS.indexOf(matches[0]) : null
+}
+
+/** Start of the local day `n` days after `now`'s day. */
+export function addDays(now: Date, n: number): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + n)
+}
+
 /** Whole local days from the start of `now`'s day to the start of `date`'s. */
 export function dayDiffFromToday(date: Date, now: Date): number {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
