@@ -1,26 +1,35 @@
 import { BadgeEnvironment, Disposable, Image, MenuItem, OutlineEditor, Row, Text } from 'bike/app'
+import { addDays, dayKey, dateSuggestions, parseDateAttribute, parseDurationAttribute } from './dates'
 
 // Attribute completion is native now: typing `@name` / `@name:value` at the
 // END of a row's text completes and commits row attributes for ANY name (the
 // editor's built-in provider). What lives here:
 //
-// - The `done` definition: a "Done" quick effect under the bare `@` popup.
-//   `defaultBadge: false` — done's presentation is the row's done styling,
-//   not a badge.
+// - The DEFAULT ATTRIBUTE SET: the shapes (type, sigil, values, parsing) of
+//   the attributes Bike treats as common vocabulary — done, due, priority,
+//   status, start, estimate, flagged — registered centrally so every
+//   extension sharing them reads the same `AttributeInfo` contract.
+//   Presentation stays where it belongs: calendar.bkext renders the due
+//   badge; done renders as row styling; the rest go through the catch-all.
 // - The CATCH-ALL badge: ONE `bike.badge` whose match-any `where` and
 //   `inputs: '*'` (the row's full attribute map) render a keyed badge per
 //   attribute no extension presents (`defaultBadge: false` definitions are
 //   claimed). The style system re-renders when a row's attributes change;
 //   the only external state — the claims snapshot — is captured in the
 //   render closure, and a claims change re-registers the badge. So
-//   uninstalling e.g. the priority extension hands `priority:2` rendering
-//   to the catch-all with no timers, scans, or reconciliation.
+//   uninstalling e.g. a priority-badge extension hands `priority:2`
+//   rendering to the catch-all with no timers, scans, or reconciliation.
 
 const VALUE_TRUNCATE_LENGTH = 20
 
 export function registerAttributes() {
+  // Registration order sets the bare-`@` popup's quick-effect group order:
+  // shortcut owners (done, due, priority) first.
   bike.attribute('done', {
     title: 'Done',
+    type: 'date',
+    emptyLabel: 'Done',
+    description: 'Completion stamp — present means done; the value is the completion time.',
     // Done renders as the row's done styling — no catch-all badge.
     defaultBadge: false,
     // ISO-8601 UTC without fractional seconds — the same stamp shape as
@@ -28,16 +37,75 @@ export function registerAttributes() {
     shortcuts: () => [{ name: 'Done', value: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') }],
   })
 
-  // A completion-only definition: no dedicated badge (the catch-all badge
-  // renders it), just canonical values — offered after `@status:` and as
-  // pick rows in the badge's menu.
+  // The due SHAPE lives here so it's defined whether or not calendar.bkext
+  // is enabled; calendar presents it (badge, commands, calendar inspector).
+  bike.attribute('due', {
+    title: 'Due',
+    type: 'date',
+    sigil: '^',
+    emptyLabel: 'Soon',
+    description: 'When the row is due — a calendar day, a timestamp, or valueless for "soon".',
+    // calendar.bkext presents due itself — opt out of the catch-all badge.
+    defaultBadge: false,
+    shortcuts: () => {
+      const now = new Date()
+      return [
+        { name: 'Due Today', value: dayKey(now) },
+        { name: 'Due Tomorrow', value: dayKey(addDays(now, 1)) },
+        { name: 'Due Soon', value: '' },
+      ]
+    },
+    values: () => dateSuggestions(),
+    parse: (text) => {
+      // The valueless due: `@due:soon` and `^soon` commit the empty value.
+      if (text.trim().toLowerCase() === 'soon') return { value: '', label: 'Soon' }
+      return parseDateAttribute(text)
+    },
+  })
+
+  bike.attribute('priority', {
+    title: 'Priority',
+    type: 'number',
+    sigil: '!',
+    strict: true,
+    description: 'Importance from 1 (highest) to 3 (lowest).',
+    standardValues: [1, 2, 3].map((n) => ({ name: String(n), value: String(n) })),
+    shortcuts: () => [1, 2, 3].map((n) => ({ name: `Priority ${n}`, value: String(n) })),
+  })
+
   bike.attribute('status', {
     title: 'Status',
+    type: 'string',
+    strict: true,
+    description: 'Workflow state: todo, doing, or review.',
     standardValues: [
       { name: 'todo', value: 'todo' },
       { name: 'doing', value: 'doing' },
       { name: 'review', value: 'review' },
     ],
+  })
+
+  bike.attribute('start', {
+    title: 'Start',
+    type: 'date',
+    description: 'When work on the row starts — same date shapes as due.',
+    values: () => dateSuggestions(),
+    parse: (text) => parseDateAttribute(text),
+  })
+
+  bike.attribute('estimate', {
+    title: 'Estimate',
+    type: 'duration',
+    description: 'Estimated effort as a duration: 30m, 2h, 1d.',
+    standardValues: ['15m', '30m', '1h', '2h', '1d'].map((d) => ({ name: d, value: d })),
+    parse: (text) => parseDurationAttribute(text),
+  })
+
+  bike.attribute('flagged', {
+    title: 'Flagged',
+    type: 'flag',
+    emptyLabel: 'Flagged',
+    description: 'Marks the row for attention — valueless.',
   })
 
   registerCatchAllBadges()
@@ -69,8 +137,10 @@ function registerCatchAllBadges() {
   bike.observeAttributes((infos) => {
     const claimed = new Set(infos.filter((info) => !info.defaultBadge).map((info) => info.name))
     standardValuesByName.clear()
+    emptyLabelByName.clear()
     for (const info of infos) {
       if (info.standardValues.length > 0) standardValuesByName.set(info.name, info.standardValues)
+      if (info.emptyLabel != null) emptyLabelByName.set(info.name, info.emptyLabel)
     }
 
     catchAll?.dispose()
@@ -90,13 +160,14 @@ function registerCatchAllBadges() {
 }
 
 /**
- * A generic drawn tag for one attribute: `name` when valueless,
- * `name:value` otherwise (colon-tight, matching the typed completion
- * syntax) — the same badge-metrics recipe as the due and priority badges so
- * all row tags read as one family.
+ * A generic drawn tag for one attribute: the definition's emptyLabel (when
+ * declared) or `name` when valueless, `name:value` otherwise (colon-tight,
+ * matching the typed completion syntax) — the same badge-metrics recipe as
+ * the due badge so all row tags read as one family.
  */
 function badgeImage(name: string, value: string, env: BadgeEnvironment): Image {
-  const label = value === '' ? name : `${name}:${truncate(value, VALUE_TRUNCATE_LENGTH)}`
+  const label =
+    value === '' ? (emptyLabelByName.get(name) ?? name) : `${name}:${truncate(value, VALUE_TRUNCATE_LENGTH)}`
   const bm = env.badgeMetrics
   return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), env.color.alphaSet(0.8))).withBackground({
     stroke: env.color.alphaSet(0.3),
@@ -152,6 +223,10 @@ function showBadgeMenu(editor: OutlineEditor, row: Row, name: string) {
 /** The definition-declared standard values per attribute name, from the
  * `observeAttributes` snapshot — what the badge menu offers as pick rows. */
 const standardValuesByName = new Map<string, { name: string; value: string }[]>()
+
+/** The definition-declared empty-value labels ("Flagged"), from the same
+ * snapshot — what a valueless badge renders instead of the raw name. */
+const emptyLabelByName = new Map<string, string>()
 
 /** The badge menu's items — pure, exported for tests. */
 export function badgeMenuItems(

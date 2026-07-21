@@ -1,26 +1,29 @@
-import { AttributeValue, Color, CommandContext, Image, MenuItem, OutlineEditor, Row, Text } from 'bike/app'
-import { DueValue, addDays, dayDiffFromToday, dayKey, dueUrgency, parseDue, parseDueInput } from '../dom/due-marks'
+import { Color, CommandContext, Image, MenuItem, OutlineEditor, Row, Text } from 'bike/app'
+import { dateLabel } from '../../bike.bkext/app/dates'
+import { dayDiffFromToday, dayKey, dueUrgency, parseDue } from '../dom/due-marks'
 
-// The "due" feature: two commands (Set Due opens the due menu, Clear Due
-// removes) that manage a `due` attribute on the selected rows, plus a
-// value-aware badge showing the date relative when near ("Today", "Tomorrow",
-// a weekday within the week). Clicking the badge opens a menu with
-// Soon/Today/Tomorrow quick-set shortcuts (checkbox style — clicking the
-// checked one clears the due) above an inline calendar picker; picking a
-// day commits it and closes the menu — Esc discards.
+// The "due" feature's PRESENTATION: two commands (Set Due opens the due
+// menu, Clear Due removes) that manage a `due` attribute on the selected
+// rows, plus a value-aware badge showing the date relative when near
+// ("Today", "Tomorrow", a weekday within the week). Clicking the badge
+// opens a menu with Soon/Today/Tomorrow quick-set shortcuts (checkbox
+// style — clicking the checked one clears the due) above an inline calendar
+// picker; picking a day commits it and closes the menu — Esc discards.
 // Clear Due sits at the bottom, but only when the row has a due to clear.
 // The menu is built imperatively from the row (`showDueMenu`), which is how
 // `due:schedule` offers it on fresh rows the badge doesn't decorate — seeded
 // to today, Return commits the first value.
 // The calendar inspector renders the same attribute as day marks and a
-// day agenda (dom/Calendar.tsx) — that coupling is why due lives in the
-// calendar extension.
+// day agenda (dom/Calendar.tsx) — that coupling is why due's presentation
+// lives in the calendar extension.
 //
-// A due value is `YYYY-MM-DD` (local calendar date), a full ISO-8601 UTC
-// timestamp when a time is included, or EMPTY — a valueless `@due` means
-// "soon": due, but no date yet (the menu's Soon shortcut; badge shows
-// "Soon"). The menu sets date-only values; timed values come from
-// scripts/automation and still render in the badge.
+// The due SHAPE (type, sigil, completion values/parsing, defaultBadge
+// opt-out) is registered by bike.bkext's default attribute set — see
+// bike.bkext/app/attributes.ts. A due value is `YYYY-MM-DD` (local calendar
+// date), a full ISO-8601 UTC timestamp when a time is included, or EMPTY —
+// a valueless `@due` means "soon": due, but no date yet (the menu's Soon
+// shortcut; badge shows "Soon"). The menu sets date-only values; timed
+// values come from scripts/automation and still render in the badge.
 //
 // TIME ZONES: a timed `due` is stored as UTC; parsing back to local
 // wall-clock goes through `parseDue` (shared with the inspector in
@@ -32,49 +35,6 @@ export function activateDue() {
       'due:set': setDue,
       'due:clear': clearDue,
       'due:filter': filterDue,
-    },
-  })
-
-  // Teach attribute completion about `due`: quick effects under the bare
-  // `@` popup, value suggestions after `@due:` (and behind the `^` sigil),
-  // and free-text parsing (`next fri`, `+2w`, …). Values are date-only
-  // (dayKey, LOCAL components); `Soon` is the valueless due.
-  bike.attribute('due', {
-    title: 'Due',
-    sigil: '^',
-    // This extension presents due itself (the badge below) — opt out of the
-    // built-in catch-all badge.
-    defaultBadge: false,
-    shortcuts: () => {
-      const now = new Date()
-      return [
-        { name: 'Due Today', value: dayKey(now) },
-        { name: 'Due Tomorrow', value: dayKey(addDays(now, 1)) },
-        { name: 'Due Soon', value: '' },
-      ]
-    },
-    values: () => {
-      // Today/Tomorrow/Soon, then the rest of the coming week by weekday —
-      // the popup fuzzy-filters, so "fri" finds "Friday (Jul 24)".
-      const now = new Date()
-      const f = dueFormatters()
-      const suggestions: AttributeValue[] = [
-        { name: 'Soon', value: '' },
-        { name: 'Today', value: dayKey(now) },
-        { name: 'Tomorrow', value: dayKey(addDays(now, 1)) },
-      ]
-      for (let i = 2; i <= 6; i++) {
-        const date = addDays(now, i)
-        suggestions.push({ name: `${f.weekdayLong.format(date)} (${f.shortDate.format(date)})`, value: dayKey(date) })
-      }
-      return suggestions
-    },
-    parse: (text) => {
-      const now = new Date()
-      const parsed = parseDueInput(text, now)
-      if (parsed === null) return undefined
-      if (parsed === 'soon') return { value: '', label: 'Soon' }
-      return { value: dayKey(parsed), label: dueLabel({ date: parsed, hasTime: false }, now) }
     },
   })
 
@@ -106,7 +66,7 @@ export function activateDue() {
       // drawn badge on the row. Completed rows fade the text down to the
       // border's alpha so the whole tag reads as done.
       const bm = env.badgeMetrics
-      const label = due ? dueLabel(due, now) : 'Soon'
+      const label = due ? dateLabel(due, now) : 'Soon'
       return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), color.alphaSet(done ? 0.3 : 0.8)))
         .withBackground({
           stroke: color.alphaSet(0.3),
@@ -238,54 +198,3 @@ function clearDue({ editor, selection }: CommandContext): boolean {
 // `parseDue` / `dayKey` (the `YYYY-MM-DD` serialization) are shared with the
 // calendar inspector via dom/due-marks.ts.
 const serializeDateOnly = dayKey
-
-// Display text is localized through Intl with bike.systemLocale. Formatters
-// are cached because render runs every tick.
-let formatters:
-  | {
-      relative: Intl.RelativeTimeFormat
-      weekday: Intl.DateTimeFormat
-      weekdayLong: Intl.DateTimeFormat
-      shortDate: Intl.DateTimeFormat
-      shortDateYear: Intl.DateTimeFormat
-      time: Intl.DateTimeFormat
-    }
-  | undefined
-
-function dueFormatters() {
-  formatters ??= {
-    relative: new Intl.RelativeTimeFormat(bike.systemLocale, { numeric: 'auto' }),
-    weekday: new Intl.DateTimeFormat(bike.systemLocale, { weekday: 'short' }),
-    weekdayLong: new Intl.DateTimeFormat(bike.systemLocale, { weekday: 'long' }),
-    shortDate: new Intl.DateTimeFormat(bike.systemLocale, { month: 'short', day: 'numeric' }),
-    shortDateYear: new Intl.DateTimeFormat(bike.systemLocale, { month: 'short', day: 'numeric', year: 'numeric' }),
-    time: new Intl.DateTimeFormat(bike.systemLocale, { hour: 'numeric', minute: '2-digit' }),
-  }
-  return formatters
-}
-
-function dueLabel(due: DueValue, now: Date): string {
-  const { date, hasTime } = due
-  const f = dueFormatters()
-  const dayDiff = dayDiffFromToday(date, now)
-  let label: string
-  if (Math.abs(dayDiff) <= 1) {
-    label = capitalize(f.relative.format(dayDiff, 'day'))
-  } else if (dayDiff >= 2 && dayDiff <= 6) {
-    label = f.weekday.format(date)
-  } else {
-    label = (date.getFullYear() === now.getFullYear() ? f.shortDate : f.shortDateYear).format(date)
-  }
-  // A timed due at exactly midnight (12am) shows no time component — the day
-  // alone reads cleaner than a redundant "12:00 AM".
-  if (hasTime && (date.getHours() !== 0 || date.getMinutes() !== 0)) {
-    label += ` ${f.time.format(date)}`
-  }
-  return label
-}
-
-// Intl.RelativeTimeFormat returns mid-sentence casing ("tomorrow"); the badge
-// is a standalone label.
-function capitalize(s: string): string {
-  return s.charAt(0).toLocaleUpperCase(bike.systemLocale) + s.slice(1)
-}
