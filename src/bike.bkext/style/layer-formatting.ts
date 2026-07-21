@@ -190,8 +190,8 @@ export function registerFormattingLayers(style: EditorStyle) {
       text.baselineOffset = baseSize * 0.25
     })
 
-    // Attachment/tag chips: the label text and file icon are composed in
-    // Swift (only it resolves the file / attribute value), but the chip's
+    // Attachment chips: the label text and file icon are composed in
+    // Swift (only it resolves the file), but the chip's
     // text color and its box appearance are themeable here. `text.color` is
     // the label color; the `background` decoration gives the box its fill,
     // border, and corner radius; and `text.padding` sets the interior gap

@@ -43,7 +43,7 @@ export function activateDue() {
     title: 'Due',
     sigil: '^',
     // This extension presents due itself (the badge below) — opt out of the
-    // built-in catch-all chip.
+    // built-in catch-all badge.
     defaultBadge: false,
     shortcuts: () => {
       const now = new Date()

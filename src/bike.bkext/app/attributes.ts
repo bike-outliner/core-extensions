@@ -6,9 +6,9 @@ import { BadgeEnvironment, Disposable, Image, MenuItem, OutlineEditor, Row, Text
 //
 // - The `done` definition: a "Done" quick effect under the bare `@` popup.
 //   `defaultBadge: false` — done's presentation is the row's done styling,
-//   not a chip.
-// - The CATCH-ALL chip badge: ONE `bike.badge` whose match-any `where` and
-//   `inputs: '*'` (the row's full attribute map) render a keyed chip per
+//   not a badge.
+// - The CATCH-ALL badge: ONE `bike.badge` whose match-any `where` and
+//   `inputs: '*'` (the row's full attribute map) render a keyed badge per
 //   attribute no extension presents (`defaultBadge: false` definitions are
 //   claimed). The style system re-renders when a row's attributes change;
 //   the only external state — the claims snapshot — is captured in the
@@ -21,16 +21,16 @@ const VALUE_TRUNCATE_LENGTH = 20
 export function registerAttributes() {
   bike.attribute('done', {
     title: 'Done',
-    // Done renders as the row's done styling — no catch-all chip.
+    // Done renders as the row's done styling — no catch-all badge.
     defaultBadge: false,
     // ISO-8601 UTC without fractional seconds — the same stamp shape as
     // native Toggle Done (and progress.ts's mark-branch-done).
     shortcuts: () => [{ name: 'Done', value: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') }],
   })
 
-  // A completion-only definition: no dedicated badge (the catch-all chip
+  // A completion-only definition: no dedicated badge (the catch-all badge
   // renders it), just canonical values — offered after `@status:` and as
-  // pick rows in the chip's menu.
+  // pick rows in the badge's menu.
   bike.attribute('status', {
     title: 'Status',
     standardValues: [
@@ -40,11 +40,11 @@ export function registerAttributes() {
     ],
   })
 
-  registerCatchAllChips()
+  registerCatchAllBadges()
 }
 
 /**
- * The chip-worthy attribute names of a row's attribute map: everything not
+ * The badge-worthy attribute names of a row's attribute map: everything not
  * claimed by a `defaultBadge: false` definition, sorted. (`values` already
  * excludes the reserved names — `inputs: '*'` filters them natively.)
  * Pure — exported for tests.
@@ -58,10 +58,10 @@ export function unclaimedNames(
     .sort()
 }
 
-function registerCatchAllChips() {
+function registerCatchAllBadges() {
   let catchAll: Disposable | undefined
 
-  // The claims + standard-values snapshot is the only state the chips
+  // The claims + standard-values snapshot is the only state the badges
   // depend on beyond each row's own attributes. Capture it in the render
   // closure and re-register on every change — a fresh badge identity means
   // a fresh render cache, so claims changes repaint without any dirtying
@@ -80,10 +80,10 @@ function registerCatchAllChips() {
       render: (values, env) => {
         const names = unclaimedNames(values, claimed)
         if (names.length === 0) return null
-        return names.map((name) => ({ key: name, image: chipImage(name, values[name] ?? '', env) }))
+        return names.map((name) => ({ key: name, image: badgeImage(name, values[name] ?? '', env) }))
       },
       onClick: ({ editor, row, key }) => {
-        if (key != null) showChipMenu(editor, row, key)
+        if (key != null) showBadgeMenu(editor, row, key)
       },
     })
   })
@@ -95,7 +95,7 @@ function registerCatchAllChips() {
  * syntax) — the same badge-metrics recipe as the due and priority badges so
  * all row tags read as one family.
  */
-function chipImage(name: string, value: string, env: BadgeEnvironment): Image {
+function badgeImage(name: string, value: string, env: BadgeEnvironment): Image {
   const label = value === '' ? name : `${name}:${truncate(value, VALUE_TRUNCATE_LENGTH)}`
   const bm = env.badgeMetrics
   return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), env.color.alphaSet(0.8))).withBackground({
@@ -107,14 +107,14 @@ function chipImage(name: string, value: string, env: BadgeEnvironment): Image {
 }
 
 /**
- * The chip menu: filter by the attribute (or its exact value), pick one of
+ * The badge menu: filter by the attribute (or its exact value), pick one of
  * its standard values (when the definition declares them), edit it, or
  * remove it. Items are re-read from the row per open, so the value rows
  * reflect the current value.
  */
-function showChipMenu(editor: OutlineEditor, row: Row, name: string) {
+function showBadgeMenu(editor: OutlineEditor, row: Row, name: string) {
   editor.showMenu(row, {
-    items: () => chipMenuItems(name, row.getAttribute(name) ?? '', standardValuesByName.get(name) ?? []),
+    items: () => badgeMenuItems(name, row.getAttribute(name) ?? '', standardValuesByName.get(name) ?? []),
     anchor: { badge: 'attributes', key: name },
     onAction: (id, _value, { editor, row }) => {
       // A standard-value pick: radio semantics — set the value.
@@ -150,11 +150,11 @@ function showChipMenu(editor: OutlineEditor, row: Row, name: string) {
 }
 
 /** The definition-declared standard values per attribute name, from the
- * `observeAttributes` snapshot — what the chip menu offers as pick rows. */
+ * `observeAttributes` snapshot — what the badge menu offers as pick rows. */
 const standardValuesByName = new Map<string, { name: string; value: string }[]>()
 
-/** The chip menu's items — pure, exported for tests. */
-export function chipMenuItems(
+/** The badge menu's items — pure, exported for tests. */
+export function badgeMenuItems(
   name: string,
   value: string,
   standardValues: { name: string; value: string }[] = []

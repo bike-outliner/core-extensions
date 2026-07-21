@@ -1,10 +1,10 @@
 import { Image, SymbolConfiguration } from 'bike/app'
-import { appendAttributeToken, chipMenuItems, unclaimedNames } from '../app/attributes'
+import { appendAttributeToken, badgeMenuItems, unclaimedNames } from '../app/attributes'
 
 // Attribute completion moved native at bikeAPIVersion 0.50.0 — the token
 // grammar, popup fan-out, and commit are covered by Swift tests
 // (OutlineEditorTests/AttributeCompletionTests). What's testable from JS is
-// the `bike.attribute` registration surface, plus the catch-all chip badge's
+// the `bike.attribute` registration surface, plus the catch-all badge's
 // pure reconciliation.
 
 describe('bike.attribute registration', () => {
@@ -87,7 +87,7 @@ describe('bike.attribute registration', () => {
     })
 })
 
-describe('catch-all chip names', () => {
+describe('catch-all badge names', () => {
     it('sorts unclaimed names from the values map', () => {
         const names = unclaimedNames({ foo: 'x', bar: '' }, new Set())
         assert.equal(names.join(','), 'bar,foo')
@@ -118,15 +118,15 @@ describe('catch-all chip names', () => {
     })
 })
 
-describe('chip menu', () => {
+describe('badge menu', () => {
     it('builds filter / filter-value / edit / remove with separators', () => {
-        const items = chipMenuItems('foo', 'bar')
+        const items = badgeMenuItems('foo', 'bar')
         const shape = items.map((item) => (item.type === 'separator' ? '|' : (item as any).title))
         assert.equal(shape.join(','), 'Filter @foo,Filter @foo = bar,|,Edit @foo,|,Remove @foo')
     })
 
     it('omits the value row for valueless attributes', () => {
-        const items = chipMenuItems('waiting', '')
+        const items = badgeMenuItems('waiting', '')
         const shape = items.map((item) => (item.type === 'separator' ? '|' : (item as any).title))
         assert.equal(shape.join(','), 'Filter @waiting,|,Edit @waiting,|,Remove @waiting')
     })
@@ -137,7 +137,7 @@ describe('chip menu', () => {
             { name: '2', value: '2' },
             { name: '3', value: '3' },
         ]
-        const items = chipMenuItems('priority', '2', standards)
+        const items = badgeMenuItems('priority', '2', standards)
         const shape = items.map((item) =>
             item.type === 'separator' ? '|' : `${(item as any).title}${(item as any).state === 'on' ? '*' : ''}`
         )
@@ -149,7 +149,7 @@ describe('chip menu', () => {
     })
 
     it('truncates long values in the filter-value title', () => {
-        const items = chipMenuItems('notes', 'a really long value that keeps going')
+        const items = badgeMenuItems('notes', 'a really long value that keeps going')
         const title = (items[1] as any).title as string
         assert(title.endsWith('…'), 'long values should truncate: ' + title)
     })
