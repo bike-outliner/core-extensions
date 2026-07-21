@@ -107,7 +107,7 @@ export async function activate(context: AppExtensionContext) {
           // filter — and its empty message — predictable.
           path: parts.length > 0 ? parts.join(' union ') : '//@id = ""',
           label: labelDates,
-          emptyMessage: `No rows for ${labelDates}\nPress Return to create a day row`,
+          emptyMessage: `**No rows for ${labelDates}**\nPress \`Return\` (or double-click day) in Calendar to create`,
           // A live refinement (drag growing its range) doesn't push a
           // navigation step — the gesture's mousedown already did.
           pushLocation: !live,
