@@ -138,9 +138,11 @@ function registerCatchAllBadges() {
     const claimed = new Set(infos.filter((info) => !info.defaultBadge).map((info) => info.name))
     standardValuesByName.clear()
     emptyLabelByName.clear()
+    strictByName.clear()
     for (const info of infos) {
       if (info.standardValues.length > 0) standardValuesByName.set(info.name, info.standardValues)
       if (info.emptyLabel != null) emptyLabelByName.set(info.name, info.emptyLabel)
+      if (info.strict) strictByName.add(info.name)
     }
 
     catchAll?.dispose()
@@ -179,13 +181,14 @@ function badgeImage(name: string, value: string, env: BadgeEnvironment): Image {
 
 /**
  * The badge menu: filter by the attribute (or its exact value), pick one of
- * its standard values (when the definition declares them), edit it, or
- * remove it. Items are re-read from the row per open, so the value rows
- * reflect the current value.
+ * its standard values (when the definition declares them), enter a custom
+ * value (unless the definition is strict), or remove it. Items are re-read
+ * from the row per open, so the value rows reflect the current value.
  */
 function showBadgeMenu(editor: OutlineEditor, row: Row, name: string) {
   editor.showMenu(row, {
-    items: () => badgeMenuItems(name, row.getAttribute(name) ?? '', standardValuesByName.get(name) ?? []),
+    items: () =>
+      badgeMenuItems(name, row.getAttribute(name) ?? '', standardValuesByName.get(name) ?? [], strictByName.has(name)),
     anchor: { badge: 'attributes', key: name },
     onAction: (id, _value, { editor, row }) => {
       // A standard-value pick: radio semantics — set the value.
@@ -228,25 +231,30 @@ const standardValuesByName = new Map<string, { name: string; value: string }[]>(
  * snapshot — what a valueless badge renders instead of the raw name. */
 const emptyLabelByName = new Map<string, string>()
 
+/** The names whose definitions declare `strict` — their standard values are
+ * the complete legal set, so the menu offers no custom-value entry. */
+const strictByName = new Set<string>()
+
 /** The badge menu's items — pure, exported for tests. */
 export function badgeMenuItems(
   name: string,
   value: string,
-  standardValues: { name: string; value: string }[] = []
+  standardValues: { name: string; value: string }[] = [],
+  strict = false
 ): MenuItem[] {
   const items: MenuItem[] = []
-  items.push({ type: 'button', id: 'filter', title: `Filter @${name}`, symbol: 'line.3.horizontal.decrease' })
+  items.push({ type: 'button', id: 'filter', title: `Filter @${name}` })
   if (value !== '') {
     items.push({
       type: 'button',
       id: 'filter-value',
       title: `Filter @${name} = ${truncate(value, VALUE_TRUNCATE_LENGTH)}`,
-      symbol: 'line.3.horizontal.decrease',
     })
   }
   items.push({ type: 'separator' })
   // Standard values, radio style: the current value carries the checkmark,
-  // picking one sets it.
+  // picking one sets it. Other Value reads as part of the same list — no
+  // separator — and is omitted when the definition is strict.
   if (standardValues.length > 0) {
     for (const standard of standardValues) {
       items.push({
@@ -256,11 +264,12 @@ export function badgeMenuItems(
         state: standard.value === value ? 'on' : 'off',
       })
     }
-    items.push({ type: 'separator' })
   }
-  items.push({ type: 'button', id: 'edit', title: `Edit @${name}` })
+  if (!strict) {
+    items.push({ type: 'button', id: 'edit', title: 'Other Value' })
+  }
   items.push({ type: 'separator' })
-  items.push({ type: 'button', id: 'remove', title: `Remove @${name}`, symbol: 'trash' })
+  items.push({ type: 'button', id: 'remove', title: `Remove @${name}` })
   return items
 }
 

@@ -235,19 +235,19 @@ describe('catch-all badge names', () => {
 })
 
 describe('badge menu', () => {
-    it('builds filter / filter-value / edit / remove with separators', () => {
+    it('builds filter / filter-value / other value / remove with separators', () => {
         const items = badgeMenuItems('foo', 'bar')
         const shape = items.map((item) => (item.type === 'separator' ? '|' : (item as any).title))
-        assert.equal(shape.join(','), 'Filter @foo,Filter @foo = bar,|,Edit @foo,|,Remove @foo')
+        assert.equal(shape.join(','), 'Filter @foo,Filter @foo = bar,|,Other Value,|,Remove @foo')
     })
 
     it('omits the value row for valueless attributes', () => {
         const items = badgeMenuItems('waiting', '')
         const shape = items.map((item) => (item.type === 'separator' ? '|' : (item as any).title))
-        assert.equal(shape.join(','), 'Filter @waiting,|,Edit @waiting,|,Remove @waiting')
+        assert.equal(shape.join(','), 'Filter @waiting,|,Other Value,|,Remove @waiting')
     })
 
-    it('inserts standard-value pick rows above Edit, current value checked', () => {
+    it('inserts standard-value pick rows above Other Value, current value checked', () => {
         const standards = [
             { name: '1', value: '1' },
             { name: '2', value: '2' },
@@ -259,9 +259,24 @@ describe('badge menu', () => {
         )
         assert.equal(
             shape.join(','),
-            'Filter @priority,Filter @priority = 2,|,1,2*,3,|,Edit @priority,|,Remove @priority'
+            'Filter @priority,Filter @priority = 2,|,1,2*,3,Other Value,|,Remove @priority'
         )
         assert.equal((items.find((item) => (item as any).state === 'on') as any).id, 'set:2')
+    })
+
+    it('omits Other Value for strict attributes', () => {
+        const standards = [
+            { name: '1', value: '1' },
+            { name: '2', value: '2' },
+        ]
+        const items = badgeMenuItems('priority', '2', standards, true)
+        const shape = items.map((item) => (item.type === 'separator' ? '|' : (item as any).title))
+        assert.equal(shape.join(','), 'Filter @priority,Filter @priority = 2,|,1,2,|,Remove @priority')
+    })
+
+    it('menu items carry no leading symbols', () => {
+        const items = badgeMenuItems('foo', 'bar')
+        assert(items.every((item) => (item as any).symbol == null))
     })
 
     it('truncates long values in the filter-value title', () => {
