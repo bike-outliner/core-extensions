@@ -99,22 +99,31 @@ function matchWeekday(word: string): number | null {
 }
 
 /**
- * Completion value suggestions for a date attribute: Today/Tomorrow, then
- * the rest of the coming week by weekday — the popup fuzzy-filters, so
- * "fri" finds "Friday (Jul 24)". Built fresh per popup so the days roll
- * over.
+ * Completion value suggestions for a date attribute: Today/Tomorrow, the
+ * coming days by weekday name (tomorrow keeps its own weekday row so "thu"
+ * matches; names repeating past a week read "Next Thursday"), then the
+ * coming period starts (Next Month/Quarter/Year). Each carries the resolved
+ * date as its right-aligned popup detail — the popup fuzzy-filters names,
+ * so "fri" finds "Friday". Built fresh per popup so the days roll over.
  */
 export function dateSuggestions(): AttributeValue[] {
   const now = new Date()
   const f = dateFormatters()
-  const suggestions: AttributeValue[] = [
-    { name: 'Today', value: dayKey(now) },
-    { name: 'Tomorrow', value: dayKey(addDays(now, 1)) },
-  ]
-  for (let i = 2; i <= 6; i++) {
+  const day = (name: string, date: Date): AttributeValue => ({
+    name,
+    value: dayKey(date),
+    detail: (date.getFullYear() === now.getFullYear() ? f.shortDate : f.shortDateYear).format(date),
+  })
+
+  const suggestions: AttributeValue[] = [day('Today', now), day('Tomorrow', addDays(now, 1))]
+  for (let i = 1; i <= 9; i++) {
     const date = addDays(now, i)
-    suggestions.push({ name: `${f.weekdayLong.format(date)} (${f.shortDate.format(date)})`, value: dayKey(date) })
+    const weekday = f.weekdayLong.format(date)
+    suggestions.push(day(i <= 7 ? weekday : `Next ${weekday}`, date))
   }
+  suggestions.push(day('Next Month', new Date(now.getFullYear(), now.getMonth() + 1, 1)))
+  suggestions.push(day('Next Quarter', new Date(now.getFullYear(), (Math.floor(now.getMonth() / 3) + 1) * 3, 1)))
+  suggestions.push(day('Next Year', new Date(now.getFullYear() + 1, 0, 1)))
   return suggestions
 }
 

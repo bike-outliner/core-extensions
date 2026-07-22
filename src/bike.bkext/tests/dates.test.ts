@@ -1,4 +1,4 @@
-import { dayKey, parseDateInput, parseDurationAttribute } from '../app/dates'
+import { dateSuggestions, dayKey, parseDateInput, parseDurationAttribute } from '../app/dates'
 
 describe('parseDateInput', () => {
     // Tuesday, July 21 2026 — a fixed local `now` so weekday math is stable.
@@ -64,6 +64,30 @@ describe('parseDateInput', () => {
         assert.equal(parseDateInput('cool', now), null)
         // 'soon' is due-specific (the valueless due), not a date.
         assert.equal(parseDateInput('soon', now), null)
+    })
+})
+
+describe('dateSuggestions', () => {
+    it('lists today, tomorrow, nine weekday rows, then period starts', () => {
+        const suggestions = dateSuggestions()
+        const names = suggestions.map((s) => s.name)
+        assert.equal(suggestions.length, 14)
+        assert.equal(names[0], 'Today')
+        assert.equal(names[1], 'Tomorrow')
+        // Tomorrow repeats under its own weekday name so typing "thu" matches.
+        assert.equal(suggestions[2].value, suggestions[1].value)
+        // Weekday names repeating past a week read "Next <weekday>".
+        assert(names[9].startsWith('Next '), names[9])
+        assert(names[10].startsWith('Next '), names[10])
+        assert.equal(names.slice(11).join(','), 'Next Month,Next Quarter,Next Year')
+        for (const s of suggestions) {
+            assert(/^\d{4}-\d{2}-\d{2}$/.test(s.value), `${s.name}: ${s.value}`)
+            assert(s.detail, `${s.name} should carry a date detail`)
+        }
+        // The period starts land on the first of a month.
+        for (const s of suggestions.slice(11)) {
+            assert(s.value.endsWith('-01'), `${s.name}: ${s.value}`)
+        }
     })
 })
 
