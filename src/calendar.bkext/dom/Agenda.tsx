@@ -121,7 +121,9 @@ function AgendaPanel({ context }: { context: DOMExtensionContext<CalendarProtoco
               <button
                 className="calendar-agenda-label"
                 type="button"
-                onClick={() => bike.session.updateEditor({ select: row.id })}
+                // `activate` because clicking here made this webview first responder —
+                // without it the caret lands but keystrokes stay in the inspector.
+                onClick={() => bike.session.updateEditor({ select: row.id, activate: true })}
               >
                 {time && <span className="calendar-agenda-time">{time}</span>}
                 {rowDisplayText(row) || 'Untitled'}
