@@ -1,4 +1,4 @@
-import { dateSuggestions, dayKey, parseDateInput, parseDurationAttribute } from '../app/dates'
+import { dateSuggestions, dayKey, parseDateInput, parseDurationAttribute } from '../app/attributes/dates'
 
 describe('parseDateInput', () => {
     // Tuesday, July 21 2026 — a fixed local `now` so weekday math is stable.

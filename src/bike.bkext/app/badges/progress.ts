@@ -1,5 +1,5 @@
 import { BadgeEnvironment, Color, CommandContext, Disposable, Image, Path, Point, Rect, Row, Shape, Text } from 'bike/app'
-import { progressDefaults } from '../dom/protocols'
+import { progressDefaults } from '../../dom/protocols'
 
 // A "progress" feature demonstrating subtree summaries: two incrementally
 // maintained branch aggregates (total tasks / done tasks below a row), consumed
@@ -74,15 +74,15 @@ function installBadge(): Disposable {
       const tasks = branchTasks([row])
       const done = tasks.filter((task) => task.getAttribute('done') != null).length
       editor.showMenu(row, {
-        items: () => [
-          { type: 'button', id: 'show-todos', title: 'Branch Todos', symbol: 'line.3.horizontal.decrease' },
-          { type: 'button', id: 'show-completed', title: 'Branch Completed', symbol: 'line.3.horizontal.decrease' },
+        items: [
+          { type: 'button', id: 'show-todos', title: 'Filter not @done' },
+          { type: 'button', id: 'show-completed', title: 'Filter @done' },
           { type: 'separator' },
-          { type: 'button', id: 'command:progress:mark-branch-done', title: 'Mark Branch Done', symbol: 'checkmark.square', enabled: done !== tasks.length },
-          { type: 'button', id: 'command:progress:clear-branch-done', title: 'Clear Branch Done', symbol: 'square', enabled: done !== 0 },
+          { type: 'button', id: 'command:progress:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: done !== tasks.length },
+          { type: 'button', id: 'command:progress:clear-branch-done', title: 'Clear Branch Tasks Done', enabled: done !== 0 },
         ],
         anchor: 'progress',
-        onAction: (id, _value, { editor, row }) => {
+        onAction: (id, { editor, row }) => {
           const pid = row.ensuredPersistentId
           if (id === 'show-completed') {
             editor.filter = { label: "Done Tasks", path: `//@id = "${pid}"//@done` }

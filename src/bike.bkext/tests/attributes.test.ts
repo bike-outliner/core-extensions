@@ -1,11 +1,11 @@
 import { Image, SymbolConfiguration } from 'bike/app'
-import { appendAttributeToken, badgeMenuItems, unclaimedNames } from '../app/attributes'
+import { unclaimedNames } from '../app/badges/default'
 
-// Attribute completion moved native at bikeAPIVersion 0.50.0 — the token
-// grammar, popup fan-out, and commit are covered by Swift tests
-// (OutlineEditorTests/AttributeCompletionTests). What's testable from JS is
-// the `bike.attribute` registration surface, plus the catch-all badge's
-// pure reconciliation.
+// Attribute editing is the native attribute palette (editor.
+// showAttributePalette) and the standalone value picker (editor.showPicker;
+// badge menus' "Value…" opens the native equivalent). What's testable from
+// JS is the `bike.attribute` registration surface, the presentation
+// scheduling, plus the default badge's pure reconciliation.
 
 describe('bike.attribute registration', () => {
     it('registers a minimal definition and disposes it', () => {
@@ -17,7 +17,6 @@ describe('bike.attribute registration', () => {
     it('registers a full definition', () => {
         const disposable = bike.attribute('smoke-test-full', {
             title: 'Smoke',
-            sigil: '~',
             shortcuts: () => [{ name: 'Smoke Now', value: 'now' }],
             values: (pattern) => (pattern ? [] : [{ name: 'A', value: 'a' }]),
             parse: (text) => (text === 'ok' ? { value: 'ok', label: 'OK' } : undefined),
@@ -28,16 +27,6 @@ describe('bike.attribute registration', () => {
 
     it('rejects reserved names', () => {
         assert.throws(() => bike.attribute('indent', {}))
-    })
-
-    it('rejects invalid sigils', () => {
-        assert.throws(() => bike.attribute('smoke-test-sigil', { sigil: 'x' }))
-        assert.throws(() => bike.attribute('smoke-test-sigil', { sigil: '@' }))
-        assert.throws(() => bike.attribute('smoke-test-sigil', { sigil: '::' }))
-    })
-
-    it('rejects an unknown type', () => {
-        assert.throws(() => bike.attribute('smoke-test-type', { type: 'datetime' as any }))
     })
 
     it('rejects a flag with a value vocabulary', () => {
@@ -203,7 +192,7 @@ describe('default attribute set', () => {
     })
 })
 
-describe('catch-all badge names', () => {
+describe('default badge names', () => {
     it('sorts unclaimed names from the values map', () => {
         const names = unclaimedNames({ foo: 'x', bar: '' }, new Set())
         assert.equal(names.join(','), 'bar,foo')
@@ -219,7 +208,7 @@ describe('catch-all badge names', () => {
         assert.equal(unclaimedNames({ due: '1' }, new Set(['due'])).length, 0)
     })
 
-    it('registers a keyed multi-image badge with catch-all inputs', () => {
+    it('registers a keyed multi-image badge with default inputs', () => {
         // The API accepts inputs '*' + a keyed render; disposal deregisters.
         const disposable = bike.badge('smoke-multi', {
             where: '.*',
@@ -234,81 +223,43 @@ describe('catch-all badge names', () => {
     })
 })
 
-describe('badge menu', () => {
-    it('builds filter / filter-value / other value / remove with separators', () => {
-        const items = badgeMenuItems('foo', 'bar')
-        const shape = items.map((item) => (item.type === 'separator' ? '|' : (item as any).title))
-        assert.equal(shape.join(','), 'Filter @foo,Filter @foo = bar,|,Other Value,|,Remove @foo')
-    })
-
-    it('omits the value row for valueless attributes', () => {
-        const items = badgeMenuItems('waiting', '')
-        const shape = items.map((item) => (item.type === 'separator' ? '|' : (item as any).title))
-        assert.equal(shape.join(','), 'Filter @waiting,|,Other Value,|,Remove @waiting')
-    })
-
-    it('inserts standard-value pick rows above Other Value, current value checked', () => {
-        const standards = [
-            { name: '1', value: '1' },
-            { name: '2', value: '2' },
-            { name: '3', value: '3' },
-        ]
-        const items = badgeMenuItems('priority', '2', standards)
-        const shape = items.map((item) =>
-            item.type === 'separator' ? '|' : `${(item as any).title}${(item as any).state === 'on' ? '*' : ''}`
-        )
-        assert.equal(
-            shape.join(','),
-            'Filter @priority,Filter @priority = 2,|,1,2*,3,Other Value,|,Remove @priority'
-        )
-        assert.equal((items.find((item) => (item as any).state === 'on') as any).id, 'set:2')
-    })
-
-    it('omits Other Value for strict attributes', () => {
-        const standards = [
-            { name: '1', value: '1' },
-            { name: '2', value: '2' },
-        ]
-        const items = badgeMenuItems('priority', '2', standards, true)
-        const shape = items.map((item) => (item.type === 'separator' ? '|' : (item as any).title))
-        assert.equal(shape.join(','), 'Filter @priority,Filter @priority = 2,|,1,2,|,Remove @priority')
-    })
-
-    it('menu items carry no leading symbols', () => {
-        const items = badgeMenuItems('foo', 'bar')
-        assert(items.every((item) => (item as any).symbol == null))
-    })
-
-    it('truncates long values in the filter-value title', () => {
-        const items = badgeMenuItems('notes', 'a really long value that keeps going')
-        const title = (items[1] as any).title as string
-        assert(title.endsWith('…'), 'long values should truncate: ' + title)
-    })
-
-    it('appendAttributeToken stages the edit flow with a boundary space', () => {
+describe('attribute palette', () => {
+    it('showAttributePalette is callable (headless: schedules, no panel)', () => {
         const editor = bike.testEditor()
         const outline = editor.outline
         const [row] = outline.insertRows(['Buy milk'], outline.root)
-
-        appendAttributeToken(editor, row, 'foo')
-        assert.equal(row.text.string, 'Buy milk @foo:')
-        assert.equal(editor.selection?.type, 'caret')
-        // Caret at end of text — the completion grammar's requirement.
-        assert.equal((editor.selection as any).detail.char, row.text.count)
-
-        // showCompletions is callable (headless: schedules, no popup).
-        editor.showCompletions()
+        editor.showAttributePalette(row)
     })
+})
 
-    it('appendAttributeToken skips the space when the boundary exists', () => {
+describe('value picker (showPicker)', () => {
+    it('presents attribute-bound (headless: schedules, no panel)', () => {
         const editor = bike.testEditor()
         const outline = editor.outline
-        const [empty] = outline.insertRows([''], outline.root)
-        appendAttributeToken(editor, empty, 'foo')
-        assert.equal(empty.text.string, '@foo:')
+        const [row] = outline.insertRows(['Buy milk'], outline.root)
+        const handle = editor.showPicker(row, { attribute: 'foo', onAccept() {} })
+        assert(handle, 'attribute form should return a handle')
+        handle!.dismiss()
+    })
 
-        const [spaced] = outline.insertRows(['Buy milk '], outline.root)
-        appendAttributeToken(editor, spaced, 'foo')
-        assert.equal(spaced.text.string, 'Buy milk @foo:')
+    it('presents an ad-hoc suggestion shell', () => {
+        const editor = bike.testEditor()
+        const outline = editor.outline
+        const [row] = outline.insertRows(['Buy milk'], outline.root)
+        const handle = editor.showPicker(row, {
+            values: [{ name: 'Alpha', value: 'a' }],
+            parse: (text) => (text === 'ok' ? { value: 'ok', label: 'OK' } : undefined),
+            onAccept() {},
+        })
+        assert(handle, 'inline values should return a handle')
+        handle!.dismiss()
+    })
+
+    it('rejects nothing-to-show options', () => {
+        const editor = bike.testEditor()
+        const outline = editor.outline
+        const [row] = outline.insertRows(['Buy milk'], outline.root)
+        // No attribute, kind, values, or parse — a caller error.
+        assert.throws(() => (editor.showPicker as any)(row, { onAccept() {} }))
     })
 })
