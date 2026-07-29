@@ -76,10 +76,4 @@ describe("Outline observeQuery", () => {
         assert(typeof disposable.dispose === "function")
         disposable.dispose()
     })
-
-    it("supports the deprecated streamQuery alias", () => {
-        const disposable = outline.streamQuery("//row", () => {})
-        assert(disposable, "should return a disposable")
-        disposable.dispose()
-    })
 })

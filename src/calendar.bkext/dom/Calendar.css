@@ -56,7 +56,15 @@
 }
 
 /* All tiles — fixed height so week number rows match day rows exactly.
-   position: relative anchors the absolutely-placed due mark. */
+   position: relative anchors the absolutely-placed due mark.
+
+   `overflow: visible` overrides react-calendar's INLINE `overflow: hidden`
+   (its Flex helper sets it on every tile), which is why the !important is
+   needed. The selected-range band relies on it: the band bleeds half a
+   pixel into the neighbouring tile to close subpixel seams, and the tile's
+   own clip would cut exactly that bleed away. Nothing in a tile needs the
+   clip — the day number and the date mark are both centered, and the
+   drop-target ring insets itself with outline-offset. */
 .react-calendar__tile {
   height: 2em;
   padding: 0;
@@ -66,6 +74,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: visible !important;
 }
 
 .react-calendar__tile abbr {
@@ -108,8 +117,20 @@
   position: absolute;
   top: calc(50% - 0.8em);
   height: 1.6em;
-  left: 0;
-  right: 0;
+  /* Half a pixel of bleed each way, so neighbouring bands OVERLAP rather
+     than meet. react-calendar gives every tile an inline
+     `flex-basis: 100/7 %`, so column boundaries land on fractional pixels;
+     two bands that merely met there could round to either side of the same
+     device pixel and open a hairline gap. It shows up intermittently
+     because a later full repaint — focusing away and back — can round the
+     other way and close it. The overlap is invisible (one flat opaque
+     fill) and can only ever spill into a tile that is itself in range,
+     except at a week-row edge where it spills a half pixel outside the
+     grid. The range's two ENDS override these, so the rounded caps stay
+     put. See the `overflow: visible` override on `.react-calendar__tile`,
+     which this depends on. */
+  left: -0.5px;
+  right: -0.5px;
   background: var(--selected-content-background);
 }
 
@@ -143,8 +164,8 @@
   border-radius: 4px;
 }
 
-/* Due mark — a dot under the day number, tinted by urgency */
-.due-mark {
+/* Date mark — a dot under the day number, tinted by urgency */
+.date-mark {
   position: absolute;
   bottom: 1px;
   left: 50%;
@@ -155,28 +176,28 @@
   pointer-events: none;
 }
 
-.due-mark--urgent {
-  --due-mark-color: var(--system-red);
+.date-mark--urgent {
+  --date-mark-color: var(--system-red);
 }
 
-.due-mark--soon {
-  --due-mark-color: var(--system-orange);
+.date-mark--soon {
+  --date-mark-color: var(--system-orange);
 }
 
-.due-mark--later {
-  --due-mark-color: var(--control-accent);
+.date-mark--later {
+  --date-mark-color: var(--control-accent);
 }
 
-/* A day whose due items are all @done — history, not a fire. */
-.due-mark--done {
-  --due-mark-color: var(--tertiary-label);
+/* A day whose dated rows are all @done — history, not a fire. */
+.date-mark--done {
+  --date-mark-color: var(--tertiary-label);
 }
 
-.due-mark {
-  background: var(--due-mark-color);
+.date-mark {
+  background: var(--date-mark-color);
 }
 
-/* Agenda — due items for the selected day, below the month grid */
+/* Agenda — dated rows for the selected day, below the month grid */
 .calendar-agenda {
   display: flex;
   flex-direction: column;
@@ -227,4 +248,11 @@
   color: var(--secondary-label);
   font-variant-numeric: tabular-nums;
   margin-right: 0.4em;
+}
+
+/* Which date attribute put the row on this day ("Start") — shown only when
+   more than one can, so a due-only outline reads exactly as before. */
+.calendar-agenda-attribute {
+  color: var(--tertiary-label);
+  margin-left: 0.4em;
 }

@@ -3,30 +3,6 @@ import { computeValues, symbolImage } from './util'
 
 export function registerControlsLayer(style: EditorStyle) {
   style.layer('controls', (row, run, caret, viewport, include) => {
-    row(`.attributes() = true`, (context, row) => {
-      if (context.settings.showAttributesButton) {
-        let values = computeValues(context)
-        row.decoration('attributes', (attributes, layout) => {
-          let size = layout.lastLine.height.min(values.lineHeight)
-          attributes.flow = 'trailing'
-          attributes.order = 9
-          attributes.commandName = 'format:.row-attributes-button'
-          attributes.contents.gravity = 'center'
-          attributes.contents.image = symbolImage(
-            'at',
-            context.theme.colors.focusArrow,
-            values.font
-          )
-          attributes.width = size
-          attributes.height = size
-          attributes.transitions.position = false
-          if (context.isTyping && context.settings.hideControlsWhenTyping) {
-            attributes.opacity = 0
-          }
-        })
-      }
-    })
-
     row(`.parent() = true`, (context, row) => {
       if (context.settings.showFocusArrows) {
         let values = computeValues(context)

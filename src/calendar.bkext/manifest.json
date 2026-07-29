@@ -1,10 +1,10 @@
 {
   "$schema": "../../node_modules/@bike-outliner/extension-kit/schemas/manifest.schema.json",
-  "description": "Notes calendar that generates outline structure when selecting a date, plus the due badge — set and display a due date/time on rows, marked on the calendar.",
+  "description": "Notes calendar that generates outline structure when selecting a date, plus the due badge. Marks every date attribute — due, start, or any an extension registers — on the calendar.",
   "author": "Jesse Grosjean",
   "url": "https://github.com/bike-outliner/core-extensions/tree/main/src/calendar.bkext",
   "version": "0.1.0",
-  "api_version": "0.0.0",
+  "api_version": "0.63.0",
   "permissions": [],
   "host_permissions": []
 }

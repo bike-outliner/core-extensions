@@ -1,31 +1,27 @@
 import { Color, CommandContext, Image, Text } from 'bike/app'
-import { dateLabel } from '../../bike.bkext/app/attributes/dates'
-import { dayDiffFromToday, dueUrgency, parseDue } from '../dom/due-marks'
 
-// The "due" feature's PRESENTATION: commands (Set Due opens the attribute
-// palette's value stage — Soon/Today/… suggestions and the calendar live
-// there — Clear Due removes, Filter Due filters) that manage a `due`
-// attribute on the selected rows, plus a value-aware badge showing the date
-// relative when near ("Today", "Tomorrow", a weekday within the week).
-// Clicking the badge opens the built-in default attribute menu
-// (`menu: 'default'`): filter / Value… (the palette) / remove.
-// The calendar inspector renders the same attribute as day marks and a
-// day agenda (dom/Calendar.tsx) — that coupling is why due's presentation
-// lives in the calendar extension.
+// The `due` feature: when a row is due, plus the badge and commands that
+// present and manage it.
 //
-// The due SHAPE (type, values/parsing, defaultBadge
-// opt-out) is registered by bike.bkext's default attribute set — see
-// bike.bkext/app/attributes/due.ts. A due value is `YYYY-MM-DD` (local calendar
-// date), a full ISO-8601 UTC timestamp when a time is included, or EMPTY —
-// a valueless `@due` means "soon": due, but no date yet (badge shows
-// "Soon"). The palette sets date-only values; timed values come from
-// scripts/automation and still render in the badge.
+// A due value is `YYYY-MM-DD` (local calendar date), a full ISO-8601 UTC
+// timestamp when a time is included, or EMPTY — a valueless `@due` means
+// "soon": due, but no date yet. The palette sets date-only values; timed
+// values come from scripts/automation and still render in the badge.
 //
-// TIME ZONES: a timed `due` is stored as UTC; parsing back to local
-// wall-clock goes through `parseDue` (shared with the inspector in
-// dom/due-marks.ts).
+// calendar.bkext ALSO renders due — it shows every `type: 'date'` attribute
+// on its calendar and agenda — but the badge lives here so `@due` is visible
+// whether or not that extension is enabled.
 
-export function activateDue() {
+export function registerDue() {
+  bike.attribute('due', {
+    title: 'Due',
+    type: 'date',
+    emptyLabel: 'Soon',
+    description: 'When the row is due — a calendar day, a timestamp, or valueless for "soon".',
+    defaultBadge: false,
+    suggestions: () => [{ name: 'Soon', value: '', menu: true }],
+  })
+
   bike.commands.addCommands({
     commands: {
       'due:set': setDue,
@@ -45,10 +41,12 @@ export function activateDue() {
     render: (values, env) => {
       const raw = values['due']
       if (raw == null) return null
-      const due = parseDue(raw)
+      // The shared wire codec; undefined for the valueless "soon" (and any
+      // junk a script stored).
+      const due = bike.decodeValue('date', raw)?.date
 
       const now = new Date((env.now ?? 0) * 1000)
-      const dayDiff = due ? dayDiffFromToday(due.date, now) : 0
+      const dayDiff = due ? dayDiffFromToday(due, now) : 0
       const done = values['done'] != null
       // Urgency tint for OPEN items: red when due today or overdue, orange
       // when due tomorrow or "soon" (a valueless @due — due, no date yet).
@@ -62,7 +60,9 @@ export function activateDue() {
       // drawn badge on the row. Completed rows fade the text down to the
       // border's alpha so the whole tag reads as done.
       const bm = env.badgeMetrics
-      const label = due ? dateLabel(due, now) : 'Soon'
+      // The native display layer — the same labels the palette and
+      // pickers show, computed at env.now so they roll over on tick.
+      const label = raw === '' ? 'Soon' : env.formatAttribute('due', raw)
       return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), color.alphaSet(done ? 0.3 : 0.8)))
         .withBackground({
           stroke: color.alphaSet(0.3),
@@ -71,9 +71,9 @@ export function activateDue() {
           padding: bm.padding,
         })
     },
-    // The built-in default attribute menu: filter / Value… (the standalone
+    // The built-in attribute menu for @due: filter / Value… (the standalone
     // due value picker) / remove.
-    menu: 'default',
+    onClick: ({ editor, row }) => editor.showAttributeMenu({ row, anchor: 'due' }, 'due'),
   })
 }
 
@@ -83,9 +83,9 @@ export function activateDue() {
 function setDue({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
-  editor.showPicker(rows[0], {
-    attribute: 'due',
-    onAccept: (value, { row }) => row.setAttribute('due', value),
+  editor.showPicker({ row: rows[0] }, {
+    source: { attribute: 'due' },
+    onAccept: (value) => rows[0].setAttribute('due', value),
   })
   return true
 }
@@ -124,4 +124,22 @@ function clearDue({ editor, selection }: CommandContext): boolean {
     for (const row of rows) row.removeAttribute('due')
   })
   return true
+}
+
+// Just enough date MATH for the urgency tint — wire parsing itself is
+// bike.decodeValue (the shared codec, above). calendar.bkext has richer
+// calendar helpers (dom/date-marks.ts, which also buckets by day and labels
+// the agenda), but extensions bundle separately so neither can import the
+// other's.
+//
+// Whole local days from `now`'s day to `date`'s day: 0 today, 1 tomorrow,
+// negative in the past.
+function dayDiffFromToday(date: Date, now: Date): number {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  return Math.round((startOfDate.getTime() - startOfToday.getTime()) / 86400000)
+}
+
+function dueUrgency(dayDiff: number): 'urgent' | 'soon' | 'later' {
+  return dayDiff <= 0 ? 'urgent' : dayDiff === 1 ? 'soon' : 'later'
 }

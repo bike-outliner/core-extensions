@@ -1,17 +1,30 @@
-import { AppExtensionContext, OutlineEditor, Row, Window } from 'bike/app'
+import { AppExtensionContext, DOMScriptHandle, OutlineEditor, Row, Window } from 'bike/app'
 import { todayCommand, monthCommand, yearCommand } from './commands'
 import { getDayRow } from './calendar-rows'
 import { getDateComponents, findDateId } from './util'
-import { activateDue } from './due'
 import { CalendarProtocol, CalendarSelectMode, calendarDefaults } from '../dom/protocols'
-import { addDays, dayKey } from '../dom/due-marks'
+import { DateAttribute, addDays, dateAttributesFrom, dateRangeClause, dayKey } from '../dom/date-marks'
 
 export async function activate(context: AppExtensionContext) {
   bike.defaults.registerDefaults(calendarDefaults)
 
-  // The due badge/commands live here too — the calendar inspector renders
-  // the same @due attribute as day marks and a day agenda.
-  activateDue()
+  // Every attribute registered with `type: 'date'` shows on the calendar —
+  // `due` and `start` today, whatever an extension adds tomorrow — minus
+  // the ones opting out with `metadata: { calendar: false }` (`done`).
+  //
+  // Live, never a one-shot snapshot: extension activation order isn't
+  // guaranteed, so the first fire can predate bike.bkext registering the
+  // default set. The registry re-fires on every registration and disposal,
+  // and each fire re-pushes to the open panels.
+  let dateAttributes: DateAttribute[] = []
+  const handles = new Set<DOMScriptHandle<CalendarProtocol>>()
+
+  bike.observeAttributes((infos) => {
+    dateAttributes = dateAttributesFrom(infos)
+    for (const handle of handles) {
+      handle.postMessage({ type: 'dateAttributes', attributes: dateAttributes })
+    }
+  })
 
   bike.commands.addCommands({
     commands: {
@@ -46,6 +59,12 @@ export async function activate(context: AppExtensionContext) {
       script: 'Calendar.js',
     })
 
+    // Joins the broadcast set; the panel pulls its first list with `ready`
+    // below (pushing here would race its React commit). Leaving on window
+    // close so a registry change doesn't post into a dead webview.
+    handles.add(calendarHandle)
+    window.onClose(() => handles.delete(calendarHandle))
+
     /*
     const agendaHandle = await window.inspector.addItem<CalendarProtocol>({
       label: 'Agenda',
@@ -64,17 +83,19 @@ export async function activate(context: AppExtensionContext) {
 
     // Filter to an inclusive day range (calendar click, arrows, drag; a
     // single day is start === end). NEVER creates day rows — 'all' unions
-    // the range's due items with day rows that already exist (and their
-    // subtrees), 'due' (⌘) is just the due items, 'days' (⌥) just the
-    // existing day rows. Exact-id matches (bounded: a drag spans at most
-    // one 42-tile grid) rather than a lexical @id range, which could match
-    // unrelated rows whose ids happen to fall inside the window. When the
-    // filter matches nothing (empty day, or 'days' with no rows), the
-    // editor shows the filter's emptyMessage centered instead of a blank
-    // view.
+    // the range's dated rows (every calendar-visible date attribute) with
+    // day rows that already exist (and their subtrees), 'dates' (⌘) is just
+    // the dated rows, 'days' (⌥) just the existing day rows. Exact-id
+    // matches (bounded: a drag spans at most one 42-tile grid) rather than
+    // a lexical @id range, which could match unrelated rows whose ids
+    // happen to fall inside the window. When the filter matches nothing
+    // (empty day, 'days' with no rows, or no date attributes registered at
+    // all), the editor shows the filter's emptyMessage centered instead of
+    // a blank view.
     function visitRange(editor: OutlineEditor, start: Date, end: Date, mode: CalendarSelectMode, live: boolean) {
       const endExclusive = addDays(end, 1)
-      const dueRange = `@due >=[d] "${dayKey(start)}" and @due <[d] "${dayKey(endExclusive)}"`
+      const dateClause = dateRangeClause(dateAttributes.map((a) => a.name), start, endExclusive)
+      const dateUnions = dateClause ? [`//(${dateClause})`] : []
       const dayIds: string[] = []
       for (let d = new Date(start.getFullYear(), start.getMonth(), start.getDate()); d < endExclusive; d = addDays(d, 1)) {
         const dayId = getDateComponents(d).dayId
@@ -88,9 +109,9 @@ export async function activate(context: AppExtensionContext) {
       const dayPredicate = dayIds.map((id) => `@id = "${id}"`).join(' or ')
       const dayUnions = dayIds.length > 0 ? [`//(${dayPredicate})`, `//(${dayPredicate})//*`] : []
       const parts =
-        mode === 'due' ? [`//(${dueRange})`]
+        mode === 'dates' ? dateUnions
         : mode === 'days' ? dayUnions
-        : [`//(${dueRange})`, ...dayUnions]
+        : [...dateUnions, ...dayUnions]
       const fmt = (d: Date) => d.toLocaleDateString(bike.systemLocale, { dateStyle: 'medium' })
       const singleDay = dayKey(start) === dayKey(end)
       const labelDates = singleDay ? fmt(start) : `${fmt(start)} – ${fmt(end)}`
@@ -103,8 +124,9 @@ export async function activate(context: AppExtensionContext) {
         }
         editor.filter = {
           // A mode with nothing to union ('days' over a range with no
-          // existing day rows): a never-matching path keeps the labeled
-          // filter — and its empty message — predictable.
+          // existing day rows, or 'dates' with no date attributes
+          // registered): a never-matching path keeps the labeled filter —
+          // and its empty message — predictable.
           path: parts.length > 0 ? parts.join(' union ') : '//@id = ""',
           label: labelDates,
           emptyMessage: `**No rows for ${labelDates}**\nReturn or double-click in Calendar to create row`,
@@ -164,6 +186,11 @@ export async function activate(context: AppExtensionContext) {
     }
 
     calendarHandle.onmessage = (message) => {
+      // The panel's first pull needs no editor — answer it before the guard.
+      if (message.type === 'ready') {
+        calendarHandle.postMessage({ type: 'dateAttributes', attributes: dateAttributes })
+        return
+      }
       const editor = window.currentOutlineEditor
       if (!editor) return
       switch (message.type) {

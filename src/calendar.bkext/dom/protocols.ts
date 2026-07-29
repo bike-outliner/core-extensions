@@ -3,6 +3,7 @@
 // scripts can import from it to share a single protocol definition.
 
 import { DOMProtocol } from 'bike/core'
+import { DateAttribute } from './date-marks'
 
 export const dateIdPattern = /^\d{4}\/\d{2}\/\d{2}$/
 
@@ -111,15 +112,22 @@ export function substituteDate(
 }
 
 /**
- * What a day/range selection shows: 'all' = day rows & due items (default),
- * 'due' (⌘) = only due items, 'days' (⌥) = only day rows.
+ * What a day/range selection shows: 'all' = day rows & dated rows
+ * (default), 'dates' (⌘) = only dated rows, 'days' (⌥) = only day rows.
  */
-export type CalendarSelectMode = 'all' | 'due' | 'days'
+export type CalendarSelectMode = 'all' | 'dates' | 'days'
 
 export interface CalendarProtocol extends DOMProtocol {
   toDOM:
     | { type: 'selectDate'; date: string }
     | { type: 'clearSelection' }
+    /**
+     * Every calendar-visible date attribute, in registry order — sent in
+     * reply to `ready` and re-pushed whenever the attribute registry
+     * changes, so a panel that's already open picks up an attribute an
+     * extension registers later.
+     */
+    | { type: 'dateAttributes'; attributes: DateAttribute[] }
   // Calendar navigation (click, arrows, drag) only FILTERS, per `mode` — it
   // never creates day rows. A single day is a degenerate range (start ===
   // end); `start`/`end` are inclusive days, normalized start ≤ end. `live`
@@ -135,4 +143,13 @@ export interface CalendarProtocol extends DOMProtocol {
     | { type: 'showRange'; start: string; end: string; mode?: CalendarSelectMode; live?: boolean }
     | { type: 'openDay'; date: string }
     | { type: 'openRange'; start: string; end: string }
+    /**
+     * The panel has mounted and installed its onmessage; reply with
+     * `dateAttributes`. A DOM-initiated PULL, not an app-side push: app→DOM
+     * postMessage is DROPPED when the DOM hasn't set onmessage yet, while
+     * DOM→app messages are queued until the app installs its handler — and
+     * the panel's React commit lands a tick after activate(), so a push
+     * right after addItem() is a race. This is correct in both orders.
+     */
+    | { type: 'ready' }
 }

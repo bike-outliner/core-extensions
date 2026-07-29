@@ -1,5 +1,7 @@
-import { BadgeEnvironment, Color, CommandContext, Disposable, Image, Path, Point, Rect, Row, Shape, Text } from 'bike/app'
+import { CommandContext, Disposable, Image, Row, Text } from 'bike/app'
 import { progressDefaults } from '../../dom/protocols'
+import { pieImage } from '../pie-image'
+import { doneStamp } from './done'
 
 // A "progress" feature demonstrating subtree summaries: two incrementally
 // maintained branch aggregates (total tasks / done tasks below a row), consumed
@@ -23,9 +25,14 @@ export function registerProgress() {
   bike.settings.addItem({ label: 'Progress', script: 'Settings.js' })
 
   // Self-only contributions folded up every branch by `count`; read O(1) as
-  // `summary('...')` from the badge inputs below.
+  // `summary('...')` from the badge inputs below. Both count the SAME unit —
+  // task rows — so done can never exceed total: a non-task row marked @done
+  // (any row can be) is completion history, not task progress, and counting
+  // it would overfill the pie.
+  // (`.task @done` is type-then-predicate juxtaposition — a type token can't
+  // join a predicate with `and`, same grammar as the `//task not @done` filter.)
   bike.summary('todo', { where: '.task', reduce: 'count' })
-  bike.summary('done', { where: '.@done', reduce: 'count' })
+  bike.summary('done', { where: '.task @done', reduce: 'count' })
 
   // `render` memoizes on `env`, and the display mode isn't part of `env` — so a
   // runtime toggle from the Settings panel can't refresh already-drawn badges on
@@ -73,7 +80,7 @@ function installBadge(): Disposable {
       // for the enabled: flags.
       const tasks = branchTasks([row])
       const done = tasks.filter((task) => task.getAttribute('done') != null).length
-      editor.showMenu(row, {
+      editor.showMenu({ row, anchor: 'progress' }, {
         items: [
           { type: 'button', id: 'show-todos', title: 'Filter not @done' },
           { type: 'button', id: 'show-completed', title: 'Filter @done' },
@@ -81,11 +88,12 @@ function installBadge(): Disposable {
           { type: 'button', id: 'command:progress:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: done !== tasks.length },
           { type: 'button', id: 'command:progress:clear-branch-done', title: 'Clear Branch Tasks Done', enabled: done !== 0 },
         ],
-        anchor: 'progress',
-        onAction: (id, { editor, row }) => {
+        onAction: (id) => {
           const pid = row.ensuredPersistentId
           if (id === 'show-completed') {
-            editor.filter = { label: "Done Tasks", path: `//@id = "${pid}"//@done` }
+            // Task-scoped, like the summaries and 'show-todos' — the two
+            // filters partition the same set the badge's fraction counts.
+            editor.filter = { label: "Done Tasks", path: `//@id = "${pid}"//task @done` }
           } else if (id === 'show-todos') {
             editor.filter = { label: "Todo Tasks", path: `//@id = "${pid}"//task not @done` }
           }
@@ -95,65 +103,6 @@ function installBadge(): Disposable {
   })
 }
 
-// A pie glyph: the `done/total` fraction drawn as a filled wedge on a
-// transparent background, ringed by a border that matches every other drawn
-// badge on the row. Sized to the shared badge rect and tinted from the
-// outline's base text color so it reads as chrome like the fraction glyph.
-function pieImage(fraction: number, env: BadgeEnvironment): Image {
-  const side = env.badgeMetrics.side
-  const f = Math.max(0, Math.min(1, fraction))
-  const rect = new Rect(0, 0, side, side)
-  const center = new Point(side / 2, side / 2)
-  const radius = side / 2
-  const sw = env.badgeMetrics.strokeWidth
-  // The done circle sits 1pt inside the border's inner edge, so a complete pie
-  // reads as: border ring, a 1pt transparent gap, then a filled circle in the
-  // border color. (Border stroke is centered on `radius`, inner edge = radius − sw/2.)
-  const wedgeRadius = radius - sw / 2 - 1
-
-  const wedgePath = new Path()
-  // Start at 12 o'clock and sweep CLOCKWISE by the completed fraction. This
-  // render space is y-up (angles increase counter-clockwise, +y is screen-up),
-  // so noon is +π/2 and a NEGATIVE relative-arc delta sweeps clockwise on screen.
-  const start = Math.PI / 2
-  wedgePath.moveTo(center)
-  wedgePath.addRelativeArc(center, wedgeRadius, start, -f * 2 * Math.PI)
-  wedgePath.closeSubpath()
-  // The badge draws by rendering each shape to its OWN image sized to the path's
-  // bounding box, then `withComposite` centers those images together. A partial
-  // wedge's bbox is only the swept sliver (offset from the circle), so centering
-  // shifts it off the border — a small fraction renders like an empty/full disc.
-  // Pin the wedge's bbox to the full badge rect so it shares the border's canvas
-  // center and compositing aligns them exactly. Empty `moveTo` subpaths get
-  // dropped, so anchor with zero-length line segments at the circle's four
-  // cardinal points — they sit under the border ring and add no visible fill.
-  const eps = 0.01
-  for (const [x, y, dx, dy] of [
-    [side / 2, 0, 0, eps],
-    [side, side / 2, -eps, 0],
-    [side / 2, side, 0, -eps],
-    [0, side / 2, eps, 0],
-  ]) {
-    wedgePath.moveTo(new Point(x, y))
-    wedgePath.addLineTo(new Point(x + dx, y + dy))
-  }
-  const wedge = new Shape(wedgePath)
-  // Done fill at twice the border's opacity, so the wedge reads a bit darker
-  // than the ring around it.
-  wedge.fill.color = env.color.alphaSet(0.5)
-  wedge.stroke.color = Color.clear()
-
-  // A border ring matching the default drawn-badge border (`env.color` at 0.3,
-  // `badgeMetrics.strokeWidth`) — the same color as the done circle — composited
-  // last so it stays crisp over the wedge rather than being half-covered by it.
-  const border = new Shape(Path.ellipseInRect(rect))
-  border.fill.color = Color.clear()
-  border.stroke.color = env.color.alphaSet(0.3)
-  border.line.width = sw
-
-  return Image.fromShape(wedge).withComposite(Image.fromShape(border))
-}
-
 // Set `done` on every open task in the selected rows' branches, in one undo
 // step. Rows already done keep their original completion timestamps.
 function markBranchDone({ editor, selection }: CommandContext): boolean {
@@ -161,9 +110,7 @@ function markBranchDone({ editor, selection }: CommandContext): boolean {
   if (!editor || rows.length === 0) return false
   const tasks = branchTasks(rows).filter((task) => task.getAttribute('done') == null)
   if (tasks.length === 0) return false
-  // The same `done` value the native Toggle Done stamps: an ISO-8601 UTC
-  // timestamp without fractional seconds.
-  const now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
+  const now = doneStamp()
   editor.outline.transaction({ label: 'Set Branch Done' }, () => {
     for (const task of tasks) task.setAttribute('done', now)
   })

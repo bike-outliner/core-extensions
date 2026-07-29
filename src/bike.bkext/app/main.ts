@@ -1,13 +1,12 @@
 import { AppExtensionContext, CommandContext, Window } from 'bike/app'
 import { clickHandleCommand, clickLinkCommand, clickFocusCommand } from './commands'
-import { registerAttributes } from './attributes'
-import { registerBadges } from './badges'
+import { registerFeatures } from './features'
+import { registerDefaultBadge } from './default-badge'
 
 export async function activate(context: AppExtensionContext) {
-  // Attributes first so the default badge's `observeAttributes` sees the
-  // default attribute set when it registers.
-  registerAttributes()
-  registerBadges()
+  registerFeatures()
+  // Last, so its `observeAttributes` sees every feature's attribute.
+  registerDefaultBadge()
 
   // Hidden commands for style interactions (not shown in command palette)
   bike.commands.addCommands({

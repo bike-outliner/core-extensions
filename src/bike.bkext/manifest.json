@@ -4,7 +4,7 @@
   "author": "Jesse Grosjean",
   "url": "https://github.com/bike-outliner/core-extensions/tree/main/src/bike.bkext",
   "version": "0.1.0",
-  "api_version": "0.0.0",
+  "api_version": "0.63.0",
   "permissions": ["openURL", "clipboardWrite", "clipboardRead", "keychain"],
   "host_permissions": []
 }

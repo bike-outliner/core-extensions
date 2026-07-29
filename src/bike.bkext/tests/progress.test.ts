@@ -103,6 +103,29 @@ describe("Progress summaries", () => {
         })
     })
 
+    it("summary('done') counts task rows only", async () => {
+        // A non-task row marked @done is completion history, not task
+        // progress — it must not push done past total in the badge fraction.
+        const project = outline.root.firstChild!
+        outline.transaction({ label: "setup" }, () => {
+            const [note] = outline.insertRows(["S Note"], project)
+            note.setAttribute("done", "")
+            project.firstChild!.setAttribute("done", "")
+        })
+        await eventually(() => {
+            const result = outline.query('summary("done")') as { type: string; value: number }
+            return result.type === "number" && result.value === 1
+        })
+        outline.transaction({ label: "teardown" }, () => {
+            outline.removeRows([project.lastChild!])
+            project.firstChild!.removeAttribute("done")
+        })
+        await eventually(() => {
+            const result = outline.query('summary("done")') as { type: string; value: number }
+            return result.type === "number" && result.value === 0
+        })
+    })
+
     it("summary('done') tracks @done edits", async () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)

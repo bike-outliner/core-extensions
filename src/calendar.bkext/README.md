@@ -15,6 +15,25 @@ not yet exist, and places the cursor at its first child so you can start typing.
 controls (visible on hover): ‹ previous month, ◆ today, › next month. Selecting
 any row inside the date hierarchy highlights the matching day in the grid.
 
+## Date marks
+
+A dot under a day number means rows are dated to that day. "Dated" covers
+**every attribute registered with a `date` type** — `@due` and `@start` ship with
+Bike, and an extension registering its own date attribute shows up here with no
+change to the calendar. The only exception is `@done`: a completion stamp is
+history, not schedule, so it declares `metadata: { calendar: false }` and stays
+off the grid. Any attribute can opt out the same way.
+
+The dot is red when open `@due` work is overdue and orange when it's due
+tomorrow. Only `@due` drives that tint — a `@start` in the past isn't a deadline
+— and a day whose rows are all `@done` draws a neutral dot. Hover a dot to see
+what's there ("2 Due, 1 Start").
+
+Clicking a day filters the editor to that day's dated rows plus the day row (and
+its subtree) if one exists. Hold ⌘ for only the dated rows, ⌥ for only the day
+rows. Drag across days to filter a range. Dropping rows onto a day sets their
+`@due` to it.
+
 ## Outline structure
 
 By default new dated notes are generated at the top of your outline:

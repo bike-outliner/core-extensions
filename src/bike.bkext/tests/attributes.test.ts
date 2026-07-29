@@ -1,5 +1,5 @@
 import { Image, SymbolConfiguration } from 'bike/app'
-import { unclaimedNames } from '../app/badges/default'
+import { unclaimedNames } from '../app/default-badge'
 
 // Attribute editing is the native attribute palette (editor.
 // showAttributePalette) and the standalone value picker (editor.showPicker;
@@ -9,7 +9,7 @@ import { unclaimedNames } from '../app/badges/default'
 
 describe('bike.attribute registration', () => {
     it('registers a minimal definition and disposes it', () => {
-        const disposable = bike.attribute('smoke-test-attr', {})
+        const disposable = bike.attribute('smoke-test-attr', { type: 'text' })
         assert(disposable, 'registration should return a Disposable')
         disposable.dispose()
     })
@@ -17,25 +17,27 @@ describe('bike.attribute registration', () => {
     it('registers a full definition', () => {
         const disposable = bike.attribute('smoke-test-full', {
             title: 'Smoke',
-            shortcuts: () => [{ name: 'Smoke Now', value: 'now' }],
-            values: (pattern) => (pattern ? [] : [{ name: 'A', value: 'a' }]),
-            parse: (text) => (text === 'ok' ? { value: 'ok', label: 'OK' } : undefined),
+            type: 'choice',
+            choices: [{ name: 'Ay', value: 'a' }, { name: 'Bee', value: 'b', detail: '2nd' }],
+            suggestions: (pattern) => (pattern ? [] : [{ name: 'Extra', value: 'a', menu: true }]),
         })
         assert(disposable, 'registration should return a Disposable')
         disposable.dispose()
     })
 
     it('rejects reserved names', () => {
-        assert.throws(() => bike.attribute('indent', {}))
+        assert.throws(() => bike.attribute('indent', { type: 'text' }))
     })
 
-    it('rejects a flag with a value vocabulary', () => {
-        assert.throws(() => bike.attribute('smoke-test-flag', { type: 'flag', standardValues: [{ name: 'x', value: 'x' }] }))
-        assert.throws(() => bike.attribute('smoke-test-flag', { type: 'flag', values: () => [] }))
-        assert.throws(() => bike.attribute('smoke-test-flag', { type: 'flag', parse: () => undefined }))
-        assert.throws(() => bike.attribute('smoke-test-flag', { type: 'flag', list: true }))
-        // A bare flag (shortcuts and emptyLabel allowed) registers fine.
-        const disposable = bike.attribute('smoke-test-flag', { type: 'flag', emptyLabel: 'Flagged' })
+    it('rejects invalid configs', () => {
+        // A closed choice needs choices; min must not exceed max.
+        assert.throws(() => bike.attribute('smoke-test-bad', { type: 'choice', choices: [] }))
+        assert.throws(() => bike.attribute('smoke-test-bad', { type: 'number', min: 10, max: 1 }))
+        // An unknown type is a caller error, not a silent fallback to text.
+        assert.throws(() => (bike.attribute as any)('smoke-test-bad', { type: 'nope' }))
+
+        // A bare definition with emptyLabel registers fine.
+        const disposable = bike.attribute('smoke-test-empty', { type: 'text', emptyLabel: 'Marked' })
         assert(disposable, 'registration should return a Disposable')
         disposable.dispose()
     })
@@ -44,8 +46,6 @@ describe('bike.attribute registration', () => {
         const disposable = bike.attribute('smoke-test-shape', {
             title: 'Shape',
             type: 'duration',
-            strict: true,
-            list: true,
             emptyLabel: 'Some',
             description: 'A shape.',
         })
@@ -56,8 +56,6 @@ describe('bike.attribute registration', () => {
         assert(info, 'registered definition should be reported')
         assert.equal(info!.title, 'Shape')
         assert.equal(info!.type, 'duration')
-        assert.equal(info!.strict, true)
-        assert.equal(info!.list, true)
         assert.equal(info!.emptyLabel, 'Some')
         assert.equal(info!.description, 'A shape.')
 
@@ -65,17 +63,15 @@ describe('bike.attribute registration', () => {
         disposable.dispose()
     })
 
-    it('defaults the declared shape', () => {
-        const disposable = bike.attribute('smoke-test-defaults', {})
+    it('defaults the members a config omits', () => {
+        const disposable = bike.attribute('smoke-test-defaults', { type: 'text' })
 
         let latest: import('bike/app').AttributeInfo[] = []
         const observer = bike.observeAttributes((infos) => (latest = infos))
         const info = latest.find((candidate) => candidate.name === 'smoke-test-defaults')
         assert(info, 'registered definition should be reported')
         assert.equal(info!.title, 'Smoke-test-defaults')
-        assert.equal(info!.type, 'string')
-        assert.equal(info!.strict, false)
-        assert.equal(info!.list, false)
+        assert.equal(info!.type, 'text')
         assert.equal(info!.emptyLabel, undefined)
         assert.equal(info!.description, undefined)
 
@@ -83,32 +79,36 @@ describe('bike.attribute registration', () => {
         disposable.dispose()
     })
 
-    it('accepts standardValues and reports them via observeAttributes', () => {
-        const disposable = bike.attribute('smoke-test-standard', {
-            standardValues: [
-                { name: 'Low', value: '1' },
-                { name: 'High', value: '2' },
-            ],
-        })
+    it('reports a LOSSLESS, defaults-resolved facet per type', () => {
+        // Every facet field of the declared type is present with its default
+        // filled in, so switching on `type` recovers what was declared.
+        const number = bike.attribute('smoke-test-number', { type: 'number', min: 0 })
+        const choice = bike.attribute('smoke-test-choice', { type: 'choice', choices: [{ name: 'Ay', value: 'a' }] })
+        const date = bike.attribute('smoke-test-date', { type: 'date' })
 
-        let latest: { name: string; standardValues: { name: string; value: string }[] }[] = []
+        let latest: import('bike/app').AttributeInfo[] = []
         const observer = bike.observeAttributes((infos) => (latest = infos))
-        const info = latest.find((candidate) => candidate.name === 'smoke-test-standard')
-        assert(info, 'registered definition should be reported')
-        assert.equal(info!.standardValues.map((v) => `${v.name}=${v.value}`).join(','), 'Low=1,High=2')
-        // Definitions without standard values report an empty array.
-        const done = latest.find((candidate) => candidate.name === 'done')
-        assert.equal(done!.standardValues.length, 0)
-        // The core status definition ships its canonical set.
-        const status = latest.find((candidate) => candidate.name === 'status')
-        assert.equal(status!.standardValues.map((v) => v.value).join(','), 'todo,doing,review')
+        const byName = new Map(latest.map((info) => [info.name, info]))
+
+        const numberInfo = byName.get('smoke-test-number')!
+        assert.equal(numberInfo.type, 'number')
+        assert.equal((numberInfo as any).min, 0)
+        assert.equal((numberInfo as any).step, 1, 'step defaults to 1')
+        assert.equal((numberInfo as any).integer, false)
+
+        const choiceInfo = byName.get('smoke-test-choice')!
+        assert.equal((choiceInfo as any).choices[0].name, 'Ay')
+        assert.equal((choiceInfo as any).choices[0].value, 'a')
+        assert.equal((choiceInfo as any).open, false)
+
+        assert.equal((byName.get('smoke-test-date')! as any).time, 'optional')
 
         observer.dispose()
-        disposable.dispose()
+        for (const d of [number, choice, date]) d.dispose()
     })
 
     it('accepts defaultBadge: false and reports it via observeAttributes', () => {
-        const disposable = bike.attribute('smoke-test-owned', { defaultBadge: false })
+        const disposable = bike.attribute('smoke-test-owned', { type: 'text', defaultBadge: false })
 
         let snapshots: { name: string; defaultBadge: boolean }[][] = []
         const observer = bike.observeAttributes((infos) => snapshots.push(infos))
@@ -128,36 +128,114 @@ describe('bike.attribute registration', () => {
 
         observer.dispose()
         const countAfterDispose = snapshots.length
-        const tempDisposable = bike.attribute('smoke-test-after', {})
+        const tempDisposable = bike.attribute('smoke-test-after', { type: 'text' })
         tempDisposable.dispose()
         assert.equal(snapshots.length, countAfterDispose, 'disposed observer should stop emitting')
+    })
+
+    it('round-trips metadata verbatim, defaulting to {}', () => {
+        // Opaque to the host: whatever JSON went in comes back out, so a
+        // consumer can key its own policy off it (the calendar reads
+        // `calendar: false`) without this API growing a field per consumer.
+        const tagged = bike.attribute('smoke-test-meta', {
+            type: 'text',
+            metadata: { calendar: false, nested: { list: [1, 'two', true] } },
+        })
+        const bare = bike.attribute('smoke-test-nometa', { type: 'text' })
+
+        let latest: import('bike/app').AttributeInfo[] = []
+        const observer = bike.observeAttributes((infos) => (latest = infos))
+        const byName = new Map(latest.map((info) => [info.name, info]))
+
+        const metadata = byName.get('smoke-test-meta')!.metadata
+        assert.equal(metadata['calendar'], false)
+        assert.equal(JSON.stringify(metadata['nested']), JSON.stringify({ list: [1, 'two', true] }))
+        assert.equal(
+            JSON.stringify(byName.get('smoke-test-nometa')!.metadata),
+            '{}',
+            'absent metadata resolves to {}'
+        )
+
+        // Core's `done` carries the calendar opt-out.
+        assert.equal(byName.get('done')!.metadata['calendar'], false)
+
+        observer.dispose()
+        tagged.dispose()
+        bare.dispose()
+    })
+
+    it('rejects non-object metadata', () => {
+        assert.throws(() => (bike.attribute as any)('smoke-test-badmeta', { metadata: 'nope' }))
+        assert.throws(() => (bike.attribute as any)('smoke-test-badmeta', { metadata: [1, 2] }))
     })
 })
 
 describe('bike.parseAttribute', () => {
-    it('parses through the owning definition', () => {
+    it('parses natively, per the declared type', () => {
+        // No `parse` callback anywhere: the TYPE is what parses.
         const disposable = bike.attribute('smoke-test-parse', {
-            parse: (text) => (text === 'ok' ? { value: 'v', label: 'OK' } : undefined),
+            type: 'choice',
+            choices: [{ name: 'Okay', value: 'ok' }],
         })
-        const parsed = bike.parseAttribute('smoke-test-parse', 'ok')
-        assert.equal(parsed?.value, 'v')
-        assert.equal(parsed?.label, 'OK')
+        // A choice matches by name OR value, and reports the display name.
+        const parsed = bike.parseAttribute('smoke-test-parse', 'Okay')
+        assert.equal(parsed?.value, 'ok')
+        assert.equal(parsed?.label, 'Okay')
+        // A closed choice rejects anything else.
         assert.equal(bike.parseAttribute('smoke-test-parse', 'nope'), undefined)
         disposable.dispose()
     })
 
-    it('is undefined for unknown or parseless attributes', () => {
+    it('is undefined for unknown attributes', () => {
         assert.equal(bike.parseAttribute('smoke-test-unknown', 'x'), undefined)
-        // status registers no parse.
-        assert.equal(bike.parseAttribute('status', 'todo'), undefined)
+    })
+
+    it('parses a bare type with default facets, the mirror of displayValue', () => {
+        // No registered attribute involved — the TYPE parses. This is what a
+        // client rolling its own multi-value attribute splits and calls per
+        // item, so each item still resolves natively.
+        assert.equal(bike.parseValue('duration', '90m')?.value, 'PT1H30M')
+        assert.equal(bike.parseValue('duration', '2h 30m')?.value, 'PT2H30M')
+        assert.equal(bike.parseValue('boolean', 'yes')?.value, 'true')
+        assert(bike.parseValue('date', 'today')?.value.match(/^\d{4}-\d{2}-\d{2}$/))
+        // Round-trips through displayValue.
+        const parsed = bike.parseValue('duration', '1.5h')!
+        assert.equal(bike.displayValue('duration', parsed.value), parsed.label)
+        // An unknown type and unresolvable text are both undefined.
+        assert.equal(bike.parseValue('nope' as any, 'x'), undefined)
+        assert.equal(bike.parseValue('duration', 'lots'), undefined)
     })
 
     it('resolves dates through the core due definition', () => {
-        const parsed = bike.parseAttribute('due', '2030-01-02')
-        assert.equal(parsed?.value, '2030-01-02')
-        const soon = bike.parseAttribute('due', 'soon')
-        assert.equal(soon?.value, '')
-        assert.equal(soon?.label, 'Soon')
+        assert.equal(bike.parseAttribute('due', '2030-01-02')?.value, '2030-01-02')
+        // Natural language, natively — no extension code involved.
+        assert(bike.parseAttribute('due', 'today')?.value.match(/^\d{4}-\d{2}-\d{2}$/))
+        assert(bike.parseAttribute('due', 'next fri')?.value.match(/^\d{4}-\d{2}-\d{2}$/))
+        // "soon" is not a date — the valueless due is committed by the
+        // palette's `""` row and the menu's "Soon" pick, not by parsing.
+        assert.equal(bike.parseAttribute('due', 'soon'), undefined)
+    })
+
+    it('resolves choices through the core priority definition', () => {
+        assert.equal(bike.parseAttribute('priority', '1')?.value, '1')
+        assert.equal(bike.parseAttribute('priority', 'nope'), undefined)
+    })
+})
+
+describe('bike.displayAttribute / displayValue', () => {
+    it('formats through the named attribute definition', () => {
+        // The wire value is ISO; the label is human and locale-aware.
+        assert.equal(bike.displayAttribute('estimate', 'PT1H30M'), bike.displayValue('duration', 'PT1H30M'))
+        assert(bike.displayAttribute('estimate', 'PT1H30M').length > 0)
+        // A value that doesn't parse falls back to the raw wire string.
+        assert.equal(bike.displayAttribute('estimate', '90m'), '90m')
+        // An unknown attribute falls back too.
+        assert.equal(bike.displayAttribute('smoke-test-unknown', 'x'), 'x')
+    })
+
+    it('formats a bare type with default facets', () => {
+        assert.equal(bike.displayValue('nope' as any, 'x'), 'x')
+        assert.equal(bike.displayValue('boolean', 'true').length > 0, true)
     })
 })
 
@@ -173,21 +251,48 @@ describe('default attribute set', () => {
         assert.equal(byName.get('due')?.type, 'date')
         assert.equal(byName.get('due')?.defaultBadge, false)
         assert.equal(byName.get('due')?.emptyLabel, 'Soon')
-        assert.equal(byName.get('priority')?.type, 'number')
-        assert.equal(byName.get('priority')?.strict, true)
-        assert.equal(byName.get('status')?.type, 'string')
-        assert.equal(byName.get('status')?.strict, true)
-        assert.equal(byName.get('start')?.type, 'date')
+        // priority is a closed set — a choice, not a number.
+        assert.equal(byName.get('priority')?.type, 'choice')
+        assert.equal((byName.get('priority')! as any).choices.map((c: any) => c.value).join(','), '1,2,3')
+        // The calendar shows every `date` attribute; done opts out (a
+        // completion stamp is history, not schedule), due doesn't. Done also
+        // opts out of the context menu's attribute group — Toggle Done owns it.
+        assert.equal(byName.get('done')?.metadata['calendar'], false)
+        assert.equal(byName.get('done')?.metadata['contextMenu'], false)
+        assert.equal(byName.get('due')?.metadata['calendar'], undefined)
         assert.equal(byName.get('estimate')?.type, 'duration')
-        assert.equal(byName.get('flagged')?.type, 'flag')
+        // flagged is a closed set of the seven Mail colors, in Mail's order,
+        // presented by its own badge.
+        assert.equal(byName.get('flagged')?.type, 'choice')
+        assert.equal(
+            (byName.get('flagged')! as any).choices.map((c: any) => c.value).join(','),
+            'orange,red,purple,blue,yellow,green,gray'
+        )
+        assert.equal((byName.get('flagged')! as any).choices[0].name, 'Orange')
+        assert.equal((byName.get('flagged')! as any).open, false)
+        assert.equal(byName.get('flagged')?.defaultBadge, false)
+        // A bare `@flagged` predates the colors and stays meaningful.
         assert.equal(byName.get('flagged')?.emptyLabel, 'Flagged')
 
         observer.dispose()
     })
 
-    it('resolves estimate durations', () => {
-        assert.equal(bike.parseAttribute('estimate', '90')?.value, '90m')
-        assert.equal(bike.parseAttribute('estimate', '1.5h')?.value, '1.5h')
+    it('resolves flag colors by name or value, and rejects others', () => {
+        // A choice matches the display NAME as well as the wire value.
+        assert.equal(bike.parseAttribute('flagged', 'Red')?.value, 'red')
+        assert.equal(bike.parseAttribute('flagged', 'red')?.value, 'red')
+        assert.equal(bike.parseAttribute('flagged', 'gray')?.label, 'Gray')
+        // Closed: nothing outside the seven resolves.
+        assert.equal(bike.parseAttribute('flagged', 'chartreuse'), undefined)
+    })
+
+    it('resolves estimate durations to ISO wire values', () => {
+        // The old `<n><unit>` spelling still TYPES the same; what changed is
+        // what gets stored.
+        assert.equal(bike.parseAttribute('estimate', '90')?.value, 'PT1H30M')
+        assert.equal(bike.parseAttribute('estimate', '90m')?.value, 'PT1H30M')
+        assert.equal(bike.parseAttribute('estimate', '1.5h')?.value, 'PT1H30M')
+        assert.equal(bike.parseAttribute('estimate', '2h 30m')?.value, 'PT2H30M')
         assert.equal(bike.parseAttribute('estimate', 'lots'), undefined)
     })
 })
@@ -209,10 +314,10 @@ describe('default badge names', () => {
     })
 
     it('registers a keyed multi-image badge with default inputs', () => {
-        // The API accepts inputs '*' + a keyed render; disposal deregisters.
+        // The API accepts inputs 'rowAttributes' + a keyed render; disposal deregisters.
         const disposable = bike.badge('smoke-multi', {
             where: '.*',
-            inputs: '*',
+            inputs: 'rowAttributes',
             render: (values) =>
                 Object.keys(values)
                     .sort()
@@ -237,22 +342,20 @@ describe('value picker (showPicker)', () => {
         const editor = bike.testEditor()
         const outline = editor.outline
         const [row] = outline.insertRows(['Buy milk'], outline.root)
-        const handle = editor.showPicker(row, { attribute: 'foo', onAccept() {} })
-        assert(handle, 'attribute form should return a handle')
-        handle!.dismiss()
+        editor.showPicker({ row }, { source: { attribute: 'foo' }, onAccept() {} })
     })
 
-    it('presents an ad-hoc suggestion shell', () => {
+    it('presents a list-described suggestion shell', () => {
         const editor = bike.testEditor()
         const outline = editor.outline
         const [row] = outline.insertRows(['Buy milk'], outline.root)
-        const handle = editor.showPicker(row, {
-            values: [{ name: 'Alpha', value: 'a' }],
-            parse: (text) => (text === 'ok' ? { value: 'ok', label: 'OK' } : undefined),
+        editor.showPicker({ row }, {
+            source: {
+                values: [{ name: 'Alpha', value: 'a' }],
+                parse: (text: string) => (text === 'ok' ? { value: 'ok', label: 'OK' } : undefined),
+            },
             onAccept() {},
         })
-        assert(handle, 'inline values should return a handle')
-        handle!.dismiss()
     })
 
     it('rejects nothing-to-show options', () => {
@@ -260,6 +363,13 @@ describe('value picker (showPicker)', () => {
         const outline = editor.outline
         const [row] = outline.insertRows(['Buy milk'], outline.root)
         // No attribute, kind, values, or parse — a caller error.
-        assert.throws(() => (editor.showPicker as any)(row, { onAccept() {} }))
+        assert.throws(() => (editor.showPicker as any)({ row }, { onAccept() {} }))
+    })
+
+    it('presents with NO placement, centered — no row required', () => {
+        // The case a row-anchored picker couldn't serve: an outline with no
+        // rows at all still gets a picker.
+        const editor = bike.testEditor()
+        editor.showPicker({ kind: 'date', onAccept() {} })
     })
 })
