@@ -3,6 +3,14 @@
 // context — its attribute, badge, commands, summaries, and defaults — so
 // adding or removing one is a file plus a line here.
 //
+// The command shapes those files share — set / clear / toggle a value on the
+// selection, filter the outline to an attribute, open a value picker — live in
+// ./helpers, so a feature declares WHICH commands it offers rather than
+// re-implementing the same transaction and selection guard each time.
+//
+// `done` is the one feature with no commands of its own, on purpose: native
+// Toggle Done (checkbox, Space, menu bar) already owns completing a row.
+//
 // Three pieces can't live here, because an extension's contexts have separate
 // entry points: `done` renders as row styling (../../style/layer-formatting),
 // `progress` has a settings panel (../../dom/Settings.tsx), and `due`'s badge

@@ -6,6 +6,49 @@
 // (descendant) is its GATE. The `duration()` wrapper is how numeric read
 // sites get seconds back out.
 
+describe("Estimate commands", () => {
+    const editor = bike.testEditor()
+    const outline = editor.outline
+
+    outline.transaction({ label: "setup" }, () => {
+        outline.insertRows(["Alpha", "Beta"], outline.root)
+    })
+
+    it("registers set/clear/filter", () => {
+        const commands = bike.commands.toString()
+        for (const name of ["estimate:set", "estimate:clear", "estimate:filter"]) {
+            assert(commands.includes(name), "should register " + name)
+        }
+    })
+
+    it("clears estimates, then declines when there's nothing to clear", () => {
+        const rows = outline.root.children
+        outline.transaction({ label: "seed" }, () => {
+            rows[0].setAttribute("estimate", "PT1H")
+            rows[1].setAttribute("estimate", "PT30M")
+        })
+        editor.selectRows(rows[0], rows[1])
+        assert.equal(bike.commands.performCommand("estimate:clear", { editor }), true)
+        assert(rows[0].getAttribute("estimate") == null, "estimate should be cleared")
+        assert(rows[1].getAttribute("estimate") == null, "estimate should be cleared")
+        assert.equal(bike.commands.performCommand("estimate:clear", { editor }), false)
+    })
+
+    it("the filter path counts open estimated items only", () => {
+        const rows = outline.root.children
+        const path = "//(@estimate and not @done)"
+        outline.transaction({ label: "seed" }, () => rows[0].setAttribute("estimate", "PT1H"))
+        assert.equal((outline.query(`count(${path})`) as { value: number }).value, 1)
+        // Done work is spent, not remaining — the same split the summaries make.
+        outline.transaction({ label: "finish" }, () => rows[0].setAttribute("done", ""))
+        assert.equal((outline.query(`count(${path})`) as { value: number }).value, 0)
+        outline.transaction({ label: "teardown" }, () => {
+            rows[0].removeAttribute("done")
+            rows[0].removeAttribute("estimate")
+        })
+    })
+})
+
 describe("Estimate remaining summaries", () => {
     // Waits for an off-main summary recompute to land. Summaries fold on a
     // background processor with leading-edge emission, so values are

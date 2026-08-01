@@ -1,7 +1,8 @@
-import { CommandContext, Image, Text } from 'bike/app'
+import { Image, Text } from 'bike/app'
+import { clearAttributeOnSelection, filterCommand, setAttributeOnSelection } from './helpers'
 
 // The `priority` feature: a closed 1/2/3 attribute, a drawn "P1"/"P2"/"P3"
-// badge, and four commands that set or clear it on the selected rows.
+// badge, and five commands that set, clear, or filter it.
 //
 // The commands are the only way to ADD a priority from the keyboard or the
 // command palette — the badge only appears on rows that already have one.
@@ -25,10 +26,16 @@ export function registerPriority() {
 
   bike.commands.addCommands({
     commands: {
-      'priority:1': setPriority('1'),
-      'priority:2': setPriority('2'),
-      'priority:3': setPriority('3'),
-      'priority:clear': clearPriority,
+      'priority:1': setAttributeOnSelection('priority', '1', 'Set Priority'),
+      'priority:2': setAttributeOnSelection('priority', '2', 'Set Priority'),
+      'priority:3': setAttributeOnSelection('priority', '3', 'Set Priority'),
+      'priority:clear': clearAttributeOnSelection('priority', 'Clear Priority'),
+      'priority:filter': filterCommand({
+        path: '//(@priority and not @done)',
+        label: 'Priority',
+        emptyTitle: 'No Prioritized Items',
+        emptyMessage: 'There are no prioritized items that have not been completed.',
+      }),
     },
   })
 
@@ -57,26 +64,6 @@ export function registerPriority() {
     // choice: the three values as radios, plus filter and remove.
     onClick: ({ editor, row }) => editor.showAttributeMenu({ row, anchor: 'priority' }, 'priority'),
   })
-}
-
-function setPriority(value: string) {
-  return ({ editor, selection }: CommandContext): boolean => {
-    const rows = selection?.rows ?? []
-    if (!editor || rows.length === 0) return false
-    editor.outline.transaction({ label: 'Set Priority' }, () => {
-      for (const row of rows) row.setAttribute('priority', value)
-    })
-    return true
-  }
-}
-
-function clearPriority({ editor, selection }: CommandContext): boolean {
-  const rows = selection?.rows ?? []
-  if (!editor || rows.length === 0) return false
-  editor.outline.transaction({ label: 'Clear Priority' }, () => {
-    for (const row of rows) row.removeAttribute('priority')
-  })
-  return true
 }
 
 // The tag's text: "P" plus the value clamped into the closed 1–3 set — or a

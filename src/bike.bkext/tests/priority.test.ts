@@ -6,12 +6,13 @@ describe("Priority commands", () => {
         outline.insertRows(["Alpha", "Beta", "Gamma"], outline.root)
     })
 
-    it("registers the four priority commands", () => {
+    it("registers the five priority commands", () => {
         const commands = bike.commands.toString()
         assert(commands.includes("priority:1"), "should register priority:1")
         assert(commands.includes("priority:2"), "should register priority:2")
         assert(commands.includes("priority:3"), "should register priority:3")
         assert(commands.includes("priority:clear"), "should register priority:clear")
+        assert(commands.includes("priority:filter"), "should register priority:filter")
     })
 
     it("sets priority on all selected rows", () => {
@@ -36,6 +37,25 @@ describe("Priority commands", () => {
         assert.equal(bike.commands.performCommand("priority:clear", { editor }), true)
         assert(rows[0].getAttribute("priority") == null, "priority should be cleared")
         assert(rows[1].getAttribute("priority") == null, "priority should be cleared")
+        // Nothing left to clear — declines rather than pushing an empty
+        // transaction onto the undo stack.
+        assert.equal(bike.commands.performCommand("priority:clear", { editor }), false)
+    })
+
+    it("the filter path counts open prioritized items only", () => {
+        const rows = outline.root.children
+        editor.selectRows(rows[0])
+        assert.equal(bike.commands.performCommand("priority:2", { editor }), true)
+        // The exact path `priority:filter` filters on.
+        const path = "//(@priority and not @done)"
+        assert.equal((outline.query(`count(${path})`) as { value: number }).value, 1)
+        // A completed row's priority is history.
+        outline.transaction({ label: "finish" }, () => rows[0].setAttribute("done", ""))
+        assert.equal((outline.query(`count(${path})`) as { value: number }).value, 0)
+        outline.transaction({ label: "teardown" }, () => {
+            rows[0].removeAttribute("done")
+            rows[0].removeAttribute("priority")
+        })
     })
 
     it("priority attribute is queryable for badge/filter paths", () => {

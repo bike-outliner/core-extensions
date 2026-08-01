@@ -1,8 +1,13 @@
 import { Image, Text } from 'bike/app'
+import { clearAttributeOnSelection, filterCommand, pickAttributeForSelection } from './helpers'
 
 // The `estimate` feature: how much effort a row is expected to take, a badge
-// drawing it as "≈1h 30m", and a "Σ1h 30m" badge summing the remaining
-// (not-done) estimates in the subtree below.
+// drawing it as "≈1h 30m", a "Σ1h 30m" badge summing the remaining (not-done)
+// estimates in the subtree below, and three commands.
+//
+// A duration has no small closed set of interesting values the way priority
+// and flagged do — "2h" isn't more canonical than "90m" — so there are no
+// direct-value setters here, just the picker.
 
 export function registerEstimate() {
   bike.attribute('estimate', {
@@ -13,6 +18,23 @@ export function registerEstimate() {
     // Estimates are day-scale at most — the picker's segment editor shows
     // only these.
     components: ['days', 'hours', 'minutes'],
+  })
+
+  bike.commands.addCommands({
+    commands: {
+      // The picker's segment editor shows the day/hour/minute fields the
+      // `components` facet above declares.
+      'estimate:set': pickAttributeForSelection('estimate'),
+      'estimate:clear': clearAttributeOnSelection('estimate', 'Clear Estimate'),
+      // Estimated work still to do — the same not-done split the remaining
+      // summaries below make.
+      'estimate:filter': filterCommand({
+        path: '//(@estimate and not @done)',
+        label: 'Estimated',
+        emptyTitle: 'No Estimated Items',
+        emptyMessage: 'There are no estimated items that have not been completed.',
+      }),
+    },
   })
 
   // The remaining-estimate summaries, duration-TYPED: not-done estimates

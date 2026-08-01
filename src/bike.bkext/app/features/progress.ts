@@ -6,8 +6,9 @@ import { doneStamp } from './done'
 // A "progress" feature demonstrating subtree summaries: two incrementally
 // maintained branch aggregates (total tasks / done tasks below a row), consumed
 // by a badge that shows "done/total" on any row that has a task somewhere
-// below. Clicking the badge shows a menu with Show Done / Show Remaining
-// filters and Set / Clear Branch Done commands.
+// below. Clicking the badge shows a menu whose every item dispatches one of
+// this feature's four commands — the two branch filters and the two branch
+// done commands.
 //
 // The badge renders either as a typographic "done/total" fraction or as a pie
 // chart, controlled by the `progressStyle` extension default ('pie' by
@@ -18,6 +19,8 @@ export function registerProgress() {
     commands: {
       'progress:mark-branch-done': markBranchDone,
       'progress:clear-branch-done': clearBranchDone,
+      'progress:filter-todo': filterBranchTasks('not @done', 'Todo Tasks'),
+      'progress:filter-done': filterBranchTasks('@done', 'Done Tasks'),
     },
   })
 
@@ -80,27 +83,37 @@ function installBadge(): Disposable {
       // for the enabled: flags.
       const tasks = branchTasks([row])
       const done = tasks.filter((task) => task.getAttribute('done') != null).length
+      // Every item is a `command:` id — the menu picks WHICH commands to offer
+      // and when they're enabled, and the commands themselves own the doing.
+      // The two filters scope to the clicked row because the click selects it
+      // (they read the selection, same as the two branch commands).
       editor.showMenu({ row, anchor: 'progress' }, {
         items: [
-          { type: 'button', id: 'show-todos', title: 'Filter not @done' },
-          { type: 'button', id: 'show-completed', title: 'Filter @done' },
+          { type: 'button', id: 'command:progress:filter-todo', title: 'Filter not @done' },
+          { type: 'button', id: 'command:progress:filter-done', title: 'Filter @done' },
           { type: 'separator' },
           { type: 'button', id: 'command:progress:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: done !== tasks.length },
           { type: 'button', id: 'command:progress:clear-branch-done', title: 'Clear Branch Tasks Done', enabled: done !== 0 },
         ],
-        onAction: (id) => {
-          const pid = row.ensuredPersistentId
-          if (id === 'show-completed') {
-            // Task-scoped, like the summaries and 'show-todos' — the two
-            // filters partition the same set the badge's fraction counts.
-            editor.filter = { label: "Done Tasks", path: `//@id = "${pid}"//task @done` }
-          } else if (id === 'show-todos') {
-            editor.filter = { label: "Todo Tasks", path: `//@id = "${pid}"//task not @done` }
-          }
-        },
       })
     },
   })
+}
+
+// Filter to the tasks in the selected row's branch matching `predicate`.
+//
+// Task-scoped and branch-scoped, so the two filters partition exactly the set
+// the badge's fraction counts. Not `filterCommand` from ./helpers: that one
+// filters the WHOLE outline from home with an empty-set alert, and these are
+// deliberately a narrower thing — a filter *into* one branch, which is what
+// the badge menu has always done.
+function filterBranchTasks(predicate: string, label: string) {
+  return ({ editor, selection }: CommandContext): boolean => {
+    const row = selection?.rows[0]
+    if (!editor || !row) return false
+    editor.filter = { label, path: `//@id = "${row.ensuredPersistentId}"//task ${predicate}` }
+    return true
+  }
 }
 
 // Set `done` on every open task in the selected rows' branches, in one undo

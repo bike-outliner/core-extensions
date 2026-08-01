@@ -1,4 +1,10 @@
-import { Color, CommandContext, Image, Text } from 'bike/app'
+import { Color, Image, Text } from 'bike/app'
+import {
+  clearAttributeOnSelection,
+  filterCommand,
+  pickAttributeForSelection,
+  setAttributeOnSelection,
+} from './helpers'
 
 // The `due` feature: when a row is due, plus the badge and commands that
 // present and manage it.
@@ -24,9 +30,27 @@ export function registerDue() {
 
   bike.commands.addCommands({
     commands: {
-      'due:set': setDue,
-      'due:clear': clearDue,
-      'due:filter': filterDue,
+      // The picker: every value the type can hold, one dialog away.
+      'due:set': pickAttributeForSelection('due'),
+      // The three values worth reaching without a dialog — what
+      // `priority:1/2/3` are to the priority menu. Dates are DATE-ONLY: a
+      // timed `due` is a different thing (it's what scripts write), and the
+      // badge renders it differently.
+      // Thunks, not values: built once at registration, so a stamp computed
+      // here would pin "today" to the day the app launched.
+      'due:today': setAttributeOnSelection('due', () => dayStamp(0), 'Set Due'),
+      'due:tomorrow': setAttributeOnSelection('due', () => dayStamp(1), 'Set Due'),
+      // Valueless `@due` — "due, but no date yet", the state `emptyLabel` and
+      // the `Soon` suggestion already name.
+      'due:soon': setAttributeOnSelection('due', '', 'Set Due'),
+      'due:clear': clearAttributeOnSelection('due', 'Clear Due'),
+      // Every OPEN due item — rows with @due that aren't checked off.
+      'due:filter': filterCommand({
+        path: '//(@due and not @done)',
+        label: 'Due',
+        emptyTitle: 'No Due Items',
+        emptyMessage: 'There are no due items that have not been completed.',
+      }),
     },
   })
 
@@ -77,53 +101,14 @@ export function registerDue() {
   })
 }
 
-// Open the standalone due value picker for the (first) selected row — the
-// Soon/Today/… suggestions and the calendar live there. Nothing applies
-// until the picker commits.
-function setDue({ editor, selection }: CommandContext): boolean {
-  const rows = selection?.rows ?? []
-  if (!editor || rows.length === 0) return false
-  editor.showPicker({ row: rows[0] }, {
-    source: { attribute: 'due' },
-    onAccept: (value) => rows[0].setAttribute('due', value),
-  })
-  return true
-}
-
-// Filter the editor to every open due item — rows with @due that aren't
-// checked off. When nothing would match, alert instead of showing an empty
-// filtered view. Focus goes home first so the filter covers the whole
-// outline; one transaction so the layer sees a single old→new event.
-function filterDue({ editor }: CommandContext): boolean {
-  if (!editor) return false
-  const duePath = '//(@due and not @done)'
-  if ((editor.outline.query(`count(${duePath})`).value as number) === 0) {
-    bike.showAlert(
-      {
-        title: 'No Due Items',
-        message: 'There are no due items that have not been completed.',
-        style: 'informational',
-        buttons: ['OK'],
-      },
-      bike.frontmostWindow
-    )
-    return true
-  }
-  editor.transaction({ label: 'Show Due', animate: { spring: 'navigation' } }, () => {
-    editor.focus = editor.outline.root
-    editor.filter = { path: duePath, label: 'Due' }
-  })
-  return true
-}
-
-// Remove `due` from every selected row.
-function clearDue({ editor, selection }: CommandContext): boolean {
-  const rows = selection?.rows ?? []
-  if (!editor || rows.length === 0) return false
-  editor.outline.transaction({ label: 'Clear Due' }, () => {
-    for (const row of rows) row.removeAttribute('due')
-  })
-  return true
+// The date-only wire form for the local day `offset` days from now, through
+// the shared codec (a valid Date always encodes, hence the `!`). No
+// `{ time: true }` — that flag belongs to `doneStamp`, which stamps an
+// instant; a due DAY is a calendar day.
+function dayStamp(offset: number): string {
+  const day = new Date()
+  day.setDate(day.getDate() + offset)
+  return bike.encodeValue('date', day)!
 }
 
 // Just enough date MATH for the urgency tint — wire parsing itself is

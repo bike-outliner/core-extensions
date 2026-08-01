@@ -31,7 +31,18 @@ describe("Progress commands", () => {
         const commands = bike.commands.toString()
         assert(commands.includes("progress:mark-branch-done"), "should register mark-branch-done")
         assert(commands.includes("progress:clear-branch-done"), "should register clear-branch-done")
+        assert(commands.includes("progress:filter-todo"), "should register filter-todo")
+        assert(commands.includes("progress:filter-done"), "should register filter-done")
     })
+
+    // NO behavioral test for `progress:filter-todo` / `progress:filter-done`
+    // yet. Any test that actually applies one of them to this editor makes a
+    // LATER session test crash the app: IPCMethods.editorSnapshot sorts
+    // `editor.collapsed` through `outline.compare`, which force-unwraps
+    // `nodes[id]!` (Tree.swift:130). Setting `editor.filter` from JS is what
+    // arms it — the same assignment the progress badge menu has always made
+    // on click, so this predates these commands. Add coverage once that's
+    // fixed on the Swift side.
 
     it("marks every task in the branch done", () => {
         const project = outline.root.firstChild!
