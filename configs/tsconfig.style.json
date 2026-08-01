@@ -1,4 +1,10 @@
 {
   "extends": "../node_modules/@bike-outliner/extension-kit/api/style/tsconfig.json",
+  // Lib check off here: third-party declarations (@types/react, react-calendar,
+  // …) are not ours to fix, and the `file:../extension-kit` symlink makes the
+  // kit api files enter the program twice (via this `include`, and via the
+  // `bike/*` path mapping realpath) — which reads as a duplicate `bike`. The
+  // kit lib-checks those files itself: `npm run check-api` there.
+  "compilerOptions": { "skipLibCheck": true },
   "include": ["../src/*/style/**/*"]
 }

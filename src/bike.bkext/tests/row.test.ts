@@ -116,11 +116,33 @@ describe("Row attributes", () => {
         assert.equal(row.getAttribute("done"), undefined)
     })
 
-    it("can set and get number attribute", () => {
+    it("stores numbers as their wire string", () => {
         const row = outline.root.firstChild!
-        row.setAttribute("priority", 5)
+        row.setAttribute("priority", bike.encodeValue("number", 5)!)
         assert.equal(row.getAttribute("priority"), "5")
         row.removeAttribute("priority")
+    })
+
+    it("rejects non-string values", () => {
+        const row = outline.root.firstChild!
+        // Attributes store wire strings; encoding is `bike.encodeValue`'s job,
+        // so a raw number or Date is a caller error rather than a silent
+        // coercion that would spell one value two ways.
+        //
+        // NOTE: this throwing behavior arrived in API 0.64.0. The manifest
+        // declares 0.63.0 because the extension's own code needs nothing newer
+        // — only these assertions do, so they fail against an older host.
+        assert.throws(() => { row.setAttribute("priority", 5 as any) })
+        assert.throws(() => { row.setAttribute("done", new Date() as any) })
+        assert.equal(row.getAttribute("priority"), undefined)
+        assert.equal(row.getAttribute("done"), undefined)
+    })
+
+    it("removes on null or undefined", () => {
+        const row = outline.root.firstChild!
+        row.setAttribute("done", "true")
+        row.setAttribute("done", undefined as any)
+        assert.equal(row.getAttribute("done"), undefined)
     })
 })
 
