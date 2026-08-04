@@ -1,5 +1,17 @@
-import { Color, Image, StyleContext, RowStyle, TextRunStyle, Layout, LayoutValue } from 'bike/style'
+import { Color, HiddenControl, Image, StyleContext, RowStyle, TextRunStyle, Layout, LayoutValue } from 'bike/style'
 import { computeValues, symbolImage } from './util'
+
+/**
+ * True when `control`'s category should fade right now: the user is "typing"
+ * (the mouse cursor is auto-hidden) and this category is one the user chose to
+ * hide. An empty selection means nothing fades.
+ *
+ * Mirrored in Swift by EditorStyle+Badges.swift for the `badge:` decorations,
+ * which are applied after these rules run and so can't be gated here.
+ */
+export function hiddenWhileTyping(context: StyleContext, control: HiddenControl): boolean {
+  return context.isTyping && context.settings.hiddenControlsWhenTyping.includes(control)
+}
 
 export function listMark(context: StyleContext, row: RowStyle, image: Image, commandName?: string) {
   let values = computeValues(context)

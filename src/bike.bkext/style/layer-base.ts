@@ -1,5 +1,6 @@
 import { Color, EditorStyle } from 'bike/style'
 import { computeValues } from './util'
+import { hiddenWhileTyping } from './style-helpers'
 
 export function registerBaseLayer(style: EditorStyle) {
   style.layer('base', (row, run, caret, viewport, include) => {
@@ -55,7 +56,7 @@ export function registerBaseLayer(style: EditorStyle) {
         handle.y = layout.firstLine.top.offset(strip.scale(0.5))
         handle.width = size
         handle.height = size
-        if (context.isTyping && context.settings.hideControlsWhenTyping) {
+        if (hiddenWhileTyping(context, 'handles')) {
           handle.opacity = 0
         }
       })
@@ -72,7 +73,7 @@ export function registerBaseLayer(style: EditorStyle) {
           guide.anchor.y = 0
           guide.width = layout.fixed(Math.max(1 * values.uiScale, 0.5))
           guide.height = layout.fixed(0)
-          if (context.isTyping && context.settings.hideControlsWhenTyping) {
+          if (hiddenWhileTyping(context, 'guides')) {
             guide.opacity = 0
           }
         })

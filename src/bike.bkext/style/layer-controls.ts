@@ -1,5 +1,6 @@
 import { EditorStyle } from 'bike/style'
 import { computeValues, symbolImage } from './util'
+import { hiddenWhileTyping } from './style-helpers'
 
 export function registerControlsLayer(style: EditorStyle) {
   style.layer('controls', (row, run, caret, viewport, include) => {
@@ -20,7 +21,9 @@ export function registerControlsLayer(style: EditorStyle) {
           focus.width = size
           focus.height = size
           focus.transitions.position = false
-          if (context.isTyping && context.settings.hideControlsWhenTyping) {
+          // Grouped with badges, not handles: the focus arrow shares their
+          // trailing flow, so the trailing cluster fades as one.
+          if (hiddenWhileTyping(context, 'badges')) {
             focus.opacity = 0
           }
         })
