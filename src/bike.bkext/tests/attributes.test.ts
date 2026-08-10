@@ -1,5 +1,6 @@
 import { Image, SymbolConfiguration } from 'bike/app'
 import { unclaimedNames } from '../app/default-badge'
+import { parseHiddenBadgeAttributes } from '../dom/protocols'
 
 // Attribute editing is the native attribute palette (editor.
 // showAttributePalette) and the standalone value picker (editor.showPicker;
@@ -298,21 +299,53 @@ describe('default attribute set', () => {
 })
 
 describe('default badge names', () => {
+    const none = new Set<string>()
+
     it('sorts unclaimed names from the values map', () => {
-        const names = unclaimedNames({ foo: 'x', bar: '' }, new Set())
+        const names = unclaimedNames({ foo: 'x', bar: '' }, none, none)
         assert.equal(names.join(','), 'bar,foo')
     })
 
     it('skips claimed names', () => {
-        const names = unclaimedNames({ foo: 'x', due: '2026-01-01', priority: '2' }, new Set(['due', 'priority']))
+        const names = unclaimedNames({ foo: 'x', due: '2026-01-01', priority: '2' }, new Set(['due', 'priority']), none)
         assert.equal(names.join(','), 'foo')
     })
 
     it('empty map or all-claimed yields nothing', () => {
-        assert.equal(unclaimedNames({}, new Set()).length, 0)
-        assert.equal(unclaimedNames({ due: '1' }, new Set(['due'])).length, 0)
+        assert.equal(unclaimedNames({}, none, none).length, 0)
+        assert.equal(unclaimedNames({ due: '1' }, new Set(['due']), none).length, 0)
     })
 
+    it('skips names the user hid', () => {
+        const names = unclaimedNames({ foo: 'x', syncid: 'a1', reviewer: 'kim' }, none, new Set(['syncid']))
+        assert.equal(names.join(','), 'foo,reviewer')
+    })
+
+    it('hiding every attribute yields nothing, so no badge is drawn', () => {
+        assert.equal(unclaimedNames({ syncid: 'a1' }, none, new Set(['syncid'])).length, 0)
+    })
+})
+
+describe('hidden badge attribute parsing', () => {
+    it('splits on commas and trims', () => {
+        const hidden = parseHiddenBadgeAttributes('syncid, x-tool-hash ,reviewer')
+        assert.equal([...hidden].sort().join(','), 'reviewer,syncid,x-tool-hash')
+    })
+
+    it('tolerates a leading @, newlines, and empty entries', () => {
+        const hidden = parseHiddenBadgeAttributes('@syncid,,\n  @x-hash , ')
+        assert.equal([...hidden].sort().join(','), 'syncid,x-hash')
+    })
+
+    it('empty, blank, and non-string values yield nothing', () => {
+        assert.equal(parseHiddenBadgeAttributes('').size, 0)
+        assert.equal(parseHiddenBadgeAttributes('  , ,').size, 0)
+        assert.equal(parseHiddenBadgeAttributes(undefined).size, 0)
+        assert.equal(parseHiddenBadgeAttributes(42).size, 0)
+    })
+})
+
+describe('default badge registration', () => {
     it('registers a keyed multi-image badge with default inputs', () => {
         // The API accepts inputs 'rowAttributes' + a keyed render; disposal deregisters.
         const disposable = bike.badge('smoke-multi', {

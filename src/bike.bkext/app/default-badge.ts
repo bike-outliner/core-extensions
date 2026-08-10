@@ -1,4 +1,5 @@
 import { BadgeEnvironment, Disposable, Image, Text } from 'bike/app'
+import { defaultBadgeDefaults, parseHiddenBadgeAttributes } from '../dom/protocols'
 
 // The DEFAULT badge: ONE `bike.badge` whose match-any `where` and
 // `inputs: 'rowAttributes'` (the row's full attribute map) render a keyed
@@ -17,69 +18,94 @@ import { BadgeEnvironment, Disposable, Image, Text } from 'bike/app'
 // Labels go through `env.formatAttribute`, the same native display layer the
 // palette and pickers use, so a `duration` reads "1h 30m" and a `date` reads
 // "Today" rather than showing its raw wire encoding.
+//
+// A user can opt individual attributes out entirely — Settings > Extensions >
+// Default Badge Exclusions — for files another tool writes into, where a sync
+// id or a hash isn't meant to be read as content. That list only reaches THIS
+// badge, so an attribute an extension presents itself is never affected.
 
 const VALUE_TRUNCATE_LENGTH = 20
 
 /**
  * The badge-worthy attribute names of a row's attribute map: everything not
- * claimed by a `defaultBadge: false` definition, sorted. (`values` already
- * excludes the reserved names — `inputs: 'rowAttributes'` filters them
- * natively.) Pure — exported for tests.
+ * claimed by a `defaultBadge: false` definition and not hidden by the user,
+ * sorted. (`values` already excludes the reserved names — `inputs:
+ * 'rowAttributes'` filters them natively.) Pure — exported for tests.
  */
 export function unclaimedNames(
   values: Readonly<Record<string, string | undefined>>,
-  claimed: ReadonlySet<string>
+  claimed: ReadonlySet<string>,
+  hidden: ReadonlySet<string>
 ): string[] {
   return Object.keys(values)
-    .filter((name) => !claimed.has(name))
+    .filter((name) => !claimed.has(name) && !hidden.has(name))
     .sort()
 }
 
 export function registerDefaultBadge() {
-  let badge: Disposable | undefined
+  bike.defaults.registerDefaults(defaultBadgeDefaults)
 
-  // The claims + empty-label snapshot is the only state the badges depend
-  // on beyond each row's own attributes. Capture it in the render closure
-  // and re-register on every change — a fresh badge identity means a fresh
-  // render cache, so claims changes repaint without any dirtying protocol.
-  // Row-attribute changes re-render through the style system.
+  // Two things outside a row's own attributes decide what this badge draws:
+  // the claims snapshot and the user's hidden list. Both are captured in the
+  // render closure, and both re-register — a fresh badge identity means a
+  // fresh render cache, so either change repaints without any dirtying
+  // protocol. Row-attribute changes re-render through the style system.
   bike.observeAttributes((infos) => {
-    const claimed = new Set(infos.filter((info) => !info.defaultBadge).map((info) => info.name))
+    claimed = new Set(infos.filter((info) => !info.defaultBadge).map((info) => info.name))
     emptyLabelByName.clear()
     registeredNames.clear()
     for (const info of infos) {
       registeredNames.add(info.name)
       if (info.emptyLabel != null) emptyLabelByName.set(info.name, info.emptyLabel)
     }
+    registerBadge()
+  })
 
-    badge?.dispose()
-    badge = bike.badge('attributes', {
-      where: '.*',
-      inputs: 'rowAttributes',
-      render: (values, env) => {
-        const names = unclaimedNames(values, claimed)
-        if (names.length === 0) return null
-        // `done` is claimed (it renders as row styling), but it's still in
-        // the attribute map — on a done row every tag fades to its border's
-        // alpha, the same treatment the feature badges give theirs, so no
-        // tag ever reads as live work on a checked row.
-        const done = values['done'] != null
-        const badges = names.flatMap((name) => {
-          const image = badgeImage(name, values[name] ?? '', done, env)
-          return image ? [{ key: name, image }] : []
-        })
-        return badges.length > 0 ? badges : null
-      },
-      // A catch-all renders whatever types a document uses, including
-      // dates — whose labels are now-relative ("Today", "Yesterday"), so
-      // they'd go stale at midnight without a tick.
-      tick: 60,
-      // Each glyph is keyed by its attribute name, so the clicked key IS
-      // the attribute the built-in menu should edit.
-      onClick: ({ editor, row, key }) => {
-        if (key) editor.showAttributeMenu({ row, anchor: { badge: 'attributes', key } }, key)
-      },
-    })
+  bike.defaults.observe('hiddenBadgeAttributes', registerBadge)
+}
+
+/** The `defaultBadge: false` names, from the latest `observeAttributes`
+ * snapshot — the attributes an extension presents itself. */
+let claimed: ReadonlySet<string> = new Set()
+
+let badge: Disposable | undefined
+
+/** Dispose the live badge and register a fresh one against current state.
+ * Parsing the hidden list HERE rather than in `render` keeps it off the
+ * per-row path — it only changes when the setting does. */
+function registerBadge() {
+  const hidden = parseHiddenBadgeAttributes(bike.defaults.get('hiddenBadgeAttributes'))
+  const claimedNow = claimed
+
+  badge?.dispose()
+  badge = bike.badge('attributes', {
+    where: '.*',
+    inputs: 'rowAttributes',
+    render: (values, env) => {
+      const names = unclaimedNames(values, claimedNow, hidden)
+      // Every attribute hidden (or none to begin with) draws nothing at
+      // all — no glyph and no reserved slot.
+      if (names.length === 0) return null
+      // `done` is claimed (it renders as row styling), but it's still in
+      // the attribute map — on a done row every tag fades to its border's
+      // alpha, the same treatment the feature badges give theirs, so no
+      // tag ever reads as live work on a checked row.
+      const done = values['done'] != null
+      const badges = names.flatMap((name) => {
+        const image = badgeImage(name, values[name] ?? '', done, env)
+        return image ? [{ key: name, image }] : []
+      })
+      return badges.length > 0 ? badges : null
+    },
+    // A catch-all renders whatever types a document uses, including
+    // dates — whose labels are now-relative ("Today", "Yesterday"), so
+    // they'd go stale at midnight without a tick.
+    tick: 60,
+    // Each glyph is keyed by its attribute name, so the clicked key IS
+    // the attribute the built-in menu should edit.
+    onClick: ({ editor, row, key }) => {
+      if (key) editor.showAttributeMenu({ row, anchor: { badge: 'attributes', key } }, key)
+    },
   })
 }
 

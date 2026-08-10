@@ -10,9 +10,9 @@ import { doneStamp } from './done'
 // this feature's four commands — the two branch filters and the two branch
 // done commands.
 //
-// The badge renders either as a typographic "done/total" fraction or as a pie
-// chart, controlled by the `progressStyle` extension default ('pie' by
-// default). A Settings panel (dom/Settings.tsx) toggles it.
+// The badge renders as a pie chart or as a typographic "done/total" fraction,
+// or not at all — the `progressStyle` extension default ('pie' by default),
+// chosen in Settings > Extensions (dom/Settings.tsx).
 
 export function registerProgress() {
   bike.commands.addCommands({
@@ -25,7 +25,6 @@ export function registerProgress() {
   })
 
   bike.defaults.registerDefaults(progressDefaults)
-  bike.settings.addItem({ label: 'Progress', script: 'Settings.js' })
 
   // Self-only contributions folded up every branch by `count`; read O(1) as
   // `summary('...')` from the badge inputs below. Both count the SAME unit —
@@ -38,18 +37,24 @@ export function registerProgress() {
   bike.summary('done', { where: '.task @done', reduce: 'count' })
 
   // `render` memoizes on `env`, and the display mode isn't part of `env` — so a
-  // runtime toggle from the Settings panel can't refresh already-drawn badges on
+  // runtime change from the Settings panel can't refresh already-drawn badges on
   // its own. Re-register on change to hand the badge a fresh render closure and
-  // force a restyle. (`render` also reads the default live, so freshly styled
-  // rows reflect the current mode regardless.)
+  // force a restyle.
   let badge = installBadge()
   bike.defaults.observe('progressStyle', () => {
-    badge.dispose()
+    badge?.dispose()
     badge = installBadge()
   })
 }
 
-function installBadge(): Disposable {
+/** The progress badge for the current style, or nothing at all when the style
+ * is 'none' — leaving it unregistered rather than rendering null, so its `where`
+ * clause isn't evaluated for every visible row on every style pass. */
+function installBadge(): Disposable | undefined {
+  const style = bike.defaults.get('progressStyle')
+  if (style === 'none') return undefined
+  const fraction = style === 'fraction'
+
   return bike.badge('progress', {
     // Rows with a task in their subtree — via the summary, an O(1) read (a
     // descendant search like `.//task` would walk each visible row's subtree
@@ -61,9 +66,10 @@ function installBadge(): Disposable {
     render: (values, env) => {
       const done = values['done'] ?? '0'
       const total = values['total'] ?? '0'
-      // Pie is the default: anything but an explicit 'fraction' draws the pie
-      // (matches the Settings panel's checkbox, which is on unless 'fraction').
-      if (bike.defaults.get('progressStyle') !== 'fraction') {
+      // The style is captured at registration, not read here: a change
+      // re-registers (above), and reading it per row per style pass would be
+      // work for a value that cannot have changed since.
+      if (!fraction) {
         const doneNum = Number(done)
         const totalNum = Number(total)
         if (totalNum > 0) {
