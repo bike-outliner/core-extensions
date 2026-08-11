@@ -79,7 +79,11 @@ export const calendarDefaults = {
   // whatever the Mac says, which on a Sunday-start Mac labelled every week with
   // the PREVIOUS week's number (the row is formatted from its first day, and
   // ISO calls that Sunday the last day of the week before).
-  weekNameFormat: 'Week { ww } ({ MMM d })',
+  // `yyyy`, not the week-numbering `Y`: a week row's date is its first day and
+  // it nests under that day's month, so the calendar year always agrees with the
+  // ancestor Year row. `Y` would disagree in the years where a week straddles
+  // January 1.
+  weekNameFormat: 'Week { ww }, { yyyy }',
   dayNameFormat: '{"dateStyle":"long"}',
   yearEnabled: true,
   monthEnabled: true,
@@ -140,8 +144,8 @@ function escapeLeadingBlockMarker(s: string): string {
 /**
  * Substitute formatted dates into a field value, keeping surrounding text and
  * markdown. Each `{ … }` span is formatted independently — `{ yyyy }` (date-fns)
- * or `{"dateStyle":"long"}` (JSON Intl options) — so a field can mix them, as
- * the week default's `Week { ww } ({ MMM d })` does. A field with no `{ … }`
+ * or `{"dateStyle":"long"}` (JSON Intl options) — so a field can hold more than
+ * one, as the week default's `Week { ww }, { yyyy }` does. A field with no `{ … }`
  * span is treated as literal text (no date).
  *
  * Spans don't nest: a span runs to the first `}`, which is why Intl options must

@@ -126,7 +126,7 @@ Defaults:
 |-------|-------------------------------------|------------------------|
 | Year  | `{ yyyy }`                          | 2026                   |
 | Month | `{"year":"numeric","month":"long"}` | April 2026             |
-| Week  | `Week { ww } ({ MMM d })`           | Week 18 (Apr 27)       |
+| Week  | `Week { ww }, { yyyy }`             | Week 18, 2026          |
 | Day   | `{"dateStyle":"long"}`              | Monday, April 27, 2026 |
 
 `ww` is the **local** week number: `bike.formatDate` resolves it against the
