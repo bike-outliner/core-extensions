@@ -1,37 +1,56 @@
 import { Outline, Row } from 'bike/app'
-import { dateIdPattern, substituteDate } from '../dom/protocols'
-import { getDaysInMonth, getMonthsInYear, getDateComponents } from './util'
+import { dateIdPattern, startOfWeek, substituteDate } from '../dom/protocols'
+import { getDaysInMonth, getDaysInWeek, getMonthsInYear, getDateComponents } from './util'
 
-type Level = 'year' | 'month' | 'day'
+type Level = 'year' | 'month' | 'week' | 'day'
 
 const FIELD_KEY: Record<Level, string> = {
   year: 'yearNameFormat',
   month: 'monthNameFormat',
+  week: 'weekNameFormat',
   day: 'dayNameFormat',
 }
 
-// Levels to generate, coarse → fine. Day is always present; Year/Month follow
-// their include setting.
+// Levels to generate, coarse → fine. Day is always present; Year/Month/Week
+// follow their include setting. Year and Month default on, Week off, so an
+// outline that has never touched the setting keeps the structure it has.
 function enabledLevels(): Level[] {
   const levels: Level[] = []
   if (bike.defaults.get('yearEnabled') !== false) levels.push('year')
   if (bike.defaults.get('monthEnabled') !== false) levels.push('month')
+  if (bike.defaults.get('weekEnabled') === true) levels.push('week')
   levels.push('day')
   return levels
 }
 
 function idForLevel(level: Level, date: Date): string {
   const c = getDateComponents(date)
-  return level === 'year' ? c.yearId : level === 'month' ? c.monthId : c.dayId
+  return level === 'year'
+    ? c.yearId
+    : level === 'month'
+      ? c.monthId
+      : level === 'week'
+        ? c.weekId
+        : c.dayId
 }
 
-// The calendar level a persistentId belongs to (year/month/day), or null.
+// The calendar level a persistentId belongs to, or null. `00` marks a slot the
+// level doesn't use, and a week keeps its ordinal in the day slot with the
+// month zeroed (see dateIdPattern).
 function levelOfId(id: string): Level | null {
   if (!dateIdPattern.test(id)) return null
-  const parts = id.split('/').map(Number)
-  if (parts[2] > 0) return 'day'
-  if (parts[1] > 0) return 'month'
-  return 'year'
+  const [, month, day] = id.split('/').map(Number)
+  if (month > 0) return day > 0 ? 'day' : 'month'
+  return day > 0 ? 'week' : 'year'
+}
+
+// The date a level's row stands for. A week row belongs to its first day, so
+// its own ancestors must be resolved from that day rather than from whichever
+// day of the week happened to trigger creation — otherwise a week straddling a
+// month or year boundary lands under a different parent depending on the order
+// its days were opened.
+function canonicalDate(level: Level, date: Date): Date {
+  return level === 'week' ? startOfWeek(date) : date
 }
 
 /**
@@ -40,7 +59,9 @@ function levelOfId(id: string): Level | null {
  * Placement:
  *  1. If the exact row id already exists, reuse it (never moved or duplicated).
  *  2. Its parent is the next coarser enabled level, created recursively — a day
- *     lands under its own month, a month under its year.
+ *     lands under its own week or month, a month under its year. A week goes
+ *     under the month/year of its FIRST day, so one that straddles a boundary
+ *     stays whole rather than splitting across two parents.
  *  3. The coarsest level has no calendar parent: it joins existing peer rows
  *     wherever they live (so the calendar can be moved anywhere), or the
  *     document root when there are none.
@@ -55,7 +76,7 @@ function ensureRow(outline: Outline, date: Date, level: Level): Row {
     const again = outline.getRowById(id)
     if (again) return again
     const parent = parentRow(outline, date, level)
-    const text = substituteDate(date, bike.defaults.get(FIELD_KEY[level]), {
+    const text = substituteDate(canonicalDate(level, date), bike.defaults.get(FIELD_KEY[level]), {
       escapeMarkdown: true,
     })
     return insertDateRow(outline, id, text, parent)
@@ -67,9 +88,10 @@ function parentRow(outline: Outline, date: Date, level: Level): Row {
   const levels = enabledLevels()
   const idx = levels.indexOf(level)
 
-  // Coarser enabled level present → that level's row is the parent.
+  // Coarser enabled level present → that level's row is the parent, resolved
+  // from this level's own date (a week's month is its first day's month).
   if (idx > 0) {
-    return ensureRow(outline, date, levels[idx - 1])
+    return ensureRow(outline, canonicalDate(level, date), levels[idx - 1])
   }
 
   // Coarsest level: join existing peers' container, else the document root.
@@ -115,6 +137,15 @@ export function getDayRow(outline: Outline, date: Date): Row {
   return ensureRow(outline, date, 'day')
 }
 
+export function getWeekRow(outline: Outline, date: Date): Row {
+  return outline.transaction({ animate: 'default' }, () => {
+    for (const day of getDaysInWeek(date)) {
+      ensureRow(outline, day, 'day')
+    }
+    return focusRow(outline, date, 'week')
+  })
+}
+
 export function getMonthRow(outline: Outline, date: Date): Row {
   return outline.transaction({ animate: 'default' }, () => {
     for (const day of getDaysInMonth(date)) {
@@ -135,12 +166,19 @@ export function getYearRow(outline: Outline, date: Date): Row {
   })
 }
 
+// Each level, then the levels above it, coarsest last.
+const COARSER_CHAIN: Record<Level, Level[]> = {
+  day: ['day', 'week', 'month', 'year'],
+  week: ['week', 'month', 'year'],
+  month: ['month', 'year'],
+  year: ['year'],
+}
+
 // The row a command should focus/select: the requested level if shown, else the
 // nearest coarser shown level, else the document root.
 function focusRow(outline: Outline, date: Date, level: Level): Row {
   const enabled = enabledLevels()
-  const coarserChain: Level[] =
-    level === 'day' ? ['day', 'month', 'year'] : level === 'month' ? ['month', 'year'] : ['year']
+  const coarserChain = COARSER_CHAIN[level]
   for (const l of coarserChain) {
     if (enabled.includes(l)) {
       const row = outline.getRowById(idForLevel(l, date))

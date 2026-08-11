@@ -13,9 +13,10 @@ describe("dayIdFromDate", () => {
         assert.equal(dayIdFromDate(date), getDateComponents(date).dayId)
     })
 
-    it("produces ids isDayId accepts, unlike month/year ids", () => {
+    it("produces ids isDayId accepts, unlike week/month/year ids", () => {
         const date = new Date(2026, 6, 20)
         assert(isDayId(dayIdFromDate(date)), "day id is a day id")
+        assert(!isDayId(getDateComponents(date).weekId), "week id is not")
         assert(!isDayId(getDateComponents(date).monthId), "month id is not")
         assert(!isDayId(getDateComponents(date).yearId), "year id is not")
     })

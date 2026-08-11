@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { useState, useEffect, useRef } from 'react'
 import Calendar from 'react-calendar'
 import './Calendar.css'
-import { CalendarProtocol, CalendarSelectMode, dayIdFromDate, isDayId } from './protocols'
+import { CalendarProtocol, CalendarSelectMode, dayIdFromDate, isDayId, weekStartsOn } from './protocols'
 import {
   DateAttribute,
   DateHit,
@@ -25,6 +25,15 @@ function tileFor(target: EventTarget | null) {
   const tile = (target as HTMLElement | null)?.closest?.('.react-calendar__tile')
   const match = tile && Array.from(tile.classList).find((c) => c.startsWith('cal-day-'))
   return match ? { tile, date: match.slice('cal-day-'.length) } : null
+}
+
+// The grid's week start, from the same normalized system preference the
+// generated week rows use — so the two can never disagree about which days
+// belong to a week. Read at render, not module load, since `bike` is installed
+// by the host.
+function gridCalendarType() {
+  const first = weekStartsOn()
+  return first === 0 ? 'gregory' : first === 6 ? 'islamic' : 'iso8601'
 }
 
 // What a visit shows: ⌘ = only dated rows, ⌥ = only day rows, plain = both.
@@ -462,7 +471,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         maxDetail="month"
         minDetail="month"
         locale={bike.systemLocale}
-        calendarType={bike.systemFirstWeekday === 0 ? 'gregory' : bike.systemFirstWeekday === 6 ? 'islamic' : 'iso8601'}
+        calendarType={gridCalendarType()}
         formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(bike.systemLocale, { weekday: 'narrow' })}
         tileContent={dateTileMark}
         tileClassName={({ date, view }: { date: Date; view: string }) => {

@@ -1,5 +1,5 @@
 import { CommandContext } from 'bike/app'
-import { getDayRow, getMonthRow, getYearRow } from './calendar-rows'
+import { getDayRow, getMonthRow, getWeekRow, getYearRow } from './calendar-rows'
 
 export function yearCommand(context: CommandContext): boolean {
   let editor = context.editor
@@ -25,6 +25,19 @@ export function monthCommand(context: CommandContext): boolean {
     let monthRow = getMonthRow(outline, new Date())
     editor.focus = monthRow
     editor.selectCaret(monthRow.firstChild ?? monthRow, 0)
+  })
+  return true
+}
+
+export function weekCommand(context: CommandContext): boolean {
+  let editor = context.editor
+  if (!editor) return true
+  editor.outline.transaction({ animate: 'default' }, () => {
+    let outline = editor.outline
+    // Always generate the whole week's days, injected at the enabled nesting.
+    let weekRow = getWeekRow(outline, new Date())
+    editor.focus = weekRow
+    editor.selectCaret(weekRow.firstChild ?? weekRow, 0)
   })
   return true
 }

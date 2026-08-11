@@ -3,10 +3,10 @@ import { JSONValue } from 'bike/core'
 import { Box, Checkbox, Disclosure, FormRow, FormGroup, SFSymbol } from 'bike/components'
 import { createRoot } from 'react-dom/client'
 import { useState } from 'react'
-import { calendarDefaults, substituteDate } from './protocols'
+import { calendarDefaults, startOfWeek, substituteDate } from './protocols'
 
-type FormatKey = 'yearNameFormat' | 'monthNameFormat' | 'dayNameFormat'
-type EnableKey = 'yearEnabled' | 'monthEnabled'
+type FormatKey = 'yearNameFormat' | 'monthNameFormat' | 'weekNameFormat' | 'dayNameFormat'
+type EnableKey = 'yearEnabled' | 'monthEnabled' | 'weekEnabled'
 
 export function activate(context: DOMExtensionContext) {
   createRoot(context.element).render(<SettingsPanel />)
@@ -15,6 +15,8 @@ export function activate(context: DOMExtensionContext) {
 function SettingsPanel() {
   const [yearEnabled, setYearEnabled] = useState(() => bike.defaults.get('yearEnabled') !== false)
   const [monthEnabled, setMonthEnabled] = useState(() => bike.defaults.get('monthEnabled') !== false)
+  // Week is the one level that defaults off.
+  const [weekEnabled, setWeekEnabled] = useState(() => bike.defaults.get('weekEnabled') === true)
 
   function toggle(key: EnableKey, set: (value: boolean) => void) {
     return (checked: boolean) => {
@@ -26,7 +28,8 @@ function SettingsPanel() {
   // Indent each preview by the number of enabled levels above it, mirroring the
   // generated outline nesting.
   const aboveMonth = yearEnabled ? 1 : 0
-  const aboveDay = (yearEnabled ? 1 : 0) + (monthEnabled ? 1 : 0)
+  const aboveWeek = aboveMonth + (monthEnabled ? 1 : 0)
+  const aboveDay = aboveWeek + (weekEnabled ? 1 : 0)
 
   return (
     <Disclosure label="Calendar" defaultExpanded>
@@ -41,7 +44,7 @@ function SettingsPanel() {
           <li>Include date <code>{'{'}</code> <a href="https://date-fns.org/docs/format">pattern</a> <code>{'}'}</code> or JSON Intl.DateTimeFormat{' '}
           <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat#using_options">options</a>.</li>
           <li>Use markdown outside the braces for row formatting — <code>{'# { yyyy }'}</code> is a heading.</li>
-          <li>Uncheck Year or Month if you want the calendar to skip those levels.</li>
+          <li>Check or uncheck Year, Month and Week to choose which levels the calendar generates.</li>
         </ul>
 
         <FormGroup>
@@ -59,6 +62,15 @@ function SettingsPanel() {
             onToggle={toggle('monthEnabled', setMonthEnabled)}
             indent={aboveMonth}
           />
+          <FormatRow
+            label="Week"
+            formatKey="weekNameFormat"
+            enabled={weekEnabled}
+            onToggle={toggle('weekEnabled', setWeekEnabled)}
+            indent={aboveWeek}
+            // A week row is named for its first day, so preview it that way.
+            previewDate={startOfWeek(new Date())}
+          />
           <FormatRow label="Day" formatKey="dayNameFormat" enabled indent={aboveDay} deepest />
         </FormGroup>
       </Box>
@@ -74,6 +86,7 @@ function FormatRow({
   onToggle,
   indent,
   deepest = false,
+  previewDate,
 }: {
   label: string
   formatKey: FormatKey
@@ -81,6 +94,7 @@ function FormatRow({
   onToggle?: (checked: boolean) => void
   indent: number
   deepest?: boolean
+  previewDate?: Date
 }) {
   const [value, setValue] = useState(() => readDisplay(formatKey))
   const defaultDisplay = displayValue(calendarDefaults[formatKey])
@@ -128,7 +142,11 @@ function FormatRow({
           style={dim}
           autoCorrect="off" autoComplete="off" spellCheck={false} autoCapitalize="off"
         />
-        {enabled && <Preview indent={indent} deepest={deepest}>{preview(value, defaultDisplay)}</Preview>}
+        {enabled && (
+          <Preview indent={indent} deepest={deepest}>
+            {preview(value, defaultDisplay, previewDate)}
+          </Preview>
+        )}
       </span>
     </FormRow>
   )
@@ -144,7 +162,7 @@ function WeekNumbersRow() {
 
   return (
     <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)}>
-      Show week number in left column
+      Show week numbers in the inspector view calendar
     </Checkbox>
   )
 }
@@ -177,13 +195,13 @@ function Preview({
   )
 }
 
-function preview(value: string, defaultValue: string): string {
+function preview(value: string, defaultValue: string, date: Date = new Date()): string {
   const raw = value || defaultValue
   try {
     // Mirror the row-generation path: escape so the preview shows the exact
     // markdown that gets inserted (e.g. German `28\. Mai 2026`), matching how
     // it already surfaces author markers like `# 2026` literally.
-    return substituteDate(new Date(), raw, { escapeMarkdown: true })
+    return substituteDate(date, raw, { escapeMarkdown: true })
   } catch {
     return '(invalid format)'
   }

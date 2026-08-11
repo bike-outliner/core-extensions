@@ -1,5 +1,5 @@
 import { Row } from 'bike/app'
-import { dayIdFromDate, isDayId } from '../dom/protocols'
+import { dayIdFromDate, isDayId, startOfWeek, weekIdFromDate } from '../dom/protocols'
 
 export function findDateId(row: Row): string | null {
   let current: Row | undefined = row
@@ -30,13 +30,23 @@ export function getDaysInMonth(date: Date): Date[] {
   return dates
 }
 
+export function getDaysInWeek(date: Date): Date[] {
+  const start = startOfWeek(date)
+  const dates: Date[] = []
+  for (let day = 0; day < 7; day++) {
+    dates.push(new Date(start.getFullYear(), start.getMonth(), start.getDate() + day))
+  }
+  return dates
+}
+
 export function getDateComponents(date: Date): {
   yearId: string
   monthId: string
+  weekId: string
   dayId: string
 } {
   const year = date.getFullYear()
   const yearId = `${year}/00/00`
   const monthId = `${year}/${String(date.getMonth() + 1).padStart(2, '0')}/00`
-  return { yearId, monthId, dayId: dayIdFromDate(date) }
+  return { yearId, monthId, weekId: weekIdFromDate(date), dayId: dayIdFromDate(date) }
 }

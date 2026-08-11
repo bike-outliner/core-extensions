@@ -5,12 +5,25 @@
 import { DOMProtocol } from 'bike/core'
 import { DateAttribute } from './date-marks'
 
+/**
+ * Calendar row ids are `YYYY/MM/DD` with `00` meaning "this level doesn't use
+ * that slot": `2026/04/27` a day, `2026/04/00` a month, `2026/00/00` a year.
+ * Weeks take the one remaining shape — `2026/00/32`, month zeroed and the day
+ * slot holding a week ordinal — so every level fits the same pattern.
+ */
 export const dateIdPattern = /^\d{4}\/\d{2}\/\d{2}$/
 
 export function isDayId(id: string): boolean {
   if (!dateIdPattern.test(id)) return false
-  const day = Number(id.split('/')[2])
-  return day > 0
+  const [, month, day] = id.split('/').map(Number)
+  // Month matters: without it a week id's ordinal reads as a day number.
+  return month > 0 && day > 0
+}
+
+export function isWeekId(id: string): boolean {
+  if (!dateIdPattern.test(id)) return false
+  const [, month, day] = id.split('/').map(Number)
+  return month === 0 && day > 0
 }
 
 /**
@@ -23,12 +36,55 @@ export function dayIdFromDate(date: Date): string {
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`
 }
 
+/**
+ * The day a week starts on, as a JS day number (0 = Sunday). Normalizes the
+ * system preference exactly the way the inspector grid does — Sunday and
+ * Saturday starts are honored, anything else is ISO Monday — so generated week
+ * rows always agree with the grid's week-number column.
+ */
+export function weekStartsOn(): number {
+  return bike.systemFirstWeekday === 0 ? 0 : bike.systemFirstWeekday === 6 ? 6 : 1
+}
+
+/** The first day of `date`'s week, at local midnight. */
+export function startOfWeek(date: Date): Date {
+  const back = (date.getDay() - weekStartsOn() + 7) % 7
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - back)
+}
+
+/**
+ * The persistent id of `date`'s week row: `YYYY/00/WW`, where `YYYY` is the
+ * year of the week's first day and `WW` its ordinal within that year.
+ *
+ * Week starts sit exactly seven days apart and a year's first one always lands
+ * in Jan 1–7, so the ordinal runs 1…53 with no gaps or repeats — which is what
+ * keeps lexical id order chronological, like day and month ids.
+ */
+export function weekIdFromDate(date: Date): string {
+  const start = startOfWeek(date)
+  const jan1 = new Date(start.getFullYear(), 0, 1)
+  // Rounded, not floored: a DST shift inside the span leaves the raw quotient
+  // just under or over a whole number of days.
+  const dayOfYear = Math.round((start.getTime() - jan1.getTime()) / 86_400_000) + 1
+  const ordinal = Math.floor((dayOfYear - 1) / 7) + 1
+  return `${start.getFullYear()}/00/${String(ordinal).padStart(2, '0')}`
+}
+
 export const calendarDefaults = {
   yearNameFormat: '{ yyyy }',
   monthNameFormat: '{"year":"numeric","month":"long"}',
+  // `ww`, not the ISO `II`: the week ROWS start on the Mac's first weekday, so
+  // the number has to be the one that scheme produces — and `bike.formatDate`
+  // resolves `ww` against that same setting. `II` counts weeks from Monday
+  // whatever the Mac says, which on a Sunday-start Mac labelled every week with
+  // the PREVIOUS week's number (the row is formatted from its first day, and
+  // ISO calls that Sunday the last day of the week before).
+  weekNameFormat: 'Week { ww } ({ MMM d })',
   dayNameFormat: '{"dateStyle":"long"}',
   yearEnabled: true,
   monthEnabled: true,
+  // Off by default: existing outlines keep the year/month/day shape they have.
+  weekEnabled: false,
   showWeekNumbers: true,
 }
 
@@ -82,10 +138,14 @@ function escapeLeadingBlockMarker(s: string): string {
 }
 
 /**
- * Substitute the formatted date into a field value, keeping surrounding text
- * and markdown. The date lives in a single `{ … }` span — `{ yyyy }` (date-fns)
- * or `{"dateStyle":"long"}` (JSON Intl options). A field with no `{ … }` span is
- * treated as literal text (no date).
+ * Substitute formatted dates into a field value, keeping surrounding text and
+ * markdown. Each `{ … }` span is formatted independently — `{ yyyy }` (date-fns)
+ * or `{"dateStyle":"long"}` (JSON Intl options) — so a field can mix them, as
+ * the week default's `Week { ww } ({ MMM d })` does. A field with no `{ … }`
+ * span is treated as literal text (no date).
+ *
+ * Spans don't nest: a span runs to the first `}`, which is why Intl options must
+ * be the flat objects `Intl.DateTimeFormat` already requires.
  *
  * Pass `{ escapeMarkdown: true }` when the result is inserted as markdown (row
  * generation), so the formatted date can't inject block structure; leave it off
@@ -102,13 +162,7 @@ export function substituteDate(
     return escape(formatSpec(date, rawValue))
   }
   const field = String(rawValue ?? '')
-  const open = field.indexOf('{')
-  const close = field.lastIndexOf('}')
-  if (open < 0 || close <= open) {
-    return field
-  }
-  const formatted = escape(formatSpec(date, field.slice(open, close + 1)))
-  return field.slice(0, open) + formatted + field.slice(close + 1)
+  return field.replace(/\{[^}]*\}/g, (span) => escape(formatSpec(date, span)))
 }
 
 /**

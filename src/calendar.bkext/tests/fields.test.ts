@@ -1,5 +1,6 @@
-import { substituteDate } from "../dom/protocols"
-import { getDayRow, getMonthRow, getYearRow } from "../app/calendar-rows"
+import { dayIdFromDate, startOfWeek, substituteDate, weekIdFromDate } from "../dom/protocols"
+import { getDayRow, getMonthRow, getWeekRow, getYearRow } from "../app/calendar-rows"
+import { getDaysInWeek } from "../app/util"
 
 describe("substituteDate", () => {
     const date = new Date(2026, 4, 26) // May 26, 2026
@@ -20,6 +21,14 @@ describe("substituteDate", () => {
 
     it("treats text with no { } as literal (no date)", () => {
         assert.equal(substituteDate(date, "yyyy"), "yyyy")
+    })
+
+    it("leaves an unclosed { } span alone", () => {
+        assert.equal(substituteDate(date, "{ yyyy"), "{ yyyy")
+    })
+
+    it("formats each { } span independently (the week default's shape)", () => {
+        assert.equal(substituteDate(date, "Week { yyyy } ({ MMM d })"), "Week 2026 (May 26)")
     })
 
     describe("escapeMarkdown (row-generation path)", () => {
@@ -114,6 +123,109 @@ describe("row generation", () => {
         } finally {
             bike.defaults.delete("monthEnabled")
         }
+    })
+})
+
+describe("week level", () => {
+    const date = new Date(2026, 4, 26)
+
+    // Week defaults off, so every case here opts in and cleans up after itself.
+    function withWeek(extra: Record<string, boolean>, body: () => void) {
+        bike.defaults.set("weekEnabled", true)
+        for (const [key, value] of Object.entries(extra)) bike.defaults.set(key, value)
+        try {
+            body()
+        } finally {
+            bike.defaults.delete("weekEnabled")
+            for (const key of Object.keys(extra)) bike.defaults.delete(key)
+        }
+    }
+
+    it("is off by default — the shape is unchanged until you enable it", () => {
+        const outline = bike.testEditor().outline
+        const day = getDayRow(outline, date)
+        assert.equal(day.parent!.persistentId, "2026/05/00", "day still under its month")
+    })
+
+    it("generates Year > Week > Day with Month off", () => {
+        withWeek({ monthEnabled: false }, () => {
+            const outline = bike.testEditor().outline
+            const day = getDayRow(outline, date)
+            assert.equal(day.persistentId, "2026/05/26")
+            assert.equal(day.parent!.persistentId, weekIdFromDate(date), "day under its week")
+            assert.equal(day.parent!.parent!.persistentId, "2026/00/00", "week under the year")
+            assert.equal(day.parent!.parent!.parent!.id, outline.root.id, "year at the document root")
+        })
+    })
+
+    it("nests under Month when both are on", () => {
+        withWeek({}, () => {
+            const outline = bike.testEditor().outline
+            const day = getDayRow(outline, date)
+            const week = day.parent!
+            assert.equal(week.persistentId, weekIdFromDate(date))
+            // The week's month is its FIRST day's month, which for a week inside
+            // one month is that month.
+            assert.equal(week.parent!.persistentId, "2026/05/00")
+            assert.equal(week.parent!.parent!.persistentId, "2026/00/00")
+        })
+    })
+
+    it("gathers a week's days under one row, whichever day comes first", () => {
+        withWeek({ monthEnabled: false }, () => {
+            const outline = bike.testEditor().outline
+            const days = getDaysInWeek(date)
+            // Deliberately out of order: the last day of the week creates the
+            // week row, the first must then join it rather than make a second.
+            for (const day of [...days].reverse()) getDayRow(outline, day)
+            const weekId = weekIdFromDate(date)
+            const week = outline.getRowById(weekId)!
+            assert.equal(week.children.length, 7, "all seven days under one week row")
+            for (const day of days) {
+                assert.equal(outline.getRowById(dayIdFromDate(day))!.parent!.persistentId, weekId)
+            }
+        })
+    })
+
+    it("keeps a month-straddling week whole, under its first day's month", () => {
+        // Whichever day weeks start on, some day sits in a week that began in
+        // the previous month — find the first one in 2026.
+        let straddler: Date | undefined
+        for (let d = new Date(2026, 0, 1); d.getFullYear() === 2026; d = new Date(2026, d.getMonth(), d.getDate() + 1)) {
+            if (startOfWeek(d).getMonth() !== d.getMonth()) {
+                straddler = d
+                break
+            }
+        }
+        assert(straddler, "found a week that straddles a month boundary")
+        withWeek({}, () => {
+            const outline = bike.testEditor().outline
+            const day = getDayRow(outline, straddler!)
+            const week = day.parent!
+            const start = startOfWeek(straddler!)
+            const startMonthId = `${start.getFullYear()}/${String(start.getMonth() + 1).padStart(2, "0")}/00`
+            assert.equal(week.persistentId, weekIdFromDate(straddler!))
+            assert.equal(week.parent!.persistentId, startMonthId, "week sits under its first day's month")
+        })
+    })
+
+    it("getWeekRow fills every day in the week", () => {
+        withWeek({}, () => {
+            const outline = bike.testEditor().outline
+            getWeekRow(outline, date)
+            for (const day of getDaysInWeek(date)) {
+                assert(outline.getRowById(dayIdFromDate(day)), `${dayIdFromDate(day)} created`)
+            }
+        })
+    })
+
+    it("getWeekRow still fills the days with the week level off", () => {
+        const outline = bike.testEditor().outline
+        getWeekRow(outline, date)
+        for (const day of getDaysInWeek(date)) {
+            assert(outline.getRowById(dayIdFromDate(day)), `${dayIdFromDate(day)} created`)
+        }
+        assert(!outline.getRowById(weekIdFromDate(date)), "but no week row")
     })
 })
 

@@ -1,5 +1,5 @@
 import { AppExtensionContext, DOMScriptHandle, OutlineEditor, Row, Window } from 'bike/app'
-import { todayCommand, monthCommand, yearCommand } from './commands'
+import { todayCommand, weekCommand, monthCommand, yearCommand } from './commands'
 import { getDayRow } from './calendar-rows'
 import { getDateComponents, findDateId } from './util'
 import { CalendarProtocol, CalendarSelectMode, calendarDefaults } from '../dom/protocols'
@@ -29,6 +29,7 @@ export async function activate(context: AppExtensionContext) {
   bike.commands.addCommands({
     commands: {
       'calendar:today': todayCommand,
+      'calendar:week': weekCommand,
       'calendar:month': monthCommand,
       'calendar:year': yearCommand,
     },
