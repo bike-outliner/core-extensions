@@ -52,7 +52,7 @@ export function setAttributeOnSelection(name: string, value: string | (() => str
  *
  * Returns false when no selected row carries the attribute — there is nothing
  * to clear, so the command declines rather than pushing an empty transaction.
- * (This is `progress:clear-branch-done`'s contract, generalized.)
+ * (This is `tasks:clear-branch-done`'s contract, generalized.)
  */
 export function clearAttributeOnSelection(name: string, label: string): CommandAction {
   return (context: CommandContext): boolean => {

@@ -8,12 +8,12 @@ export async function activate(context: AppExtensionContext) {
   // Last, so its `observeAttributes` sees every feature's attribute.
   registerDefaultBadge()
 
-  // One settings item for the whole extension — dom/Settings.tsx holds a
-  // Disclosure per feature. Registered here rather than from each feature so
-  // Bike's own sections stay together: `addItem` keys its container by label,
-  // and items are appended in call order, so separate registrations let another
-  // extension's section land in the middle of ours.
-  bike.settings.addItem({ label: 'Bike', script: 'Settings.js' })
+  // One settings item per section, so each sorts on its own among every other
+  // extension's — the pane orders sections by label, not by the order they're
+  // registered. Registered here rather than from each feature so the whole set
+  // is visible in one place.
+  bike.settings.addItem({ label: 'Badges', script: 'BadgesSettings.js' })
+  bike.settings.addItem({ label: 'Tasks', script: 'TasksSettings.js' })
 
   // Hidden commands for style interactions (not shown in command palette)
   bike.commands.addCommands({

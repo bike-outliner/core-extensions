@@ -1,30 +1,31 @@
 import { CommandContext, Disposable, Image, Row, Text } from 'bike/app'
-import { progressDefaults } from '../../dom/protocols'
+import { taskDefaults } from '../../dom/protocols'
 import { pieImage } from '../pie-image'
 import { doneStamp } from './done'
 
-// A "progress" feature demonstrating subtree summaries: two incrementally
+// A "tasks" feature demonstrating subtree summaries: two incrementally
 // maintained branch aggregates (total tasks / done tasks below a row), consumed
 // by a badge that shows "done/total" on any row that has a task somewhere
 // below. Clicking the badge shows a menu whose every item dispatches one of
 // this feature's four commands — the two branch filters and the two branch
 // done commands.
 //
-// The badge renders as a pie chart or as a typographic "done/total" fraction,
-// or not at all — the `progressStyle` extension default ('pie' by default),
-// chosen in Settings > Extensions (dom/Settings.tsx).
+// Whether the badge draws at all is `showTaskProgressBadges` (on by default),
+// and how it draws — a typographic "done/total" fraction or a pie chart — is
+// `taskProgressBadgeType` ('fraction' by default). Both are extension defaults
+// set in Settings > Extensions > Tasks (dom/TasksSettings.tsx).
 
-export function registerProgress() {
+export function registerTasks() {
   bike.commands.addCommands({
     commands: {
-      'progress:mark-branch-done': markBranchDone,
-      'progress:clear-branch-done': clearBranchDone,
-      'progress:filter-todo': filterBranchTasks('not @done', 'Todo Tasks'),
-      'progress:filter-done': filterBranchTasks('@done', 'Done Tasks'),
+      'tasks:mark-branch-done': markBranchDone,
+      'tasks:clear-branch-done': clearBranchDone,
+      'tasks:filter-todo': filterBranchTasks('not @done', 'Todo Tasks'),
+      'tasks:filter-done': filterBranchTasks('@done', 'Done Tasks'),
     },
   })
 
-  bike.defaults.registerDefaults(progressDefaults)
+  bike.defaults.registerDefaults(taskDefaults)
 
   // Self-only contributions folded up every branch by `count`; read O(1) as
   // `summary('...')` from the badge inputs below. Both count the SAME unit —
@@ -41,21 +42,23 @@ export function registerProgress() {
   // its own. Re-register on change to hand the badge a fresh render closure and
   // force a restyle.
   let badge = installBadge()
-  bike.defaults.observe('progressStyle', () => {
+  function reinstall() {
     badge?.dispose()
     badge = installBadge()
-  })
+  }
+  bike.defaults.observe('showTaskProgressBadges', reinstall)
+  bike.defaults.observe('taskProgressBadgeType', reinstall)
 }
 
-/** The progress badge for the current style, or nothing at all when the style
- * is 'none' — leaving it unregistered rather than rendering null, so its `where`
- * clause isn't evaluated for every visible row on every style pass. */
+/** The task progress badge in the current style, or nothing at all when badges
+ * are switched off — leaving it unregistered rather than rendering null, so its
+ * `where` clause isn't evaluated for every visible row on every style pass. */
 function installBadge(): Disposable | undefined {
-  const style = bike.defaults.get('progressStyle')
-  if (style === 'none') return undefined
-  const fraction = style === 'fraction'
+  if (bike.defaults.get('showTaskProgressBadges') === false) return undefined
+  // Anything but an explicit 'pie' draws the fraction — the registered default.
+  const fraction = bike.defaults.get('taskProgressBadgeType') !== 'pie'
 
-  return bike.badge('progress', {
+  return bike.badge('tasks', {
     // Rows with a task in their subtree — via the summary, an O(1) read (a
     // descendant search like `.//task` would walk each visible row's subtree
     // every style pass, and is rejected at registration). A task LEAF's
@@ -93,13 +96,13 @@ function installBadge(): Disposable | undefined {
       // and when they're enabled, and the commands themselves own the doing.
       // The two filters scope to the clicked row because the click selects it
       // (they read the selection, same as the two branch commands).
-      editor.showMenu({ row, anchor: 'progress' }, {
+      editor.showMenu({ row, anchor: 'tasks' }, {
         items: [
-          { type: 'button', id: 'command:progress:filter-todo', title: 'Filter not @done' },
-          { type: 'button', id: 'command:progress:filter-done', title: 'Filter @done' },
+          { type: 'button', id: 'command:tasks:filter-todo', title: 'Filter not @done' },
+          { type: 'button', id: 'command:tasks:filter-done', title: 'Filter @done' },
           { type: 'separator' },
-          { type: 'button', id: 'command:progress:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: done !== tasks.length },
-          { type: 'button', id: 'command:progress:clear-branch-done', title: 'Clear Branch Tasks Done', enabled: done !== 0 },
+          { type: 'button', id: 'command:tasks:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: done !== tasks.length },
+          { type: 'button', id: 'command:tasks:clear-branch-done', title: 'Clear Branch Tasks Done', enabled: done !== 0 },
         ],
       })
     },

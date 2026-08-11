@@ -11,7 +11,7 @@ async function eventually(check: () => boolean, timeoutMs = 5000): Promise<void>
     }
 }
 
-describe("Progress commands", () => {
+describe("Task commands", () => {
     const editor = bike.testEditor()
     const outline = editor.outline
 
@@ -29,25 +29,25 @@ describe("Progress commands", () => {
 
     it("registers the branch commands", () => {
         const commands = bike.commands.toString()
-        assert(commands.includes("progress:mark-branch-done"), "should register mark-branch-done")
-        assert(commands.includes("progress:clear-branch-done"), "should register clear-branch-done")
-        assert(commands.includes("progress:filter-todo"), "should register filter-todo")
-        assert(commands.includes("progress:filter-done"), "should register filter-done")
+        assert(commands.includes("tasks:mark-branch-done"), "should register mark-branch-done")
+        assert(commands.includes("tasks:clear-branch-done"), "should register clear-branch-done")
+        assert(commands.includes("tasks:filter-todo"), "should register filter-todo")
+        assert(commands.includes("tasks:filter-done"), "should register filter-done")
     })
 
-    // NO behavioral test for `progress:filter-todo` / `progress:filter-done`
+    // NO behavioral test for `tasks:filter-todo` / `tasks:filter-done`
     // yet. Any test that actually applies one of them to this editor makes a
     // LATER session test crash the app: IPCMethods.editorSnapshot sorts
     // `editor.collapsed` through `outline.compare`, which force-unwraps
     // `nodes[id]!` (Tree.swift:130). Setting `editor.filter` from JS is what
-    // arms it — the same assignment the progress badge menu has always made
+    // arms it — the same assignment the task badge menu has always made
     // on click, so this predates these commands. Add coverage once that's
     // fixed on the Swift side.
 
     it("marks every task in the branch done", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("progress:mark-branch-done", { editor }), true)
+        assert.equal(bike.commands.performCommand("tasks:mark-branch-done", { editor }), true)
         const tasks = project.children.filter((row) => row.type === "task")
         assert.equal(tasks.length, 2)
         for (const task of tasks) {
@@ -64,13 +64,13 @@ describe("Progress commands", () => {
     it("mark done is a no-op when everything is already done", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("progress:mark-branch-done", { editor }), false)
+        assert.equal(bike.commands.performCommand("tasks:mark-branch-done", { editor }), false)
     })
 
     it("marks the branch undone", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("progress:clear-branch-done", { editor }), true)
+        assert.equal(bike.commands.performCommand("tasks:clear-branch-done", { editor }), true)
         for (const task of project.children.filter((row) => row.type === "task")) {
             assert(task.getAttribute("done") == null, "done should be removed")
         }
@@ -79,11 +79,11 @@ describe("Progress commands", () => {
     it("mark undone is a no-op when nothing is done", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("progress:clear-branch-done", { editor }), false)
+        assert.equal(bike.commands.performCommand("tasks:clear-branch-done", { editor }), false)
     })
 })
 
-describe("Progress summaries", () => {
+describe("Task summaries", () => {
     const editor = bike.testEditor()
     const outline = editor.outline
 
@@ -140,13 +140,13 @@ describe("Progress summaries", () => {
     it("summary('done') tracks @done edits", async () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("progress:mark-branch-done", { editor }), true)
+        assert.equal(bike.commands.performCommand("tasks:mark-branch-done", { editor }), true)
         await eventually(() => {
             const result = outline.query('summary("done")') as { type: string; value: number }
             return result.type === "number" && result.value === 3
         })
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("progress:clear-branch-done", { editor }), true)
+        assert.equal(bike.commands.performCommand("tasks:clear-branch-done", { editor }), true)
         await eventually(() => {
             const result = outline.query('summary("done")') as { type: string; value: number }
             return result.type === "number" && result.value === 0

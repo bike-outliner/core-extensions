@@ -1,11 +1,12 @@
 // Shared between app and DOM contexts.
 
-export const progressDefaults = {
-  progressStyle: 'pie', // ProgressStyle
+export const taskDefaults = {
+  showTaskProgressBadges: true,
+  taskProgressBadgeType: 'fraction', // TaskProgressBadgeType
 }
 
-/** How the progress badge draws — or `none` to not draw it at all. */
-export type ProgressStyle = 'pie' | 'fraction' | 'none'
+/** How the task progress badge draws when it's shown. */
+export type TaskProgressBadgeType = 'fraction' | 'pie'
 
 export const defaultBadgeDefaults = {
   // Attribute names the DEFAULT badge never draws, comma separated. Stored as

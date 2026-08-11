@@ -1,7 +1,7 @@
 // The one stamp shape a completing `done` writes: the timestamp date wire
 // form, which matches native Toggle Done by construction — the shared codec
 // owns the encoding (a valid Date always encodes, hence the `!`). Everything
-// in this bundle that marks rows done goes through here (progress.ts's
+// in this bundle that marks rows done goes through here (tasks.ts's
 // mark-branch-done); calendar.bkext bundles separately and makes the same
 // codec call itself (dom/Agenda.tsx).
 export function doneStamp(): string {

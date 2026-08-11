@@ -53,7 +53,7 @@ describe("Estimate remaining summaries", () => {
     // Waits for an off-main summary recompute to land. Summaries fold on a
     // background processor with leading-edge emission, so values are
     // eventually consistent — poll rather than assert immediately. (Scoped
-    // here: test files compile as one global script, and progress.test.ts
+    // here: test files compile as one global script, and tasks.test.ts
     // declares its own copy.)
     async function eventually(check: () => boolean, timeoutMs = 5000): Promise<void> {
         const start = Date.now()

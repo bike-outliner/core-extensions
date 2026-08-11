@@ -1,6 +1,6 @@
 import { BadgeEnvironment, Color, Image, Path, Point, Rect, Shape } from 'bike/app'
 
-// The progress rollup's fraction glyph: the `done/total` fraction drawn as a
+// The task rollup's fraction glyph: the `done/total` fraction drawn as a
 // filled wedge on a transparent background, ringed by a border that matches
 // every other drawn badge on the row. Sized to the shared badge rect and
 // tinted from the outline's base text color so it reads as chrome like the
