@@ -1,4 +1,4 @@
-import { CommandContext, Disposable, Image, Row, Text } from 'bike/app'
+import { CommandContext, Disposable, Image, Outline, Row, Text } from 'bike/app'
 import { taskDefaults } from '../../dom/protocols'
 import { pieImage } from '../pie-image'
 import { doneStamp } from './done'
@@ -7,8 +7,14 @@ import { doneStamp } from './done'
 // maintained branch aggregates (total tasks / done tasks below a row), consumed
 // by a badge that shows "done/total" on any row that has a task somewhere
 // below. Clicking the badge shows a menu whose every item dispatches one of
-// this feature's four commands — the two branch filters and the two branch
-// done commands.
+// this feature's six commands — the two branch filters, the two branch done
+// commands, and the branch half of the archive pair.
+//
+// Archiving is the one thing here that MOVES rows rather than editing an
+// attribute, and it comes in two scopes because a command takes no arguments
+// beyond its editor and selection: `tasks:archive-done` sweeps the whole
+// outline, `tasks:archive-branch-done` sweeps one branch, and the badge menu
+// offers the branch one.
 //
 // Whether the badge draws at all is `showTaskProgressBadges` (on by default),
 // and how it draws — a typographic "done/total" fraction or a pie chart — is
@@ -22,6 +28,8 @@ export function registerTasks() {
       'tasks:clear-branch-done': clearBranchDone,
       'tasks:filter-todo': filterBranchTasks('not @done', 'Todo Tasks'),
       'tasks:filter-done': filterBranchTasks('@done', 'Done Tasks'),
+      'tasks:archive-done': archiveDone,
+      'tasks:archive-branch-done': archiveBranchDone,
     },
   })
 
@@ -94,8 +102,9 @@ function installBadge(): Disposable | undefined {
       const done = tasks.filter((task) => task.getAttribute('done') != null).length
       // Every item is a `command:` id — the menu picks WHICH commands to offer
       // and when they're enabled, and the commands themselves own the doing.
-      // The two filters scope to the clicked row because the click selects it
-      // (they read the selection, same as the two branch commands).
+      // Every item here scopes to the clicked row because the click selects it —
+      // the filters, the branch done commands and the branch archive all read
+      // the selection, not this `row`.
       editor.showMenu({ row, anchor: 'tasks' }, {
         items: [
           { type: 'button', id: 'command:tasks:filter-todo', title: 'Filter not @done' },
@@ -103,6 +112,17 @@ function installBadge(): Disposable | undefined {
           { type: 'separator' },
           { type: 'button', id: 'command:tasks:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: done !== tasks.length },
           { type: 'button', id: 'command:tasks:clear-branch-done', title: 'Clear Branch Tasks Done', enabled: done !== 0 },
+          { type: 'separator' },
+          // The `done` count above is TASKS done, and archiving takes any @done
+          // row — so this asks the archive command's own helper what it would
+          // move rather than reusing that number. Same answer as the command,
+          // so the item can't be enabled when the command would decline.
+          {
+            type: 'button',
+            id: 'command:tasks:archive-branch-done',
+            title: 'Archive Branch Done',
+            enabled: doneRowsToArchive(editor.outline, [row]).length > 0,
+          },
         ],
       })
     },
@@ -150,6 +170,89 @@ function clearBranchDone({ editor, selection }: CommandContext): boolean {
   })
   return true
 }
+
+// Move every done row in the outline into its Archive, creating the Archive if
+// it doesn't exist yet.
+function archiveDone({ editor }: CommandContext): boolean {
+  if (!editor) return false
+  return archiveInto(editor.outline, doneRowsToArchive(editor.outline))
+}
+
+// The same sweep over the selected rows' branches only — what the badge menu
+// offers, where the clicked row is the branch whose progress is being reported.
+function archiveBranchDone({ editor, selection }: CommandContext): boolean {
+  const rows = selection?.rows ?? []
+  if (!editor || rows.length === 0) return false
+  return archiveInto(editor.outline, doneRowsToArchive(editor.outline, rows))
+}
+
+// The rows an archive command would move: everything carrying `done` that isn't
+// in the Archive already, narrowed to the branches under `scope` when given.
+//
+// Any @done row, not just tasks — a checked-off note is finished work too, and
+// leaving it behind while its siblings archive would strand it. (This is the one
+// place the feature looks past `.task`; the summaries and the two branch done
+// commands stay task-only, because those measure task PROGRESS.)
+//
+// DESCENDANTS, not descendantsWithSelf, for a scope: the clicked row is the
+// container the badge reports on, so archiving it would make the row you just
+// clicked vanish. Same targeting as `filterBranchTasks` above, whose path
+// `//@id = "…"//task` is likewise descendants-only.
+function doneRowsToArchive(outline: Outline, scope?: Row[]): Row[] {
+  const archiveId = outline.getRowById(ARCHIVE_ID)?.id
+  const candidates = scope
+    ? scope.flatMap((row) => row.descendants).filter((row) => row.getAttribute('done') != null)
+    : // `except //@id = archive//*` does the archive exclusion natively rather
+      // than walking every row in the document across the JS bridge; the JS
+      // filters below still run, and are no-ops for what this already dropped.
+      (outline.query(`//@done except //@id = ${ARCHIVE_ID}//*`).value as Row[])
+
+  // Row objects are wrappers over native rows and aren't identity-stable across
+  // bridge calls, so every comparison here is by `id` — same reason
+  // `branchTasks` dedupes on ids.
+  const seen = new Set<number>()
+  const done = candidates.filter(
+    (row) =>
+      row.id !== archiveId &&
+      !row.ancestors.some((ancestor) => ancestor.id === archiveId) &&
+      !seen.has(row.id) &&
+      (seen.add(row.id), true)
+  )
+
+  // Outermost only. A done row nested under another done row rides along inside
+  // its branch; moving both would lift the child out to sit BESIDE its parent in
+  // the Archive, flattening the branch. Rows that aren't done but hang under one
+  // that is travel with it too — that's what archiving a finished branch means.
+  return done.filter((row) => !row.ancestors.some((ancestor) => seen.has(ancestor.id)))
+}
+
+// Move `rows` into the Archive in one undo step, or decline.
+//
+// Declining on an empty set is the house contract (see ./helpers): no empty
+// transaction on the undo stack, and false lets a keybinding fall through. It
+// also means an archive sweep with nothing to sweep never leaves a bare Archive
+// row behind, since the row is created inside the transaction.
+function archiveInto(outline: Outline, rows: Row[]): boolean {
+  if (rows.length === 0) return false
+  outline.transaction({ label: 'Archive Done', animate: 'default' }, () => {
+    // No `before`, so successive sweeps stack at the end of the Archive.
+    outline.moveRows(rows, ensureArchiveRow(outline))
+  })
+  return true
+}
+
+// The outline's Archive row, created as the last child of root when missing.
+//
+// Keyed by persistent id, not by its text: the row is the user's to rename, move
+// and refile, and it stays the Archive through all of it.
+function ensureArchiveRow(outline: Outline): Row {
+  return (
+    outline.getRowById(ARCHIVE_ID) ??
+    outline.insertRows([{ persistentId: ARCHIVE_ID, text: 'Archive' }], outline.root)[0]
+  )
+}
+
+const ARCHIVE_ID = 'archive'
 
 // Every task row in the branches rooted at `rows`, deduplicated so nested or
 // overlapping selections don't visit a task twice.
