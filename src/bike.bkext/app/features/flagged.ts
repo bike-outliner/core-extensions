@@ -53,7 +53,7 @@ export function registerFlagged() {
       ) as Record<string, CommandDefinition>,
       'flagged:clear': clearAttributeOnSelection('flagged', 'Clear Flagged'),
       'flagged:filter': filterCommand({
-        path: '//(@flagged and not @done)',
+        path: '//(@flagged and open())',
         label: 'Flagged',
         emptyTitle: 'No Flagged Items',
         emptyMessage: 'There are no flagged items that have not been completed.',
@@ -63,14 +63,14 @@ export function registerFlagged() {
 
   bike.badge('flagged', {
     where: '.@flagged',
-    inputs: { flagged: '@flagged', done: '@done' },
+    inputs: { flagged: '@flagged', closed: 'closed()' },
     // A completed row's flag drops its color and fades to the same alpha the
     // due badge fades its label to — the attention it was asking for has been
     // paid; only open rows fly a colored flag.
     render: (values, env) =>
       Image.fromSymbol(
         new SymbolConfiguration('flag.fill')
-          .withHierarchicalColor(values['done'] != null ? env.color.alphaSet(0.3) : tint(values['flagged'] ?? '', env))
+          .withHierarchicalColor(values['closed'] === 'true' ? env.color.alphaSet(0.3) : tint(values['flagged'] ?? '', env))
           .withFont(env.font)
       ),
     // The built-in attribute menu for @flagged, at this badge's glyph.

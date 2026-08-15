@@ -46,7 +46,7 @@ export function registerDue() {
       'due:clear': clearAttributeOnSelection('due', 'Clear Due'),
       // Every OPEN due item — rows with @due that aren't checked off.
       'due:filter': filterCommand({
-        path: '//(@due and not @done)',
+        path: '//(@due and open())',
         label: 'Due',
         emptyTitle: 'No Due Items',
         emptyMessage: 'There are no due items that have not been completed.',
@@ -56,7 +56,7 @@ export function registerDue() {
 
   bike.badge('due', {
     where: '.@due',
-    inputs: { due: '@due', done: '@done' },
+    inputs: { due: '@due', closed: 'closed()' },
     // Relative labels depend on the wall clock, not just the row's value —
     // tick supplies env.now so "Tomorrow" rolls over to "Today" at midnight.
     // Once a minute is plenty for a date label (it catches the rollover within
@@ -71,10 +71,10 @@ export function registerDue() {
 
       const now = new Date((env.now ?? 0) * 1000)
       const dayDiff = due ? dayDiffFromToday(due, now) : 0
-      const done = values['done'] != null
+      const done = values['closed'] === 'true'
       // Urgency tint for OPEN items: red when due today or overdue, orange
       // when due tomorrow or "soon" (a valueless @due — due, no date yet).
-      // A @done row's due is history — it keeps the row's inherited color
+      // A closed row's due is history — it keeps the row's inherited color
       // no matter the date.
       const urgency = done ? 'later' : !due ? 'soon' : dueUrgency(dayDiff)
       const color =
@@ -103,7 +103,7 @@ export function registerDue() {
 
 // The date-only wire form for the local day `offset` days from now, through
 // the shared codec (a valid Date always encodes, hence the `!`). No
-// `{ time: true }` — that flag belongs to `doneStamp`, which stamps an
+// `{ time: true }` — that flag belongs to a log entry's stamp, which marks an
 // instant; a due DAY is a calendar day.
 function dayStamp(offset: number): string {
   const day = new Date()

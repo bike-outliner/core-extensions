@@ -86,11 +86,14 @@ function registerBadge() {
       // Every attribute hidden (or none to begin with) draws nothing at
       // all — no glyph and no reserved slot.
       if (names.length === 0) return null
-      // `done` is claimed (it renders as row styling), but it's still in
-      // the attribute map — on a done row every tag fades to its border's
-      // alpha, the same treatment the feature badges give theirs, so no
-      // tag ever reads as live work on a checked row.
-      const done = values['done'] != null
+      // `status` is claimed (the checkbox and the status badge present it),
+      // but it's still in the attribute map — and this badge reads the row's
+      // OWN attributes rather than path inputs, so it asks the map directly
+      // instead of calling `closed()`. On a closed row every tag fades to its
+      // border's alpha, the same treatment the feature badges give theirs, so
+      // no tag ever reads as live work on a finished row.
+      const status = values['status']
+      const done = status === 'done' || status === 'canceled'
       const badges = names.flatMap((name) => {
         const image = badgeImage(name, values[name] ?? '', done, env)
         return image ? [{ key: name, image }] : []

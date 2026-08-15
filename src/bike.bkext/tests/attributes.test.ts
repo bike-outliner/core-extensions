@@ -118,9 +118,9 @@ describe('bike.attribute registration', () => {
         assert(owned, 'registered definition should be reported')
         assert.equal(owned!.defaultBadge, false)
         // Core definitions report too, with their explicit flags.
-        const done = snapshots[0].find((info) => info.name === 'done')
-        assert(done, 'done definition should be reported')
-        assert.equal(done!.defaultBadge, false)
+        const status = snapshots[0].find((info) => info.name === 'status')
+        assert(status, 'status definition should be reported')
+        assert.equal(status!.defaultBadge, false)
 
         disposable.dispose()
         assert(snapshots.length >= 2, 'disposal should re-emit')
@@ -157,8 +157,8 @@ describe('bike.attribute registration', () => {
             'absent metadata resolves to {}'
         )
 
-        // Core's `done` carries the calendar opt-out.
-        assert.equal(byName.get('done')!.metadata['calendar'], false)
+        // Core's `status` carries the calendar opt-out.
+        assert.equal(byName.get('status')!.metadata['calendar'], false)
 
         observer.dispose()
         tagged.dispose()
@@ -246,20 +246,21 @@ describe('default attribute set', () => {
         const observer = bike.observeAttributes((infos) => (latest = infos))
         const byName = new Map(latest.map((info) => [info.name, info]))
 
-        assert.equal(byName.get('done')?.type, 'date')
-        assert.equal(byName.get('done')?.defaultBadge, false)
-        assert.equal(byName.get('done')?.emptyLabel, 'Done')
+        assert.equal(byName.get('status')?.type, 'choice')
+        assert.equal(byName.get('status')?.defaultBadge, false)
         assert.equal(byName.get('due')?.type, 'date')
         assert.equal(byName.get('due')?.defaultBadge, false)
         assert.equal(byName.get('due')?.emptyLabel, 'Soon')
         // priority is a closed set — a choice, not a number.
         assert.equal(byName.get('priority')?.type, 'choice')
         assert.equal((byName.get('priority')! as any).choices.map((c: any) => c.value).join(','), '1,2,3')
-        // The calendar shows every `date` attribute; done opts out (a
+        // The calendar shows every `date` attribute; the log's opts out (a
         // completion stamp is history, not schedule), due doesn't. Done also
         // opts out of the context menu's attribute group — Toggle Done owns it.
-        assert.equal(byName.get('done')?.metadata['calendar'], false)
-        assert.equal(byName.get('done')?.metadata['contextMenu'], false)
+        assert.equal(byName.get('status')?.metadata['calendar'], false)
+        assert.equal(byName.get('status')?.metadata['contextMenu'], false)
+        assert.equal(byName.get('date')?.metadata['calendar'], false)
+        assert.equal(byName.get('duration')?.metadata['calendar'], false)
         assert.equal(byName.get('due')?.metadata['calendar'], undefined)
         assert.equal(byName.get('estimate')?.type, 'duration')
         // flagged is a closed set of the seven Mail colors, in Mail's order,

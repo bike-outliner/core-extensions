@@ -31,7 +31,7 @@ export function registerPriority() {
       'priority:3': setAttributeOnSelection('priority', '3', 'Set Priority'),
       'priority:clear': clearAttributeOnSelection('priority', 'Clear Priority'),
       'priority:filter': filterCommand({
-        path: '//(@priority and not @done)',
+        path: '//(@priority and open())',
         label: 'Priority',
         emptyTitle: 'No Prioritized Items',
         emptyMessage: 'There are no prioritized items that have not been completed.',
@@ -41,9 +41,9 @@ export function registerPriority() {
 
   bike.badge('priority', {
     where: '.@priority',
-    inputs: { priority: '@priority', done: '@done' },
+    inputs: { priority: '@priority', closed: 'closed()' },
     render: (values, env) => {
-      const done = values['done'] != null
+      const done = values['closed'] === 'true'
       // A drawn number tag on the full badge-metrics recipe (fontSize +
       // padding size the tag, stroke/radius draw its border) — the same
       // recipe as the due badge's tag, so the two read as one family.

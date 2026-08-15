@@ -81,15 +81,15 @@ describe("Flagged commands", () => {
         editor.selectRows(rows[2])
         assert.equal(bike.commands.performCommand("flagged:purple", { editor }), true)
         // The exact path `flagged:filter` filters on.
-        const open = outline.query('//(@flagged and not @done)') as { type: string; value: any[] }
+        const open = outline.query('//(@flagged and open())') as { type: string; value: any[] }
         assert.equal(open.type, "elements")
         assert.equal(open.value.length, 1)
         // A completed row's flag is history — the filter drops it.
-        outline.transaction({ label: "finish" }, () => rows[2].setAttribute("done", ""))
-        const afterDone = outline.query('//(@flagged and not @done)') as { type: string; value: any[] }
+        outline.transaction({ label: "finish" }, () => rows[2].setAttribute("status", "done"))
+        const afterDone = outline.query('//(@flagged and open())') as { type: string; value: any[] }
         assert.equal(afterDone.value.length, 0)
         outline.transaction({ label: "teardown" }, () => {
-            rows[2].removeAttribute("done")
+            rows[2].removeAttribute("status")
             rows[2].removeAttribute("flagged")
         })
     })

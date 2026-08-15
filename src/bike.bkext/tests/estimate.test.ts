@@ -1,4 +1,4 @@
-// The remaining-estimate summaries are duration-TYPED: they sum not-done
+// The remaining-estimate summaries are duration-TYPED: they sum open
 // estimates in the native duration encoding and re-emit wire ISO, which the
 // localizable native formatter can display directly. Two axes for two jobs:
 // `remainingestimate` (descendant-or-self) is the Σ badge's VALUE — the
@@ -36,14 +36,14 @@ describe("Estimate commands", () => {
 
     it("the filter path counts open estimated items only", () => {
         const rows = outline.root.children
-        const path = "//(@estimate and not @done)"
+        const path = "//(@estimate and open())"
         outline.transaction({ label: "seed" }, () => rows[0].setAttribute("estimate", "PT1H"))
         assert.equal((outline.query(`count(${path})`) as { value: number }).value, 1)
         // Done work is spent, not remaining — the same split the summaries make.
-        outline.transaction({ label: "finish" }, () => rows[0].setAttribute("done", ""))
+        outline.transaction({ label: "finish" }, () => rows[0].setAttribute("status", "done"))
         assert.equal((outline.query(`count(${path})`) as { value: number }).value, 0)
         outline.transaction({ label: "teardown" }, () => {
-            rows[0].removeAttribute("done")
+            rows[0].removeAttribute("status")
             rows[0].removeAttribute("estimate")
         })
     })
@@ -78,11 +78,11 @@ describe("Estimate remaining summaries", () => {
         project.setAttribute("estimate", "PT15M")
         one.setAttribute("estimate", "PT1H")
         two.setAttribute("estimate", "PT30M")
-        two.setAttribute("done", "2026-07-28T12:00:00Z")
+        two.setAttribute("status", "done")
     })
 
     it("summary('remainingestimate') totals the branch's open estimates, as wire ISO", async () => {
-        // Project's own PT15M and One's PT1H count; done Two's PT30M is
+        // Project's own PT15M and One's PT1H count; closed Two's PT30M is
         // spent, not remaining.
         await eventually(() => {
             const result = outline.query('summary("remainingestimate")') as { type: string; value: string }
@@ -113,8 +113,8 @@ describe("Estimate remaining summaries", () => {
 
     it("drains to nothing once the branch completes (the badge gate closes)", async () => {
         outline.transaction({ label: "finish" }, () => {
-            project.setAttribute("done", "2026-07-28T13:00:00Z")
-            one.setAttribute("done", "2026-07-28T13:00:00Z")
+            project.setAttribute("status", "done")
+            one.setAttribute("status", "done")
         })
         // query() rejects top-level comparisons, so read the seconds and
         // apply the badge's gate here — an empty emission reads as NaN, a

@@ -30,14 +30,14 @@ describe("Task commands", () => {
     it("registers the branch commands", () => {
         const commands = bike.commands.toString()
         assert(commands.includes("tasks:mark-branch-done"), "should register mark-branch-done")
-        assert(commands.includes("tasks:clear-branch-done"), "should register clear-branch-done")
-        assert(commands.includes("tasks:filter-todo"), "should register filter-todo")
-        assert(commands.includes("tasks:filter-done"), "should register filter-done")
-        assert(commands.includes("tasks:archive-done"), "should register archive-done")
-        assert(commands.includes("tasks:archive-branch-done"), "should register archive-branch-done")
+        assert(commands.includes("tasks:reopen-branch"), "should register reopen-branch")
+        assert(commands.includes("tasks:filter-open"), "should register filter-open")
+        assert(commands.includes("tasks:filter-closed"), "should register filter-closed")
+        assert(commands.includes("tasks:archive-closed"), "should register archive-closed")
+        assert(commands.includes("tasks:archive-branch-closed"), "should register archive-branch-closed")
     })
 
-    // NO behavioral test for `tasks:filter-todo` / `tasks:filter-done`
+    // NO behavioral test for `tasks:filter-open` / `tasks:filter-closed`
     // yet. Any test that actually applies one of them to this editor makes a
     // LATER session test crash the app: IPCMethods.editorSnapshot sorts
     // `editor.collapsed` through `outline.compare`, which force-unwraps
@@ -53,14 +53,10 @@ describe("Task commands", () => {
         const tasks = project.children.filter((row) => row.type === "task")
         assert.equal(tasks.length, 2)
         for (const task of tasks) {
-            const done = task.getAttribute("done")
-            assert(done != null, "task should be stamped done")
-            // Same stamp shape as native Toggle Done: ISO-8601 UTC, no
-            // fractional seconds.
-            assert(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(done!), "done stamp should be ISO-8601 UTC: " + done)
+            assert.equal(task.getAttribute("status"), "done", "task should be marked done")
         }
         const note = project.children.find((row) => row.type === "body")!
-        assert(note.getAttribute("done") == null, "non-task rows should be untouched")
+        assert(note.getAttribute("status") == null, "non-task rows should be untouched")
     })
 
     it("mark done is a no-op when everything is already done", () => {
@@ -69,19 +65,30 @@ describe("Task commands", () => {
         assert.equal(bike.commands.performCommand("tasks:mark-branch-done", { editor }), false)
     })
 
-    it("marks the branch undone", () => {
+    it("reopens the branch", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("tasks:clear-branch-done", { editor }), true)
+        assert.equal(bike.commands.performCommand("tasks:reopen-branch", { editor }), true)
         for (const task of project.children.filter((row) => row.type === "task")) {
-            assert(task.getAttribute("done") == null, "done should be removed")
+            assert(task.getAttribute("status") == null, "status should be removed")
         }
     })
 
-    it("mark undone is a no-op when nothing is done", () => {
+    it("reopen is a no-op when nothing is closed", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("tasks:clear-branch-done", { editor }), false)
+        assert.equal(bike.commands.performCommand("tasks:reopen-branch", { editor }), false)
+    })
+
+    it("leaves canceled tasks alone when marking a branch done", () => {
+        // Canceled is closed, and marking it done would silently reclassify
+        // a decision the user made.
+        const project = outline.root.firstChild!
+        const task = project.children.find((row) => row.type === "task")!
+        outline.transaction({ label: "cancel" }, () => task.setAttribute("status", "canceled"))
+        editor.selectRows(project)
+        bike.commands.performCommand("tasks:mark-branch-done", { editor })
+        assert.equal(task.getAttribute("status"), "canceled")
     })
 })
 
@@ -91,17 +98,17 @@ function texts(rows: { text: { string: string } }[]): string {
     return rows.map((row) => row.text.string).join(", ")
 }
 
-describe("Archive done", () => {
+describe("Archive closed", () => {
     const editor = bike.testEditor()
     const outline = editor.outline
 
     // Project
-    //   Task One @done
+    //   Task One      done
     //   Task Two
-    //   Note @done          <- not a task, still finished work
-    //   Task Three @done
-    //     Subtask @done     <- nested done, must ride along inside its parent
-    //     Loose End         <- not done, travels with the archived branch
+    //   Note          done      <- not a task, still finished work
+    //   Task Three    canceled  <- closed, however it ended
+    //     Subtask     done      <- nested, must ride along inside its parent
+    //     Loose End             <- open, travels with the archived branch
     outline.transaction({ label: "setup" }, () => {
         const [project] = outline.insertRows(["Project"], outline.root)
         const [one, , note, three] = outline.insertRows(
@@ -120,10 +127,11 @@ describe("Archive done", () => {
             ],
             three
         )
-        one.setAttribute("done", "")
-        note.setAttribute("done", "")
-        three.setAttribute("done", "")
-        subtask.setAttribute("done", "")
+        one.setAttribute("status", "done")
+        note.setAttribute("status", "done")
+        // Canceled archives too — the sweep is about closed, not completed.
+        three.setAttribute("status", "canceled")
+        subtask.setAttribute("status", "done")
     })
 
     it("declines and creates nothing when the branch has nothing done", () => {
@@ -132,14 +140,14 @@ describe("Archive done", () => {
             outline.insertRows([{ text: "Other" }], outline.root)
         )
         editor.selectRows(other)
-        assert.equal(bike.commands.performCommand("tasks:archive-branch-done", { editor }), false)
+        assert.equal(bike.commands.performCommand("tasks:archive-branch-closed", { editor }), false)
         assert(outline.getRowById("archive") == null, "no Archive row should exist yet")
     })
 
     it("archives the branch's done rows, outermost only", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("tasks:archive-branch-done", { editor }), true)
+        assert.equal(bike.commands.performCommand("tasks:archive-branch-closed", { editor }), true)
 
         const archive = outline.getRowById("archive")
         assert(archive, "Archive row should have been created")
@@ -167,10 +175,10 @@ describe("Archive done", () => {
     it("is a no-op once everything done is already in the Archive", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("tasks:archive-branch-done", { editor }), false)
+        assert.equal(bike.commands.performCommand("tasks:archive-branch-closed", { editor }), false)
         editor.selectRows(outline.getRowById("archive")!)
-        assert.equal(bike.commands.performCommand("tasks:archive-branch-done", { editor }), false)
-        assert.equal(bike.commands.performCommand("tasks:archive-done", { editor }), false)
+        assert.equal(bike.commands.performCommand("tasks:archive-branch-closed", { editor }), false)
+        assert.equal(bike.commands.performCommand("tasks:archive-closed", { editor }), false)
     })
 
     it("reuses the existing Archive and sweeps the whole outline", () => {
@@ -181,12 +189,12 @@ describe("Archive done", () => {
         // Done rows in two different branches — the whole-outline command takes
         // both, where the branch command would only have taken Project's.
         outline.transaction({ label: "setup" }, () => {
-            project.firstChild!.setAttribute("done", "")
+            project.firstChild!.setAttribute("status", "done")
             const [elsewhere] = outline.insertRows([{ type: "task", text: "Elsewhere" }], outline.root)
-            elsewhere.setAttribute("done", "")
+            elsewhere.setAttribute("status", "done")
         })
 
-        assert.equal(bike.commands.performCommand("tasks:archive-done", { editor }), true)
+        assert.equal(bike.commands.performCommand("tasks:archive-closed", { editor }), true)
 
         const archive = outline.getRowById("archive")!
         assert.equal(archive.id, archiveBefore.id, "should reuse the existing Archive, not make a second")
@@ -202,7 +210,7 @@ describe("Archive done", () => {
     })
 
     it("declines on the whole outline when nothing is left to archive", () => {
-        assert.equal(bike.commands.performCommand("tasks:archive-done", { editor }), false)
+        assert.equal(bike.commands.performCommand("tasks:archive-closed", { editor }), false)
     })
 })
 
@@ -238,13 +246,13 @@ describe("Task summaries", () => {
     })
 
     it("summary('done') counts task rows only", async () => {
-        // A non-task row marked @done is completion history, not task
+        // A non-task row that is closed is completion history, not task
         // progress — it must not push done past total in the badge fraction.
         const project = outline.root.firstChild!
         outline.transaction({ label: "setup" }, () => {
             const [note] = outline.insertRows(["S Note"], project)
-            note.setAttribute("done", "")
-            project.firstChild!.setAttribute("done", "")
+            note.setAttribute("status", "done")
+            project.firstChild!.setAttribute("status", "done")
         })
         await eventually(() => {
             const result = outline.query('summary("done")') as { type: string; value: number }
@@ -252,7 +260,7 @@ describe("Task summaries", () => {
         })
         outline.transaction({ label: "teardown" }, () => {
             outline.removeRows([project.lastChild!])
-            project.firstChild!.removeAttribute("done")
+            project.firstChild!.removeAttribute("status")
         })
         await eventually(() => {
             const result = outline.query('summary("done")') as { type: string; value: number }

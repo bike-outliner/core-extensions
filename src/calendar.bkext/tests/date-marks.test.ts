@@ -12,7 +12,7 @@ import {
   dayMarkTooltip,
   dayMarkVariant,
   dueUrgency,
-  isDone,
+  isClosed,
   isSafeAttributeName,
   parseDateValue,
   rowDisplayText,
@@ -132,7 +132,7 @@ describe('dateAttributesFrom', () => {
   it('drops metadata.calendar === false (that is done)', () => {
     const attributes = dateAttributesFrom([
       { name: 'due', title: 'Due', type: 'date', metadata: {} },
-      { name: 'done', title: 'Done', type: 'date', metadata: { calendar: false } },
+      { name: 'date', title: 'Date', type: 'date', metadata: { calendar: false } },
       // Any other metadata is opaque — it must not exclude anything.
       { name: 'start', title: 'Start', type: 'date', metadata: { calendar: true, other: 'x' } },
     ])
@@ -274,9 +274,9 @@ describe('bucketByDay', () => {
   })
 
   it('ignores attributes outside the names list', () => {
-    // The done-exclusion guard: `done` is a date attribute, but it is not
-    // in `names`, so a completed row is not placed on its completion day.
-    const buckets = bucketByDay([row({ done: '2026-07-16', due: '2026-07-20' })], ['due'])
+    // The log-exclusion guard: `date` is a date attribute, but it is not in
+    // `names`, so a row is not placed on the day of its history.
+    const buckets = bucketByDay([row({ date: '2026-07-16', due: '2026-07-20' })], ['due'])
     assert.equal(buckets.has('2026-07-16'), false)
     assert.equal(buckets.get('2026-07-20')!.length, 1)
   })
@@ -321,8 +321,8 @@ describe('sortAgendaHits', () => {
 })
 
 describe('dayMarkVariant', () => {
-  const hit = (attribute: string, done = false): DateHit => ({
-    row: { attributes: done ? { done: '' } : {}, text: [] },
+  const hit = (attribute: string, closed = false): DateHit => ({
+    row: { attributes: closed ? { status: 'done' } : {}, text: [] },
     attribute,
     value: parseDateValue('2026-07-16')!,
   })
@@ -371,15 +371,16 @@ describe('dayMarkTooltip', () => {
   })
 })
 
-describe('isDone', () => {
-  it('is true when @done is present, even with an empty value', () => {
-    assert.equal(isDone({ attributes: { done: '' }, text: [] }), true)
-    assert.equal(isDone({ attributes: { done: '2026-07-16' }, text: [] }), true)
+describe('isClosed', () => {
+  it('is true for both closed states', () => {
+    assert.equal(isClosed({ attributes: { status: 'done' }, text: [] }), true)
+    assert.equal(isClosed({ attributes: { status: 'canceled' }, text: [] }), true)
   })
 
-  it('is false when @done is absent', () => {
-    assert.equal(isDone({ attributes: { due: '2026-07-16' }, text: [] }), false)
-    assert.equal(isDone({ text: [] }), false)
+  it('is false for open states and for no status at all', () => {
+    assert.equal(isClosed({ attributes: { status: 'started' }, text: [] }), false)
+    assert.equal(isClosed({ attributes: { due: '2026-07-16' }, text: [] }), false)
+    assert.equal(isClosed({ text: [] }), false)
   })
 })
 

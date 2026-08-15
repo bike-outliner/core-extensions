@@ -10,7 +10,7 @@ export async function activate(context: AppExtensionContext) {
 
   // Every attribute registered with `type: 'date'` shows on the calendar —
   // `due` and `start` today, whatever an extension adds tomorrow — minus
-  // the ones opting out with `metadata: { calendar: false }` (`done`).
+  // the ones opting out with `metadata: { calendar: false }` (`date`, the log's).
   //
   // Live, never a one-shot snapshot: extension activation order isn't
   // guaranteed, so the first fire can predate bike.bkext registering the

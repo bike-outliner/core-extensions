@@ -8,28 +8,38 @@
 // ./helpers, so a feature declares WHICH commands it offers rather than
 // re-implementing the same transaction and selection guard each time.
 //
-// `done` is the one feature with no commands of its own, on purpose: native
-// Toggle Done (checkbox, Space, menu bar) already owns completing a row.
+// `status` is the one feature with no commands of its own, on purpose: the
+// native toggles (checkbox, Space, menu bar) already own changing a task's
+// state, as do the log and clock commands beside them.
 //
 // Three pieces can't live here, because an extension's contexts have separate
-// entry points: `done` renders as row styling (../../style/layer-formatting),
+// entry points: `status` renders as the checkbox and row styling
+// (../../style/layer-formatting),
 // `tasks` has a settings panel (../../dom/TasksSettings.tsx), and `due`'s badge
 // belongs to calendar.bkext, which presents it.
 //
 // The catch-all badge is NOT a feature — it renders whatever these don't
 // claim — so it lives in ../default-badge and registers after everything here.
 //
-// HOW FEATURES COMPOSE WITH `done`: a checked row is history, and every
-// feature treats it that way. Own-attribute badges keep rendering but drop
-// urgency/color and fade to their border's alpha (due, priority, flagged,
-// estimate — and the catch-all, so any other attribute gets it for free);
-// aggregates exclude done from what remains (estimate's remaining summary) or
-// measure completion itself (tasks); filters that mean "what needs doing"
-// exclude done (due:filter); and the calendar dims all-done days
-// (date-marks.ts). Subtree ROLLUP badges (tasks, estimateRemaining) do NOT
-// fade on a done row — they present the branch below, not the row's own state.
+// HOW FEATURES COMPOSE WITH THE OPEN/CLOSED SPLIT: a closed row — done or
+// canceled — is history, and every feature treats it that way. Own-attribute
+// badges keep rendering but drop urgency/color and fade to their border's
+// alpha (due, priority, flagged, estimate — and the catch-all, so any other
+// attribute gets it for free); aggregates exclude closed rows from what
+// remains (estimate's remaining summary) or measure completion itself
+// (tasks); filters that mean "what needs doing" say `open()` (due:filter);
+// and the calendar dims all-closed days (date-marks.ts). Subtree ROLLUP
+// badges (tasks, estimateRemaining) do NOT fade on a closed row — they
+// present the branch below, not the row's own state.
+//
+// Every one of those says `open()` or `closed()` rather than naming states.
+// That is the point of the category being native: adding a fifth state later
+// changes none of them.
+//
+// The `status` badge is the exception to the fade rule, and deliberately: it
+// exists to say "canceled", so fading it on a closed row would bury it.
 
-import { registerDone } from './done'
+import { registerStatus } from './status'
 import { registerDue } from './due'
 import { registerPriority } from './priority'
 import { registerEstimate } from './estimate'
@@ -37,7 +47,7 @@ import { registerFlagged } from './flagged'
 import { registerTasks } from './tasks'
 
 export function registerFeatures() {
-  registerDone()
+  registerStatus()
   registerDue()
   registerPriority()
   registerEstimate()

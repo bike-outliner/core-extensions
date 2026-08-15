@@ -99,13 +99,17 @@ export function dayDiffFromToday(date: Date, now: Date): number {
 }
 
 /**
- * Whether a row is checked off — the `done` attribute is present (its
- * value may legitimately be empty). Orthogonal to which date attributes the
- * calendar shows: this reads a row the query already returned, so `done`
- * staying OFF the calendar doesn't stop done rows from being dimmed.
+ * Whether a row is off the list — done or canceled. Paths say `closed()`;
+ * this is the copy for code holding a row object, and calendar.bkext bundles
+ * separately from bike.bkext so it needs its own.
+ *
+ * Orthogonal to which date attributes the calendar shows: this reads a row
+ * the query already returned, so `status` staying OFF the calendar doesn't
+ * stop closed rows from being dimmed.
  */
-export function isDone(row: DateRow): boolean {
-  return row.attributes?.['done'] != null
+export function isClosed(row: DateRow): boolean {
+  const status = row.attributes?.['status']
+  return status === 'done' || status === 'canceled'
 }
 
 export type DueUrgency = 'urgent' | 'soon' | 'later'
@@ -257,10 +261,10 @@ export type DayMarkVariant = DueUrgency | 'done'
  * deadline attribute: red when due today or overdue (an overdue item is a
  * fire whether or not the day is past), orange when due tomorrow. A day
  * placed only by non-deadline dates (a `start`) draws the neutral accent,
- * and a day whose rows are ALL @done is history, not a fire.
+ * and a day whose rows are ALL closed is history, not a fire.
  */
 export function dayMarkVariant(hits: readonly DateHit[], dayDiff: number): DayMarkVariant {
-  const open = hits.filter((hit) => !isDone(hit.row))
+  const open = hits.filter((hit) => !isClosed(hit.row))
   if (open.length === 0) return 'done'
   if (!open.some((hit) => hit.attribute === URGENCY_ATTRIBUTE)) return 'later'
   return dueUrgency(dayDiff)

@@ -11,7 +11,7 @@ import {
   bucketByDay,
   dateQueryPath,
   dayKey,
-  isDone,
+  isClosed,
   rowDisplayText,
   sortAgendaHits,
 } from './date-marks'
@@ -118,21 +118,24 @@ function AgendaPanel({ context }: { context: DOMExtensionContext<CalendarProtoco
         {agendaHits.length === 0 && <div className="calendar-agenda-empty">Nothing scheduled</div>}
         {agendaHits.map(({ row, attribute, value }) => {
           const time = agendaTimeLabel(value, bike.systemLocale)
-          const done = isDone(row)
+          const closed = isClosed(row)
           return (
             // A row carrying two date attributes lands on two days — and on
             // one day twice when they coincide — so the key is the pair.
             <div key={`${row.id}:${attribute}`} className="calendar-agenda-item">
               <SFSymbol
                 className="calendar-agenda-check"
-                name={done ? 'checkmark.square' : 'square'}
-                // Toggle the row's `done` attribute — the live query re-emits,
-                // flipping the checkbox. The codec's timestamp form matches
-                // native Toggle Done by construction; null removes it.
+                // Binary, like the editor's checkbox: open or closed. A
+                // canceled row reads as checked here too — the distinction
+                // lives in the editor's status badge, not in this glyph.
+                name={closed ? 'checkmark.square' : 'square'}
+                // The live query re-emits, flipping the checkbox. Removing
+                // `status` returns the row to todo; there is no timestamp to
+                // write, because completion times live in the log now.
                 onClick={() =>
                   bike.session.updateRows({
                     rows: [row.id],
-                    attributes: { done: done ? null : bike.encodeValue('date', new Date(), { time: true })! },
+                    attributes: { status: closed ? null : 'done' },
                   })
                 }
               />

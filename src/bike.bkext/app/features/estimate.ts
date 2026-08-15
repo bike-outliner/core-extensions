@@ -29,7 +29,7 @@ export function registerEstimate() {
       // Estimated work still to do — the same not-done split the remaining
       // summaries below make.
       'estimate:filter': filterCommand({
-        path: '//(@estimate and not @done)',
+        path: '//(@estimate and open())',
         label: 'Estimated',
         emptyTitle: 'No Estimated Items',
         emptyMessage: 'There are no estimated items that have not been completed.',
@@ -52,14 +52,14 @@ export function registerEstimate() {
   // work *below* — and with typed emission the two can't be derived from
   // one another at a read site, hence two summaries.
   bike.summary('remainingestimate', {
-    where: '.@estimate and not @done',
+    where: '.@estimate and open()',
     value: '@estimate',
     reduce: 'sum',
     type: 'duration',
     axis: 'descendant-or-self',
   })
   bike.summary('remainingbelow', {
-    where: '.@estimate and not @done',
+    where: '.@estimate and open()',
     value: '@estimate',
     reduce: 'sum',
     type: 'duration',
@@ -68,13 +68,13 @@ export function registerEstimate() {
 
   bike.badge('estimate', {
     where: '.@estimate',
-    inputs: { estimate: '@estimate', done: '@done' },
+    inputs: { estimate: '@estimate', closed: 'closed()' },
     render: (values, env) => {
       const raw = values['estimate']
       // A valueless @estimate estimates nothing — draw no badge at all
       // (estimate is claimed, so the catch-all won't render it either).
       if (raw == null || raw === '') return null
-      const done = values['done'] != null
+      const done = values['closed'] === 'true'
       // The catch-all badge's recipe exactly (../default-badge), with "≈"
       // standing in for its "estimate:" prefix — so an estimate reads as one
       // of the generic tags, just shorter. Completed rows fade the text down

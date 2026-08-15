@@ -1,7 +1,7 @@
 import { CommandContext, Disposable, Image, Outline, Row, Text } from 'bike/app'
 import { taskDefaults } from '../../dom/protocols'
 import { pieImage } from '../pie-image'
-import { doneStamp } from './done'
+import { isClosed } from './status'
 
 // A "tasks" feature demonstrating subtree summaries: two incrementally
 // maintained branch aggregates (total tasks / done tasks below a row), consumed
@@ -25,25 +25,27 @@ export function registerTasks() {
   bike.commands.addCommands({
     commands: {
       'tasks:mark-branch-done': markBranchDone,
-      'tasks:clear-branch-done': clearBranchDone,
-      'tasks:filter-todo': filterBranchTasks('not @done', 'Todo Tasks'),
-      'tasks:filter-done': filterBranchTasks('@done', 'Done Tasks'),
-      'tasks:archive-done': archiveDone,
-      'tasks:archive-branch-done': archiveBranchDone,
+      'tasks:reopen-branch': reopenBranch,
+      'tasks:filter-open': filterBranchTasks('open()', 'Open Tasks'),
+      'tasks:filter-closed': filterBranchTasks('closed()', 'Closed Tasks'),
+      'tasks:archive-closed': archiveClosed,
+      'tasks:archive-branch-closed': archiveBranchClosed,
     },
   })
 
   bike.defaults.registerDefaults(taskDefaults)
 
   // Self-only contributions folded up every branch by `count`; read O(1) as
-  // `summary('...')` from the badge inputs below. Both count the SAME unit —
-  // task rows — so done can never exceed total: a non-task row marked @done
-  // (any row can be) is completion history, not task progress, and counting
-  // it would overfill the pie.
-  // (`.task @done` is type-then-predicate juxtaposition — a type token can't
-  // join a predicate with `and`, same grammar as the `//task not @done` filter.)
-  bike.summary('todo', { where: '.task', reduce: 'count' })
-  bike.summary('done', { where: '.task @done', reduce: 'count' })
+  // `summary('...')` from the badge inputs below. Both count task rows, so
+  // done can never exceed the total.
+  //
+  // Canceled tasks are in NEITHER: abandoned work is out of scope rather than
+  // complete, so seven tasks with three done and one canceled read "3 of 6".
+  // That is why the denominator is `open() + done` rather than every `.task`.
+  // (`.task open()` is type-then-predicate juxtaposition — a type token can't
+  // join a predicate with `and`.)
+  bike.summary('open', { where: '.task open()', reduce: 'count' })
+  bike.summary('done', { where: '.task @status = done', reduce: 'count' })
 
   // `render` memoizes on `env`, and the display mode isn't part of `env` — so a
   // runtime change from the Settings panel can't refresh already-drawn badges on
@@ -72,11 +74,13 @@ function installBadge(): Disposable | undefined {
     // every style pass, and is rejected at registration). A task LEAF's
     // subtree count is just itself, so tasks only show progress when they
     // contain further tasks (count > 1).
-    where: '.summary("todo") > 0 and ((not @type = task) or summary("todo") > 1)',
-    inputs: { done: 'summary("done")', total: 'summary("todo")' },
+    where: '.(summary("open") + summary("done")) > 0 and ((not @type = task) or (summary("open") + summary("done")) > 1)',
+    // The denominator is open + done rather than every task: a canceled task
+    // is out of scope, not complete, so it leaves the rollup entirely.
+    inputs: { done: 'summary("done")', open: 'summary("open")' },
     render: (values, env) => {
       const done = values['done'] ?? '0'
-      const total = values['total'] ?? '0'
+      const total = String(Number(values['open'] ?? '0') + Number(done))
       // The style is captured at registration, not read here: a change
       // re-registers (above), and reading it per row per style pass would be
       // work for a value that cannot have changed since.
@@ -99,7 +103,7 @@ function installBadge(): Disposable | undefined {
       // one-shot branch walk — cheap for a single click, and only needed
       // for the enabled: flags.
       const tasks = branchTasks([row])
-      const done = tasks.filter((task) => task.getAttribute('done') != null).length
+      const closed = tasks.filter((task) => isClosed(task)).length
       // Every item is a `command:` id — the menu picks WHICH commands to offer
       // and when they're enabled, and the commands themselves own the doing.
       // Every item here scopes to the clicked row because the click selects it —
@@ -107,21 +111,22 @@ function installBadge(): Disposable | undefined {
       // the selection, not this `row`.
       editor.showMenu({ row, anchor: 'tasks' }, {
         items: [
-          { type: 'button', id: 'command:tasks:filter-todo', title: 'Filter not @done' },
-          { type: 'button', id: 'command:tasks:filter-done', title: 'Filter @done' },
+          { type: 'button', id: 'command:tasks:filter-open', title: 'Filter Open' },
+          { type: 'button', id: 'command:tasks:filter-closed', title: 'Filter Closed' },
           { type: 'separator' },
-          { type: 'button', id: 'command:tasks:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: done !== tasks.length },
-          { type: 'button', id: 'command:tasks:clear-branch-done', title: 'Clear Branch Tasks Done', enabled: done !== 0 },
+          { type: 'button', id: 'command:tasks:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: closed !== tasks.length },
+          { type: 'button', id: 'command:tasks:reopen-branch', title: 'Reopen Branch Tasks', enabled: closed !== 0 },
           { type: 'separator' },
-          // The `done` count above is TASKS done, and archiving takes any @done
-          // row — so this asks the archive command's own helper what it would
-          // move rather than reusing that number. Same answer as the command,
-          // so the item can't be enabled when the command would decline.
+          // The `closed` count above is TASKS closed, and archiving takes any
+          // closed row — so this asks the archive command's own helper what it
+          // would move rather than reusing that number. Same answer as the
+          // command, so the item can't be enabled when the command would
+          // decline.
           {
             type: 'button',
-            id: 'command:tasks:archive-branch-done',
-            title: 'Archive Branch Done',
-            enabled: doneRowsToArchive(editor.outline, [row]).length > 0,
+            id: 'command:tasks:archive-branch-closed',
+            title: 'Archive Branch Closed',
+            enabled: closedRowsToArchive(editor.outline, [row]).length > 0,
           },
         ],
       })
@@ -145,67 +150,71 @@ function filterBranchTasks(predicate: string, label: string) {
   }
 }
 
-// Set `done` on every open task in the selected rows' branches, in one undo
-// step. Rows already done keep their original completion timestamps.
+// Mark every still-open task in the selected rows' branches done, in one undo
+// step. A canceled task counts as closed and is left alone — marking it done
+// would silently reclassify a decision the user made.
 function markBranchDone({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
-  const tasks = branchTasks(rows).filter((task) => task.getAttribute('done') == null)
+  const tasks = branchTasks(rows).filter((task) => !isClosed(task))
   if (tasks.length === 0) return false
-  const now = doneStamp()
   editor.outline.transaction({ label: 'Set Branch Done' }, () => {
-    for (const task of tasks) task.setAttribute('done', now)
+    for (const task of tasks) task.setAttribute('status', 'done')
   })
   return true
 }
 
-// Remove `done` from every task in the selected rows' branches.
-function clearBranchDone({ editor, selection }: CommandContext): boolean {
+// Reopen every closed task in the selected rows' branches — done or canceled
+// alike, since both mean "off the list" and this puts them back on it.
+function reopenBranch({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
-  const tasks = branchTasks(rows).filter((task) => task.getAttribute('done') != null)
+  const tasks = branchTasks(rows).filter((task) => isClosed(task))
   if (tasks.length === 0) return false
-  editor.outline.transaction({ label: 'Clear Branch Done' }, () => {
-    for (const task of tasks) task.removeAttribute('done')
+  editor.outline.transaction({ label: 'Reopen Branch' }, () => {
+    for (const task of tasks) task.removeAttribute('status')
   })
   return true
 }
 
-// Move every done row in the outline into its Archive, creating the Archive if
-// it doesn't exist yet.
-function archiveDone({ editor }: CommandContext): boolean {
+// Move every closed row in the outline into its Archive, creating the Archive
+// if it doesn't exist yet.
+function archiveClosed({ editor }: CommandContext): boolean {
   if (!editor) return false
-  return archiveInto(editor.outline, doneRowsToArchive(editor.outline))
+  return archiveInto(editor.outline, closedRowsToArchive(editor.outline))
 }
 
 // The same sweep over the selected rows' branches only — what the badge menu
 // offers, where the clicked row is the branch whose progress is being reported.
-function archiveBranchDone({ editor, selection }: CommandContext): boolean {
+function archiveBranchClosed({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
-  return archiveInto(editor.outline, doneRowsToArchive(editor.outline, rows))
+  return archiveInto(editor.outline, closedRowsToArchive(editor.outline, rows))
 }
 
-// The rows an archive command would move: everything carrying `done` that isn't
-// in the Archive already, narrowed to the branches under `scope` when given.
+// The rows an archive command would move: everything closed that isn't in the
+// Archive already, narrowed to the branches under `scope` when given.
 //
-// Any @done row, not just tasks — a checked-off note is finished work too, and
+// Any closed row, not just tasks — a checked-off note is finished work too, and
 // leaving it behind while its siblings archive would strand it. (This is the one
-// place the feature looks past `.task`; the summaries and the two branch done
+// place the feature looks past `.task`; the summaries and the two branch
 // commands stay task-only, because those measure task PROGRESS.)
+//
+// `closed()` is false for log rows, so a task's history rides along inside its
+// branch instead of being swept up beside it as a sibling.
 //
 // DESCENDANTS, not descendantsWithSelf, for a scope: the clicked row is the
 // container the badge reports on, so archiving it would make the row you just
 // clicked vanish. Same targeting as `filterBranchTasks` above, whose path
 // `//@id = "…"//task` is likewise descendants-only.
-function doneRowsToArchive(outline: Outline, scope?: Row[]): Row[] {
+function closedRowsToArchive(outline: Outline, scope?: Row[]): Row[] {
   const archiveId = outline.getRowById(ARCHIVE_ID)?.id
   const candidates = scope
-    ? scope.flatMap((row) => row.descendants).filter((row) => row.getAttribute('done') != null)
+    ? scope.flatMap((row) => row.descendants).filter((row) => isClosed(row))
     : // `except //@id = archive//*` does the archive exclusion natively rather
       // than walking every row in the document across the JS bridge; the JS
       // filters below still run, and are no-ops for what this already dropped.
-      (outline.query(`//@done except //@id = ${ARCHIVE_ID}//*`).value as Row[])
+      (outline.query(`//closed() except //@id = ${ARCHIVE_ID}//*`).value as Row[])
 
   // Row objects are wrappers over native rows and aren't identity-stable across
   // bridge calls, so every comparison here is by `id` — same reason

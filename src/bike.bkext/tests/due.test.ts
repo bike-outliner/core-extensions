@@ -69,13 +69,13 @@ describe("Due commands", () => {
         const rows = outline.root.children
         editor.selectRows(rows[0])
         bike.commands.performCommand("due:today", { editor })
-        const path = "//(@due and not @done)"
+        const path = "//(@due and open())"
         assert.equal((outline.query(`count(${path})`) as { value: number }).value, 1)
         // A completed row's due is history.
-        outline.transaction({ label: "finish" }, () => rows[0].setAttribute("done", ""))
+        outline.transaction({ label: "finish" }, () => rows[0].setAttribute("status", "done"))
         assert.equal((outline.query(`count(${path})`) as { value: number }).value, 0)
         outline.transaction({ label: "teardown" }, () => {
-            rows[0].removeAttribute("done")
+            rows[0].removeAttribute("status")
             rows[0].removeAttribute("due")
         })
     })

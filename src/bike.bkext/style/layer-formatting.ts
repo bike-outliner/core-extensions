@@ -79,15 +79,25 @@ export function registerFormattingLayers(style: EditorStyle) {
       listMark(context, row, symbolImage('square', row.text.color, row.text.font), 'row:toggle-done')
     })
 
-    row(`.@done`, (context, row) => {
+    // Closed is closed however it ended — done and canceled read the same
+    // here, and the status badge carries which.
+    row(`.closed()`, (context, row) => {
       row.text.strikethrough.thick = true
       row.text.strikethrough.color = row.text.color//.alphaSet(0.5)
     })
 
-    row(`.task @done`, (context, row) => {
+    // The checkbox stays BINARY: one bit, "is this off my list". The two
+    // extra states ride a badge rather than more glyphs, so this stays a
+    // single override of the mark declared by `.task` above.
+    row(`.task closed()`, (context, row) => {
       row.text.decoration('mark', (mark, _) => {
         mark.contents.image = symbolImage('checkmark.square', row.text.color, row.text.font)
       })
+    })
+
+    // A log entry is a record about the row above it, not content of its own.
+    row(`.log`, (context, row) => {
+      context.theme.rows.log.apply(row.text)
     })
 
     row(`.hr`, (context, row) => {
