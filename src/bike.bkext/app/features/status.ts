@@ -14,18 +14,22 @@ import { Image, Text } from 'bike/app'
 // `task:toggle-started`, and the log/clock pair) because the checkbox, the
 // Space key, and the sort-completed-to-end behavior are all native.
 
+// The whole task vocabulary, shared by `status` (a row's own state) and
+// `log-status` (a state an entry records), so the two can never drift.
+const STATUS_CHOICES = [
+  { name: 'Todo', value: 'todo' },
+  { name: 'Started', value: 'started' },
+  { name: 'Done', value: 'done' },
+  { name: 'Canceled', value: 'canceled' },
+]
+
 export function registerStatus() {
   bike.attribute('status', {
     title: 'Status',
     // Closed: these four are the whole vocabulary, and `open()`/`closed()`
     // are defined over exactly them.
     type: 'choice',
-    choices: [
-      { name: 'Todo', value: 'todo' },
-      { name: 'Started', value: 'started' },
-      { name: 'Done', value: 'done' },
-      { name: 'Canceled', value: 'canceled' },
-    ],
+    choices: STATUS_CHOICES,
     description: 'Task state. Absent means todo.',
     // The badge below presents this attribute, and only for the two states
     // the checkbox cannot show — opt out of the catch-all.
@@ -37,11 +41,29 @@ export function registerStatus() {
     metadata: { calendar: false, contextMenu: false },
   })
 
-  // The two attributes a log entry carries. Every entry has `date`; a state
-  // entry adds `status`, a finished clock adds `duration`, and a running
-  // clock has neither. Nothing may assume more than `date` is present.
-  bike.attribute('date', {
-    title: 'Date',
+  // A log entry's own attributes, namespaced so none can be mistaken for a
+  // task's. `log-status` in particular means the state RECORDED, not the row's
+  // own — sharing the name with `status` meant an entry that lost its `type`
+  // silently started reading as a finished task, strikethrough and all.
+  //
+  // Every entry has `log-date` and nothing may assume more: a state entry adds
+  // `log-status`, a finished clock adds `log-duration`, a running clock has
+  // neither.
+  //
+  // All three are registered rather than left loose, because an unregistered
+  // attribute is unclaimed — the catch-all badge would draw a raw tag on every
+  // entry.
+  bike.attribute('log-status', {
+    title: 'Logged Status',
+    type: 'choice',
+    choices: STATUS_CHOICES,
+    description: 'The state a log entry records.',
+    defaultBadge: false,
+    metadata: { calendar: false, contextMenu: false },
+  })
+
+  bike.attribute('log-date', {
+    title: 'Logged Date',
     type: 'date',
     description: 'When a log entry happened.',
     defaultBadge: false,
@@ -51,8 +73,8 @@ export function registerStatus() {
     metadata: { calendar: false, contextMenu: false },
   })
 
-  bike.attribute('duration', {
-    title: 'Duration',
+  bike.attribute('log-duration', {
+    title: 'Logged Duration',
     type: 'duration',
     description: 'Time recorded by a clock entry. Absent means the clock is still running.',
     defaultBadge: false,

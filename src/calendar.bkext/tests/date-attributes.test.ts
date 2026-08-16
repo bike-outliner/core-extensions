@@ -19,10 +19,10 @@ describe('calendar date attributes', () => {
   it('picks up the shipped date attributes, minus the opt-outs', () => {
     const names = dateAttributesFrom(snapshot()).map((attribute) => attribute.name)
     assert(names.includes('due'), 'due should show on the calendar')
-    // The log's `date` is `type: 'date'` too, but declares
+    // The log's `log-date` is `type: 'date'` too, but declares
     // metadata.calendar === false: history is not schedule, and every
     // completed task would otherwise land on its completion day.
-    assert.equal(names.includes('date'), false, "the log's date should NOT show on the calendar")
+    assert.equal(names.includes('log-date'), false, "the log's date should NOT show on the calendar")
     // Not a date at all.
     assert.equal(names.includes('estimate'), false)
   })

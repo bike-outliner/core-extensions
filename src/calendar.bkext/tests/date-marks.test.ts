@@ -132,7 +132,7 @@ describe('dateAttributesFrom', () => {
   it('drops metadata.calendar === false (that is done)', () => {
     const attributes = dateAttributesFrom([
       { name: 'due', title: 'Due', type: 'date', metadata: {} },
-      { name: 'date', title: 'Date', type: 'date', metadata: { calendar: false } },
+      { name: 'log-date', title: 'Logged Date', type: 'date', metadata: { calendar: false } },
       // Any other metadata is opaque — it must not exclude anything.
       { name: 'start', title: 'Start', type: 'date', metadata: { calendar: true, other: 'x' } },
     ])
@@ -274,9 +274,9 @@ describe('bucketByDay', () => {
   })
 
   it('ignores attributes outside the names list', () => {
-    // The log-exclusion guard: `date` is a date attribute, but it is not in
-    // `names`, so a row is not placed on the day of its history.
-    const buckets = bucketByDay([row({ date: '2026-07-16', due: '2026-07-20' })], ['due'])
+    // The log-exclusion guard: `log-date` is a date attribute, but it is not
+    // in `names`, so a row is not placed on the day of its history.
+    const buckets = bucketByDay([row({ 'log-date': '2026-07-16', due: '2026-07-20' })], ['due'])
     assert.equal(buckets.has('2026-07-16'), false)
     assert.equal(buckets.get('2026-07-20')!.length, 1)
   })

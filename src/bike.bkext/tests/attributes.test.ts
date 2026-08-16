@@ -259,8 +259,12 @@ describe('default attribute set', () => {
         // opts out of the context menu's attribute group — Toggle Done owns it.
         assert.equal(byName.get('status')?.metadata['calendar'], false)
         assert.equal(byName.get('status')?.metadata['contextMenu'], false)
-        assert.equal(byName.get('date')?.metadata['calendar'], false)
-        assert.equal(byName.get('duration')?.metadata['calendar'], false)
+        assert.equal(byName.get('log-date')?.metadata['calendar'], false)
+        assert.equal(byName.get('log-duration')?.metadata['calendar'], false)
+        // Namespaced so a log entry's recorded state can never be read as a
+        // task's own — the collision that made stale entries render as done.
+        assert.equal(byName.get('log-status')?.type, 'choice')
+        assert.equal(byName.get('log-status')?.defaultBadge, false)
         assert.equal(byName.get('due')?.metadata['calendar'], undefined)
         assert.equal(byName.get('estimate')?.type, 'duration')
         // flagged is a closed set of the seven Mail colors, in Mail's order,
