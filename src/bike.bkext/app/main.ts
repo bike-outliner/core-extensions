@@ -58,7 +58,7 @@ export async function activate(context: AppExtensionContext) {
   bike.keybindings.addKeybindings({
     keymap: 'block-mode',
     keybindings: {
-      Space: 'row:toggle-done',
+      Space: 'task:toggle-done',
       'Shift-Return': 'row:insert-above',
       'Command-Return': 'row:insert-below',
       'Command-Shift-Return': 'row:insert-child',

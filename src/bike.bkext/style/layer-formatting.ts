@@ -76,7 +76,7 @@ export function registerFormattingLayers(style: EditorStyle) {
 
     row(`.task`, (context, row) => {
       context.theme.rows.task.apply(row.text)
-      listMark(context, row, symbolImage('square', row.text.color, row.text.font), 'row:toggle-done')
+      listMark(context, row, symbolImage('square', row.text.color, row.text.font), 'task:toggle-done')
     })
 
     // Closed is closed however it ended — done and canceled read the same

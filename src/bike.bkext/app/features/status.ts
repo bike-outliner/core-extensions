@@ -10,8 +10,8 @@ import { Image, Text } from 'bike/app'
 // call site: written as "not done and not canceled", every one of those
 // predicates would quietly acquire a hole the day a fifth state is added.
 //
-// The commands live in the host (`row:toggle-done`, `row:toggle-canceled`,
-// `row:toggle-started`, and the log/clock pair) because the checkbox, the
+// The commands live in the host (`task:toggle-done`, `task:toggle-canceled`,
+// `task:toggle-started`, and the log/clock pair) because the checkbox, the
 // Space key, and the sort-completed-to-end behavior are all native.
 
 export function registerStatus() {

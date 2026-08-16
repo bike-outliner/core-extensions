@@ -12,8 +12,8 @@ import { isClosed } from './status'
 //
 // Archiving is the one thing here that MOVES rows rather than editing an
 // attribute, and it comes in two scopes because a command takes no arguments
-// beyond its editor and selection: `tasks:archive-done` sweeps the whole
-// outline, `tasks:archive-branch-done` sweeps one branch, and the badge menu
+// beyond its editor and selection: `task:archive-closed` sweeps the whole
+// outline, `task:archive-branch-closed` sweeps one branch, and the badge menu
 // offers the branch one.
 //
 // Whether the badge draws at all is `showTaskProgressBadges` (on by default),
@@ -24,12 +24,12 @@ import { isClosed } from './status'
 export function registerTasks() {
   bike.commands.addCommands({
     commands: {
-      'tasks:mark-branch-done': markBranchDone,
-      'tasks:reopen-branch': reopenBranch,
-      'tasks:filter-open': filterBranchTasks('open()', 'Open Tasks'),
-      'tasks:filter-closed': filterBranchTasks('closed()', 'Closed Tasks'),
-      'tasks:archive-closed': archiveClosed,
-      'tasks:archive-branch-closed': archiveBranchClosed,
+      'task:mark-branch-done': markBranchDone,
+      'task:reopen-branch': reopenBranch,
+      'task:filter-open': filterBranchTasks('open()', 'Open Tasks'),
+      'task:filter-closed': filterBranchTasks('closed()', 'Closed Tasks'),
+      'task:archive-closed': archiveClosed,
+      'task:archive-branch-closed': archiveBranchClosed,
     },
   })
 
@@ -111,11 +111,11 @@ function installBadge(): Disposable | undefined {
       // the selection, not this `row`.
       editor.showMenu({ row, anchor: 'tasks' }, {
         items: [
-          { type: 'button', id: 'command:tasks:filter-open', title: 'Filter Open' },
-          { type: 'button', id: 'command:tasks:filter-closed', title: 'Filter Closed' },
+          { type: 'button', id: 'command:task:filter-open', title: 'Filter Open' },
+          { type: 'button', id: 'command:task:filter-closed', title: 'Filter Closed' },
           { type: 'separator' },
-          { type: 'button', id: 'command:tasks:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: closed !== tasks.length },
-          { type: 'button', id: 'command:tasks:reopen-branch', title: 'Reopen Branch Tasks', enabled: closed !== 0 },
+          { type: 'button', id: 'command:task:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: closed !== tasks.length },
+          { type: 'button', id: 'command:task:reopen-branch', title: 'Reopen Branch Tasks', enabled: closed !== 0 },
           { type: 'separator' },
           // The `closed` count above is TASKS closed, and archiving takes any
           // closed row — so this asks the archive command's own helper what it
@@ -124,7 +124,7 @@ function installBadge(): Disposable | undefined {
           // decline.
           {
             type: 'button',
-            id: 'command:tasks:archive-branch-closed',
+            id: 'command:task:archive-branch-closed',
             title: 'Archive Branch Closed',
             enabled: closedRowsToArchive(editor.outline, [row]).length > 0,
           },
