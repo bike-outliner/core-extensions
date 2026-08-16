@@ -230,9 +230,9 @@ describe("Task summaries", () => {
         )
     })
 
-    it("summary('todo') resolves as a scalar in queries", async () => {
+    it("summary('open') resolves as a scalar in queries", async () => {
         await eventually(() => {
-            const result = outline.query('summary("todo")') as { type: string; value: number }
+            const result = outline.query('summary("open")') as { type: string; value: number }
             return result.type === "number" && result.value === 3
         })
     })
@@ -240,7 +240,7 @@ describe("Task summaries", () => {
     it("summary predicates match rows — the badge `where` shape", async () => {
         // Rows with more than one task below them: only the project row.
         await eventually(() => {
-            const result = outline.query('//summary("todo") > 1') as { type: string; value: any[] }
+            const result = outline.query('//summary("open") > 1') as { type: string; value: any[] }
             return result.type === "elements" && result.value.length === 1
         })
     })
@@ -268,7 +268,7 @@ describe("Task summaries", () => {
         })
     })
 
-    it("summary('done') tracks @done edits", async () => {
+    it("summary('done') tracks status edits", async () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
         assert.equal(bike.commands.performCommand("tasks:mark-branch-done", { editor }), true)
@@ -277,7 +277,7 @@ describe("Task summaries", () => {
             return result.type === "number" && result.value === 3
         })
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("tasks:clear-branch-done", { editor }), true)
+        assert.equal(bike.commands.performCommand("tasks:reopen-branch", { editor }), true)
         await eventually(() => {
             const result = outline.query('summary("done")') as { type: string; value: number }
             return result.type === "number" && result.value === 0
