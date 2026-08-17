@@ -59,7 +59,9 @@ export function registerStatus() {
     choices: STATUS_CHOICES,
     description: 'The state a log entry records.',
     defaultBadge: false,
-    metadata: { calendar: false, contextMenu: false },
+    // `palette: false`: never OFFERED by the @-palette — these mean nothing
+    // typed onto an ordinary row. Entries already carrying them still list.
+    metadata: { calendar: false, contextMenu: false, palette: false },
   })
 
   bike.attribute('log-date', {
@@ -70,7 +72,7 @@ export function registerStatus() {
     // A log entry is history. On the calendar every completed task would land
     // on its completion day and drown the schedule — the same reason the old
     // `done` attribute opted out.
-    metadata: { calendar: false, contextMenu: false },
+    metadata: { calendar: false, contextMenu: false, palette: false },
   })
 
   bike.attribute('log-duration', {
@@ -78,7 +80,21 @@ export function registerStatus() {
     type: 'duration',
     description: 'Time recorded by a clock entry. Absent means the clock is still running.',
     defaultBadge: false,
-    metadata: { calendar: false, contextMenu: false },
+    metadata: { calendar: false, contextMenu: false, palette: false },
+  })
+
+  // Time worked below a row, folded from every finished clock entry in the
+  // branch — the read side of `log-duration`, and what makes clocking more
+  // than prose: `summary("clocked")` in a query or badge against `@estimate`
+  // gives actual-vs-planned. Same shape as estimate.ts's remaining summaries.
+  bike.summary('clocked', {
+    where: '.log @log-duration',
+    // The raw wire value — a duration-typed summary sums ISO durations
+    // itself and emits one, the same shape as estimate's remaining
+    // summaries, so `duration(summary("clocked"))` reads back seconds.
+    value: '@log-duration',
+    reduce: 'sum',
+    type: 'duration',
   })
 
   // Only the two states the checkbox cannot express. Todo and done are

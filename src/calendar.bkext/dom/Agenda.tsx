@@ -129,13 +129,14 @@ function AgendaPanel({ context }: { context: DOMExtensionContext<CalendarProtoco
                 // canceled row reads as checked here too — the distinction
                 // lives in the editor's status badge, not in this glyph.
                 name={closed ? 'checkmark.square' : 'square'}
-                // The live query re-emits, flipping the checkbox. Removing
-                // `status` returns the row to todo; there is no timestamp to
-                // write, because completion times live in the log now.
+                // Through the host setter, not updateRows: `task:status-*`
+                // owns the maintenance — a running clock stops, and tasks
+                // that keep a log record the change. The live query re-emits,
+                // flipping the checkbox.
                 onClick={() =>
-                  bike.session.updateRows({
+                  bike.session.evaluateCommands({
+                    ids: [closed ? 'task:status-todo' : 'task:status-done'],
                     rows: [row.id],
-                    attributes: { status: closed ? null : 'done' },
                   })
                 }
               />

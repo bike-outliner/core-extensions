@@ -153,27 +153,29 @@ function filterBranchTasks(predicate: string, label: string) {
 // Mark every still-open task in the selected rows' branches done, in one undo
 // step. A canceled task counts as closed and is left alone — marking it done
 // would silently reclassify a decision the user made.
+//
+// Through the host setter (`editor.setRowStatus`), not setAttribute: the
+// setter owns the maintenance — it stops a running clock and records the
+// change on tasks that keep a log. Writing the attribute directly is a data
+// edit that bypasses all of that.
 function markBranchDone({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
   const tasks = branchTasks(rows).filter((task) => !isClosed(task))
   if (tasks.length === 0) return false
-  editor.outline.transaction({ label: 'Set Branch Done' }, () => {
-    for (const task of tasks) task.setAttribute('status', 'done')
-  })
+  editor.setRowStatus('done', tasks)
   return true
 }
 
 // Reopen every closed task in the selected rows' branches — done or canceled
-// alike, since both mean "off the list" and this puts them back on it.
+// alike, since both mean "off the list" and this puts them back on it. Same
+// host-setter routing as markBranchDone, for the same reason.
 function reopenBranch({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
   const tasks = branchTasks(rows).filter((task) => isClosed(task))
   if (tasks.length === 0) return false
-  editor.outline.transaction({ label: 'Reopen Branch' }, () => {
-    for (const task of tasks) task.removeAttribute('status')
-  })
+  editor.setRowStatus('todo', tasks)
   return true
 }
 

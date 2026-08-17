@@ -80,6 +80,45 @@ describe("Task commands", () => {
         assert.equal(bike.commands.performCommand("task:reopen-branch", { editor }), false)
     })
 
+    it("branch commands run the maintained setter, so logged tasks record", () => {
+        // markBranchDone goes through editor.setRowStatus rather than raw
+        // setAttribute — a task that keeps a log must not get holes in its
+        // history depending on WHICH surface changed its state.
+        const project = outline.root.firstChild!
+        const task = project.children.find((row) => row.type === "task")!
+        editor.selectRows(task)
+        assert.equal(bike.commands.performCommand("task:enable-log", { editor }), true)
+        assert.equal(bike.commands.performCommand("task:clock-in", { editor }), true)
+
+        editor.selectRows(project)
+        assert.equal(bike.commands.performCommand("task:mark-branch-done", { editor }), true)
+
+        const entries = task.children.filter((row) => row.type === "log")
+        const state = entries.filter((row) => row.getAttribute("log-status") != null)
+        const clocks = entries.filter((row) => row.getAttribute("log-duration") != null)
+        assert.equal(state[state.length - 1]?.getAttribute("log-status"), "done", "the close was recorded")
+        assert.equal(clocks.length, 1, "the running clock was stopped, not left open")
+
+        // Reopen through the same path records too.
+        editor.selectRows(project)
+        assert.equal(bike.commands.performCommand("task:reopen-branch", { editor }), true)
+        const afterReopen = task.children.filter((row) => row.getAttribute("log-status") === "todo")
+        assert(afterReopen.length > 0, "the reopen was recorded")
+
+        // Teardown: drop the entries so later suites see the original shape.
+        editor.selectRows(task)
+        assert.equal(bike.commands.performCommand("task:disable-log", { editor }), true)
+    })
+
+    it("editor.setRowStatus is exposed to extensions", () => {
+        const project = outline.root.firstChild!
+        const task = project.children.find((row) => row.type === "task")!
+        editor.setRowStatus("canceled", [task])
+        assert.equal(task.getAttribute("status"), "canceled")
+        editor.setRowStatus("todo", [task])
+        assert.equal(task.getAttribute("status"), undefined)
+    })
+
     it("leaves canceled tasks alone when marking a branch done", () => {
         // Canceled is closed, and marking it done would silently reclassify
         // a decision the user made.
@@ -265,6 +304,33 @@ describe("Task summaries", () => {
         await eventually(() => {
             const result = outline.query('summary("done")') as { type: string; value: number }
             return result.type === "number" && result.value === 0
+        })
+    })
+
+    it("summary('clocked') sums finished intervals below a row", async () => {
+        // The read side of log-duration — without this the clock records
+        // time nothing can see.
+        const project = outline.root.firstChild!
+        const task = project.children.find((row) => row.type === "task")!
+        outline.transaction({ label: "setup" }, () => {
+            const [a, b] = outline.insertRows(
+                [
+                    { type: "log", text: "Worked 1h" },
+                    { type: "log", text: "Worked 30m" },
+                ],
+                task
+            )
+            a.setAttribute("log-date", "2026-08-13T15:00:00Z")
+            a.setAttribute("log-duration", "PT1H")
+            b.setAttribute("log-date", "2026-08-13T16:30:00Z")
+            b.setAttribute("log-duration", "PT30M")
+        })
+        await eventually(() => {
+            const result = outline.query('duration(summary("clocked"))') as { type: string; value: number }
+            return result.type === "number" && result.value === 5400
+        })
+        outline.transaction({ label: "teardown" }, () => {
+            outline.removeRows(task.children.filter((row) => row.type === "log"))
         })
     })
 
