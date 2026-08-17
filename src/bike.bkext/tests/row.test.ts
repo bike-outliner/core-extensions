@@ -263,3 +263,43 @@ describe("Row types", () => {
         }
     })
 })
+
+describe("row log", () => {
+    const editor = bike.testEditor()
+    const outline = editor.outline
+
+    it("finds, creates, and reuses the log container", () => {
+        let row: ReturnType<typeof outline.insertRows>[0]
+        outline.transaction({ label: "setup" }, () => {
+            ;[row] = outline.insertRows(["Has history"], outline.root)
+        })
+
+        assert.equal(row!.log, undefined, "a row keeps no log until asked")
+
+        let log: ReturnType<typeof outline.insertRows>[0]
+        outline.transaction({ label: "enable" }, () => {
+            log = row!.ensuredLog
+        })
+        assert.equal(log!.type, "log")
+        assert.equal(row!.log?.id, log!.id, "found by the getter afterwards")
+
+        // Idempotent: asking again returns the same container, not a second.
+        outline.transaction({ label: "again" }, () => {
+            assert.equal(row!.ensuredLog.id, log!.id)
+        })
+        assert.equal(row!.children.filter((child: { type: string }) => child.type === "log").length, 1)
+
+        // Entries are ordinary rows inside it — no type needed, just the
+        // `log-*` attribute convention.
+        outline.transaction({ label: "record" }, () => {
+            const [entry] = outline.insertRows(["Started"], log!)
+            entry.setAttribute("log-date", "2026-08-13T15:00:00Z")
+        })
+        assert.equal(row!.log?.children.length, 1)
+        assert.equal(row!.log?.children[0].getAttribute("log-date"), "2026-08-13T15:00:00Z")
+
+        outline.transaction({ label: "teardown" }, () => {
+            outline.removeRows([row!])
+        })
+    })
+})

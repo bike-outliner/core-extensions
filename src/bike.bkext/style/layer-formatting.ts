@@ -76,7 +76,7 @@ export function registerFormattingLayers(style: EditorStyle) {
 
     row(`.task`, (context, row) => {
       context.theme.rows.task.apply(row.text)
-      listMark(context, row, symbolImage('square', row.text.color, row.text.font), 'task:toggle-done')
+      listMark(context, row, symbolImage('square', row.text.color, row.text.font), 'status:toggle-done')
     })
 
     // Closed is closed however it ended — done and canceled read the same
@@ -95,9 +95,13 @@ export function registerFormattingLayers(style: EditorStyle) {
       })
     })
 
-    // A log entry is a record about the row above it, not content of its own.
+    // The log CONTAINER — one row holding a row's history. Its entries are
+    // ordinary rows and get no rule of their own; they read as the content
+    // they are. The book marks the container the way the checkbox marks a
+    // task, on the same metrics so the two line up down the left edge.
     row(`.log`, (context, row) => {
       context.theme.rows.log.apply(row.text)
+      listMark(context, row, symbolImage('book.closed', row.text.color, row.text.font))
     })
 
     row(`.hr`, (context, row) => {

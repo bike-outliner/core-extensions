@@ -8,9 +8,12 @@
 // ./helpers, so a feature declares WHICH commands it offers rather than
 // re-implementing the same transaction and selection guard each time.
 //
-// `status` is the one feature with no commands of its own, on purpose: the
-// native toggles (checkbox, Space, menu bar) already own changing a task's
-// state, as do the log and clock commands beside them.
+// `status`, `log`, and `clock` are the features with no commands of their
+// own, on purpose: their commands are native (`status:*`, `log:*`, `clock:*`)
+// because the checkbox, the Space key, container creation and folding, and
+// the clock-out-inside-a-status-change all need editor state. They are also
+// row-generic — none of the three is about tasks; `tasks` is a separate
+// feature that composes on top.
 //
 // Three pieces can't live here, because an extension's contexts have separate
 // entry points: `status` renders as the checkbox and row styling
@@ -40,6 +43,8 @@
 // exists to say "canceled", so fading it on a closed row would bury it.
 
 import { registerStatus } from './status'
+import { registerLog } from './log'
+import { registerClock } from './clock'
 import { registerDue } from './due'
 import { registerPriority } from './priority'
 import { registerEstimate } from './estimate'
@@ -48,6 +53,8 @@ import { registerTasks } from './tasks'
 
 export function registerFeatures() {
   registerStatus()
+  registerLog()
+  registerClock()
   registerDue()
   registerPriority()
   registerEstimate()

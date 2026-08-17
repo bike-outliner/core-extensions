@@ -1,7 +1,10 @@
 import { Image, Text } from 'bike/app'
 
-// The `status` feature: a task's state, and the attributes its optional
-// history uses.
+// The `status` feature: a row's state.
+//
+// Row-generic, not task-specific — any row can carry a status, and absent
+// means todo. The task row type only adds a UI shortcut (the checkbox and
+// Space); the concept stands on its own, as do the log and the clock.
 //
 // One field holds the state — todo | started | done | canceled — so no
 // combination of stored values can describe two states at once. The
@@ -10,11 +13,11 @@ import { Image, Text } from 'bike/app'
 // call site: written as "not done and not canceled", every one of those
 // predicates would quietly acquire a hole the day a fifth state is added.
 //
-// The commands live in the host (`task:toggle-done`, `task:toggle-canceled`,
-// `task:toggle-started`, and the log/clock pair) because the checkbox, the
-// Space key, and the sort-completed-to-end behavior are all native.
+// The commands live in the host (`status:toggle-done`, `status:done`, …)
+// because the checkbox, the Space key, the log recording, and the
+// sort-completed-to-end behavior are all native.
 
-// The whole task vocabulary, shared by `status` (a row's own state) and
+// The whole vocabulary, shared by `status` (a row's own state) and
 // `log-status` (a state an entry records), so the two can never drift.
 const STATUS_CHOICES = [
   { name: 'Todo', value: 'todo' },
@@ -30,29 +33,22 @@ export function registerStatus() {
     // are defined over exactly them.
     type: 'choice',
     choices: STATUS_CHOICES,
-    description: 'Task state. Absent means todo.',
+    description: 'A row\u2019s state. Absent means todo.',
     // The badge below presents this attribute, and only for the two states
     // the checkbox cannot show — opt out of the catch-all.
     defaultBadge: false,
     // The calendar shows every `date` attribute, and the row context menu
     // lists every declared attribute. Neither applies here: status is not a
-    // date, and the toggles already own changing it, so a submenu of raw
+    // date, and the commands already own changing it, so a submenu of raw
     // set/remove would only duplicate them, worse.
     metadata: { calendar: false, contextMenu: false },
   })
 
-  // A log entry's own attributes, namespaced so none can be mistaken for a
-  // task's. `log-status` in particular means the state RECORDED, not the row's
-  // own — sharing the name with `status` meant an entry that lost its `type`
-  // silently started reading as a finished task, strikethrough and all.
-  //
-  // Every entry has `log-date` and nothing may assume more: a state entry adds
-  // `log-status`, a finished clock adds `log-duration`, a running clock has
-  // neither.
-  //
-  // All three are registered rather than left loose, because an unregistered
-  // attribute is unclaimed — the catch-all badge would draw a raw tag on every
-  // entry.
+  // Status's own log field — declared here because status is what writes it.
+  // Each feature owns the `log-*` attributes it records; the log itself owns
+  // only `log-date`. Registered rather than left loose: an unregistered
+  // attribute is unclaimed, so the catch-all badge would draw a raw tag on
+  // every entry.
   bike.attribute('log-status', {
     title: 'Logged Status',
     type: 'choice',
@@ -64,44 +60,13 @@ export function registerStatus() {
     metadata: { calendar: false, contextMenu: false, palette: false },
   })
 
-  bike.attribute('log-date', {
-    title: 'Logged Date',
-    type: 'date',
-    description: 'When a log entry happened.',
-    defaultBadge: false,
-    // A log entry is history. On the calendar every completed task would land
-    // on its completion day and drown the schedule — the same reason the old
-    // `done` attribute opted out.
-    metadata: { calendar: false, contextMenu: false, palette: false },
-  })
-
-  bike.attribute('log-duration', {
-    title: 'Logged Duration',
-    type: 'duration',
-    description: 'Time recorded by a clock entry. Absent means the clock is still running.',
-    defaultBadge: false,
-    metadata: { calendar: false, contextMenu: false, palette: false },
-  })
-
-  // Time worked below a row, folded from every finished clock entry in the
-  // branch — the read side of `log-duration`, and what makes clocking more
-  // than prose: `summary("clocked")` in a query or badge against `@estimate`
-  // gives actual-vs-planned. Same shape as estimate.ts's remaining summaries.
-  bike.summary('clocked', {
-    where: '.log @log-duration',
-    // The raw wire value — a duration-typed summary sums ISO durations
-    // itself and emits one, the same shape as estimate's remaining
-    // summaries, so `duration(summary("clocked"))` reads back seconds.
-    value: '@log-duration',
-    reduce: 'sum',
-    type: 'duration',
-  })
-
-  // Only the two states the checkbox cannot express. Todo and done are
-  // already legible — an empty box and a checked one — so badging them would
-  // add noise to every task in the document.
+  // Only the two states the checkbox cannot express, and on ANY row: a
+  // non-task row has no checkbox at all, so this badge is its only indicator
+  // — without it a started body row shows nothing. Todo and done are already
+  // legible (empty box, checked box, strikethrough), so badging them would
+  // put a chip on every row in the document.
   bike.badge('status', {
-    where: '.task (@status = started or @status = canceled)',
+    where: '.(@status = started or @status = canceled)',
     inputs: { status: '@status' },
     render: (values, env) => {
       const bm = env.badgeMetrics
@@ -124,13 +89,11 @@ export function registerStatus() {
 /**
  * Whether a row is closed — done or canceled.
  *
- * Paths say `closed()`; this is for the two places that hold a Row object
- * instead. Log entries are excluded for the same reason the path function
- * excludes them: a state entry carries `status=done` but records a state
- * rather than having one.
+ * Paths say `closed()`; this is the copy for code holding a Row object. No
+ * type is special: a row inside a log that someone gave a status genuinely
+ * has one, and hiding that would be the kind of mystery the design avoids.
  */
-export function isClosed(row: { type?: string; getAttribute(name: string): string | undefined }): boolean {
-  if (row.type === 'log') return false
+export function isClosed(row: { getAttribute(name: string): string | undefined }): boolean {
   const status = row.getAttribute('status')
   return status === 'done' || status === 'canceled'
 }

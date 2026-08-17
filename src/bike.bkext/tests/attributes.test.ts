@@ -260,7 +260,7 @@ describe('default attribute set', () => {
         assert.equal(byName.get('status')?.metadata['calendar'], false)
         assert.equal(byName.get('status')?.metadata['contextMenu'], false)
         assert.equal(byName.get('log-date')?.metadata['calendar'], false)
-        assert.equal(byName.get('log-duration')?.metadata['calendar'], false)
+        assert.equal(byName.get('log-clock-duration')?.metadata['calendar'], false)
         // Namespaced so a log entry's recorded state can never be read as a
         // task's own — the collision that made stale entries render as done.
         assert.equal(byName.get('log-status')?.type, 'choice')
