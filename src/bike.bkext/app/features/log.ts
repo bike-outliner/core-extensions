@@ -7,7 +7,7 @@
 //
 // This file owns only `log-date`, the one field every entry carries. Each
 // feature declares the `log-*` attributes IT writes: `log-status` lives with
-// status, `log-clock-duration` with the clock. That way a feature and its
+// status, `clock-duration` with the clock. That way a feature and its
 // vocabulary arrive and leave together.
 //
 // Row-generic, like status and the clock: any row can keep a log. The

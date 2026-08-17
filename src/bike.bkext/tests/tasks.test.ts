@@ -95,7 +95,7 @@ describe("Task commands", () => {
 
         const entries = task.log?.children ?? []
         const state = entries.filter((row) => row.getAttribute("log-status") != null)
-        const clocks = entries.filter((row) => (row.getAttribute("log-clock-duration") ?? "") !== "")
+        const clocks = entries.filter((row) => (row.getAttribute("clock-duration") ?? "") !== "")
         assert.equal(state[state.length - 1]?.getAttribute("log-status"), "done", "the close was recorded")
         assert.equal(clocks.length, 1, "the running clock was stopped, not left open")
 
@@ -308,7 +308,7 @@ describe("Task summaries", () => {
     })
 
     it("summary('clocked') sums recorded intervals below a row", async () => {
-        // The read side of log-clock-duration — without this the clock
+        // The read side of clock-duration — without this the clock
         // records time nothing can see.
         const project = outline.root.firstChild!
         const task = project.children.find((row) => row.type === "task")!
@@ -322,14 +322,47 @@ describe("Task summaries", () => {
                 log
             )
             a.setAttribute("log-date", "2026-08-13T15:00:00Z")
-            a.setAttribute("log-clock-duration", "PT1H")
+            a.setAttribute("clock-duration", "PT1H")
             b.setAttribute("log-date", "2026-08-13T16:30:00Z")
-            b.setAttribute("log-clock-duration", "PT30M")
+            b.setAttribute("clock-duration", "PT30M")
         })
         await eventually(() => {
             const result = outline.query('duration(summary("clocked"))') as { type: string; value: number }
             return result.type === "number" && result.value === 5400
         })
+        outline.transaction({ label: "teardown" }, () => {
+            outline.removeRows(task.children.filter((row) => row.type === "log"))
+        })
+    })
+
+    it("the running-clock summaries describe an open interval", async () => {
+        // What the ticking Σ badge is built from: a running entry contributes
+        // nothing to `clocked` (its value is empty), so live elapsed comes from
+        // counting open intervals and summing the instants they started at —
+        // `count * now() - starts`, evaluated at the badge because a summary
+        // may not read the clock.
+        const project = outline.root.firstChild!
+        const task = project.children.find((row) => row.type === "task")!
+        outline.transaction({ label: "setup" }, () => {
+            const log = task.ensuredLog
+            const [running] = outline.insertRows([{ text: "Working since 3:00 PM" }], log)
+            running.setAttribute("log-date", "2026-08-13T15:00:00Z")
+            // Present but empty: still running.
+            running.setAttribute("clock-duration", "")
+        })
+        await eventually(() => {
+            const count = outline.query('summary("clockrunning")') as { type: string; value: number }
+            return count.type === "number" && count.value === 1
+        })
+        await eventually(() => {
+            const drift = outline.query(
+                'summary("clockstarted") - date("2026-08-13T15:00:00Z")'
+            ) as { type: string; value: number }
+            return drift.type === "number" && drift.value === 0
+        })
+        // An open interval records no duration.
+        const clocked = outline.query('duration(summary("clocked"))') as { type: string; value: number }
+        assert.equal(clocked.value, 0)
         outline.transaction({ label: "teardown" }, () => {
             outline.removeRows(task.children.filter((row) => row.type === "log"))
         })

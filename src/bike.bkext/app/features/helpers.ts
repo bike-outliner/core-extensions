@@ -149,3 +149,25 @@ export function pickAttributeForSelection(name: string): CommandAction {
     return true
   }
 }
+
+/**
+ * `seconds` as an ISO 8601 duration — the wire form every native formatter and
+ * query function speaks.
+ *
+ * The badges that show a RUNNING clock compute elapsed time as a number in
+ * their path expression, but `env.formatValue('duration', …)` wants wire, so
+ * this is the one hop between them. Days are the ceiling, matching the native
+ * normalizer (`AttributeDuration.normalized`) — a long branch total reads as
+ * "1d 6h", never "30h". Negative input clamps to zero: a duration has no
+ * direction, and a clock started a moment in the future is a clock at zero.
+ */
+export function isoDuration(seconds: number): string {
+  const total = Math.max(0, Math.round(Number.isFinite(seconds) ? seconds : 0))
+  if (total === 0) return 'PT0S'
+  const days = Math.floor(total / 86400)
+  const hours = Math.floor((total % 86400) / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const secs = total % 60
+  const time = `${hours ? `${hours}H` : ''}${minutes ? `${minutes}M` : ''}${secs ? `${secs}S` : ''}`
+  return `P${days ? `${days}D` : ''}${time ? `T${time}` : ''}`
+}
