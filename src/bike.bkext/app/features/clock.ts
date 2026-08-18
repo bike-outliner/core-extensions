@@ -1,4 +1,4 @@
-import { BadgeEnvironment, Image, SymbolConfiguration, Text } from 'bike/app'
+import { BadgeEnvironment, Color, Image, OutlineEditor, Row, SymbolConfiguration, Text } from 'bike/app'
 import { isoDuration } from './helpers'
 
 // The `clock` feature: time worked on a row, recorded as log entries.
@@ -14,7 +14,9 @@ import { isoDuration } from './helpers'
 //
 // Everything you SEE, though, is here: a badge on each entry, and a Σ rollup
 // on the rows above it. Both come in a static and a ticking variant, split on
-// whether a clock is actually running — see the badges below.
+// whether a clock is actually running — see the badges below. All four are
+// clickable, and offer those two native commands for the row the badge speaks
+// for.
 
 export function registerClock() {
   bike.attribute('clock-duration', {
@@ -77,9 +79,9 @@ export function registerClock() {
     axis: 'descendant',
   })
 
-  // A finished entry: "1h 28m" under a clock face. The entry's own text
-  // already says "Worked 1h 28m" in prose; the badge is what a filtered or
-  // folded view can still read at a glance.
+  // A finished entry: a stopwatch and "1h 28m". The entry's own text already
+  // says "Worked 1h 28m" in prose; the badge is what a filtered or folded view
+  // can still read at a glance.
   bike.badge('clock', {
     where: '.@clock-duration and not @clock-duration = ""',
     inputs: { duration: '@clock-duration' },
@@ -88,6 +90,7 @@ export function registerClock() {
       if (raw == null || raw === '') return null
       return clockBadge(env, env.formatAttribute('clock-duration', raw))
     },
+    onClick: ({ editor, row }) => showClockMenu(editor, row, 'clock'),
   })
 
   // The same badge for a RUNNING entry, counting up from `log-date`.
@@ -104,14 +107,15 @@ export function registerClock() {
     // here, in the path, never against `env.now` in the render.)
     inputs: { elapsed: 'now() - date(@log-date)' },
     render: (values, env) =>
-      clockBadge(env, env.formatValue('duration', isoDuration(Number(values['elapsed'] ?? '0')))),
+      clockBadge(env, env.formatValue('duration', isoDuration(Number(values['elapsed'] ?? '0'))), true),
+    onClick: ({ editor, row }) => showClockMenu(editor, row, 'clockRunning'),
   })
 
-  // The rollup: "Σ1h 32m" on any row with clocked time below it. The label is
-  // the BRANCH total — the row's own entry time folded in with its
-  // descendants' — while the gate is descendants-only, so an entry shows just
-  // its own badge. Suppressed on the `Log` container itself, which would
-  // otherwise repeat its parent's total verbatim one line down.
+  // The rollup: a stopwatch and "Σ1h 32m" on any row with clocked time below
+  // it. The label is the BRANCH total — the row's own entry time folded in
+  // with its descendants' — while the gate is descendants-only, so an entry
+  // shows just its own badge. Suppressed on the `Log` container itself, which
+  // would otherwise repeat its parent's total verbatim one line down.
   //
   // No done-fade: like every subtree rollup it presents the branch below, not
   // the row's own state. Time worked doesn't stop counting once you finish.
@@ -123,6 +127,7 @@ export function registerClock() {
       if (total == null) return null
       return clockBadge(env, `Σ${env.formatValue('duration', total)}`)
     },
+    onClick: ({ editor, row }) => showClockMenu(editor, row, 'clockTotal'),
   })
 
   // The rollup while a clock runs below: recorded time plus live elapsed, so
@@ -139,26 +144,81 @@ export function registerClock() {
       seconds: 'duration(summary("clocked")) + summary("clockrunning") * now() - summary("clockstarted")',
     },
     render: (values, env) =>
-      clockBadge(env, `Σ${env.formatValue('duration', isoDuration(Number(values['seconds'] ?? '0')))}`),
+      clockBadge(env, `Σ${env.formatValue('duration', isoDuration(Number(values['seconds'] ?? '0')))}`, true),
+    onClick: ({ editor, row }) => showClockMenu(editor, row, 'clockTotalRunning'),
   })
 }
 
-// The shared recipe: a clock face stacked ahead of the label, both inside the
-// estimate/due tag box. `badgeMetrics` carries every proportion, so all four
-// badges match the rest of the row's tags at any text size.
-function clockBadge(env: BadgeEnvironment, label: string): Image {
+// The shared recipe: a stopwatch stacked ahead of the label, both inside the
+// estimate/due tag box. A stopwatch rather than a clock face because that is
+// what this measures — an interval you started and will stop, not a time of
+// day. `badgeMetrics` carries every proportion, so all four badges match the
+// rest of the row's tags at any text size.
+//
+// `running` tints the whole badge — glyph, label and border — system green.
+// Green means the number is LIVE: it is climbing while you read it. That is
+// exactly the pair of badges that ticks, so the color and the second-by-second
+// repaint always agree, and a document with a clock left running says so from
+// across the outline.
+function clockBadge(env: BadgeEnvironment, label: string, running = false): Image {
   const bm = env.badgeMetrics
-  const color = env.color.alphaSet(0.8)
   const font = env.font.withPointSize(bm.fontSize)
+  const base = running ? Color.systemGreen() : env.color
+  const color = base.alphaSet(0.8)
   const symbol = Image.fromSymbol(
-    new SymbolConfiguration('clock').withHierarchicalColor(color).withFont(font)
+    new SymbolConfiguration('stopwatch').withHierarchicalColor(color).withFont(font)
   )
   return symbol
     .withHStack(Image.fromText(new Text(label, font, color)), bm.strokeWidth * 2)
     .withBackground({
-      stroke: env.color.alphaSet(0.3),
+      stroke: base.alphaSet(0.3),
       strokeWidth: bm.strokeWidth,
       cornerRadius: bm.cornerRadius,
       padding: bm.padding,
     })
+}
+
+// The clock badges' menu: Clock In and Clock Out on the row the clicked badge
+// speaks for, each enabled only when it would do something.
+//
+// The two commands are native and act on the SELECTION, and a badge click does
+// NOT move the selection — the host swallows it so the caret stays put under
+// the badge. So this selects the target first: that's what aims the commands,
+// and it also shows you which row is about to be clocked before you choose.
+function showClockMenu(editor: OutlineEditor, row: Row, badge: string): void {
+  const target = clockTarget(row)
+  const running = hasRunningClock(target)
+  editor.selectRows(target)
+  editor.showMenu(
+    { row, anchor: badge },
+    {
+      items: [
+        { type: 'button', id: 'command:clock:in', title: 'Clock In', enabled: !running },
+        { type: 'button', id: 'command:clock:out', title: 'Clock Out', enabled: running },
+      ],
+    }
+  )
+}
+
+// The row a clicked badge speaks for. The entry badges sit on a log entry, but
+// an entry isn't what you clock — the row that KEEPS the log is, and the
+// container sits between them, so it's the grandparent. Every other clock badge
+// is a rollup on a row that speaks for itself.
+function clockTarget(row: Row): Row {
+  const container = row.parent
+  return container?.type === 'log' ? container.parent ?? row : row
+}
+
+// Whether an interval is open on this row: an entry in its OWN log whose
+// `clock-duration` is present but empty.
+//
+// Not `summary("clockrunning")`, which folds the whole branch: a row with a
+// clocked CHILD is not itself clocked, and offering it Clock Out would stop
+// nothing while hiding the Clock In it can actually do.
+function hasRunningClock(row: Row): boolean {
+  return row.children.some(
+    (child) =>
+      child.type === 'log' &&
+      child.children.some((entry) => entry.getAttribute('clock-duration') === '')
+  )
 }

@@ -98,7 +98,10 @@ export function registerFormattingLayers(style: EditorStyle) {
     // The log CONTAINER — one row holding a row's history. Its entries are
     // ordinary rows and get no rule of their own; they read as the content
     // they are. The book marks the container the way the checkbox marks a
-    // task, on the same metrics so the two line up down the left edge.
+    // task, on the same metrics so the two line up down the left edge — and it
+    // is the ONLY thing that marks it: the text is body text (`theme.rows.log`
+    // has no default style, like `task`), so a theme decides otherwise or
+    // nothing does.
     row(`.log`, (context, row) => {
       context.theme.rows.log.apply(row.text)
       listMark(context, row, symbolImage('book.closed', row.text.color, row.text.font))

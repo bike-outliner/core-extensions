@@ -22,9 +22,9 @@ const TASK_PROGRESS_BADGE_TYPES: RadioGroupItem<TaskProgressBadgeType>[] = [
 // defaults namespace (see EditorSettings.Key) — `bike.defaults` can only reach
 // `bike.ext.bike.*`, and this panel is where the checkbox belongs.
 function TasksSection() {
-  // Native `EditorSettings.registerDefaults` supplies `true` here, but fall back
+  // Native `EditorSettings.registerDefaults` supplies `false` here, but fall back
   // to it explicitly so the checkbox is never indeterminate if that changes.
-  const [sortDone, setSortDone] = useState(() => bike.defaults.get('sortCompletedTasksToEnd') !== false)
+  const [sortDone, setSortDone] = useState(() => bike.defaults.get('sortCompletedTasksToEnd') === true)
 
   const [showBadges, setShowBadges] = useState(() => bike.defaults.get('showTaskProgressBadges') !== false)
 
