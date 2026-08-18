@@ -25,8 +25,8 @@ import { BadgeEnvironment, Image, Text } from 'bike/app'
 const STATUS_CHOICES = [
   { name: 'Todo', value: 'todo' },
   { name: 'Started', value: 'started' },
-  { name: 'Done', value: 'done' },
   { name: 'Canceled', value: 'canceled' },
+  { name: 'Done', value: 'done' },
 ]
 
 export function registerStatus() {
