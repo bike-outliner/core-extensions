@@ -39,12 +39,18 @@ export function registerStatus() {
     description: 'A row\u2019s state. Absent means todo.',
     // The badge below presents this attribute — opt out of the catch-all.
     defaultBadge: false,
-    // The calendar shows every `date` attribute, and the row context menu
-    // lists every declared attribute. Neither applies here: status is not a
-    // date, and between the checkbox, Space, and the menu bar the context menu
-    // would be a fourth, clumsier way to say the same thing. (Not a safety
-    // call — a raw set/remove is recorded like any other write. Just clutter.)
-    metadata: { calendar: false, contextMenu: false },
+    // Off the calendar — that shows `date` attributes, and a state is not a
+    // date.
+    //
+    // It IS in the row context menu's attribute group, beside due and
+    // priority. Those all answer "what is this row", and a state you could
+    // only reach through the checkbox, Space, or a badge click was the odd one
+    // out — the group is how you set an attribute on a whole selection, which
+    // none of those do. It opted out back when a raw set/remove there would
+    // have skipped the log entry and the clock-out; the host records a
+    // transition wherever it came from now, so there is nothing left to
+    // protect against.
+    metadata: { calendar: false },
   })
 
   // Status's own log field — declared here because status is what writes it.

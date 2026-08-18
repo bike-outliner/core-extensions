@@ -51,11 +51,16 @@ import { registerEstimate } from './estimate'
 import { registerFlagged } from './flagged'
 import { registerTasks } from './tasks'
 
+// This order is also DISPLAY order: the row context menu's attribute group
+// lists definitions as they were registered, so `status` sits after `due` to
+// land where it reads best among the row's other facts. `log` and `clock`
+// stay up top with nothing to show for it — their attributes live on entries
+// and opt out of that group entirely.
 export function registerFeatures() {
-  registerStatus()
   registerLog()
   registerClock()
   registerDue()
+  registerStatus()
   registerPriority()
   registerEstimate()
   registerFlagged()
