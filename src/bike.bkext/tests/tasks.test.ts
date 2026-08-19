@@ -87,7 +87,7 @@ describe("Task commands", () => {
         const project = outline.root.firstChild!
         const task = project.children.find((row) => row.type === "task")!
         editor.selectRows(task)
-        assert.equal(bike.commands.performCommand("log:enable", { editor }), true)
+        assert.equal(bike.commands.performCommand("row:create-log", { editor }), true)
         assert.equal(bike.commands.performCommand("clock:in", { editor }), true)
 
         editor.selectRows(project)
@@ -105,9 +105,12 @@ describe("Task commands", () => {
         const afterReopen = (task.log?.children ?? []).filter((row) => row.getAttribute("log-status") === "todo")
         assert(afterReopen.length > 0, "the reopen was recorded")
 
-        // Teardown: drop the entries so later suites see the original shape.
-        editor.selectRows(task)
-        assert.equal(bike.commands.performCommand("log:disable", { editor }), true)
+        // Teardown: drop the log so later suites see the original shape.
+        // Deleting the container IS the opt-out — there is no disable command,
+        // because discarding a row's history should read as the deletion it is.
+        const log = task.log
+        assert(log != null, "the task should have a log to remove")
+        outline.removeRows([log!])
     })
 
     it("editor.setRowStatus is exposed to extensions", () => {
@@ -316,8 +319,8 @@ describe("Task summaries", () => {
             const log = task.ensuredLog
             const [a, b] = outline.insertRows(
                 [
-                    { text: "Worked 1h" },
-                    { text: "Worked 30m" },
+                    { text: "Clocked out" },
+                    { text: "Clocked out" },
                 ],
                 log
             )
@@ -345,7 +348,7 @@ describe("Task summaries", () => {
         const task = project.children.find((row) => row.type === "task")!
         outline.transaction({ label: "setup" }, () => {
             const log = task.ensuredLog
-            const [running] = outline.insertRows([{ text: "Working since 3:00 PM" }], log)
+            const [running] = outline.insertRows([{ text: "Clocked in" }], log)
             running.setAttribute("log-date", "2026-08-13T15:00:00Z")
             // Present but empty: still running.
             running.setAttribute("clock-duration", "")

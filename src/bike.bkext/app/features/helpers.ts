@@ -1,4 +1,4 @@
-import { CommandAction, CommandContext, Row } from 'bike/app'
+import { BadgeEnvironment, CommandAction, CommandContext, Image, Row, Text } from 'bike/app'
 
 // The shapes every feature command is built from. Each feature file used to
 // hand-roll the same four lines — the `selection?.rows ?? []` guard, the
@@ -170,4 +170,29 @@ export function isoDuration(seconds: number): string {
   const secs = total % 60
   const time = `${hours ? `${hours}H` : ''}${minutes ? `${minutes}M` : ''}${secs ? `${secs}S` : ''}`
   return `P${days ? `${days}D` : ''}${time ? `T${time}` : ''}`
+}
+
+// MARK: - Badges
+
+/**
+ * The chip an attribute badge draws: one label in a hairline rounded box.
+ *
+ * The VALUE alone, never `name:value` — the catch-all badge prefixes the name
+ * because it renders attributes nobody claimed and the name is all it knows,
+ * but a feature's own badge is identified by where it sits and what it looks
+ * like. Same box the due, priority and estimate tags use, so a row's chips
+ * read as one row of chips rather than several dialects.
+ *
+ * `alpha` is the one knob: the badges that fade on a closed row pass 0.3, and
+ * the ones that ARE the row's state (status, and the log's own chips) keep the
+ * default, because fading those would bury exactly what they exist to say.
+ */
+export function attributeTag(env: BadgeEnvironment, label: string, alpha = 0.8): Image {
+  const bm = env.badgeMetrics
+  return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), env.color.alphaSet(alpha))).withBackground({
+    stroke: env.color.alphaSet(0.3),
+    strokeWidth: bm.strokeWidth,
+    cornerRadius: bm.cornerRadius,
+    padding: bm.padding,
+  })
 }

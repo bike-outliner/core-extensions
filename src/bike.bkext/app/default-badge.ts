@@ -38,7 +38,13 @@ export function unclaimedNames(
   hidden: ReadonlySet<string>
 ): string[] {
   return Object.keys(values)
-    .filter((name) => !claimed.has(name) && !hidden.has(name))
+    // `log-*` belongs to the log's own badge, which draws every recorded
+    // field on an entry. Skipped by PREFIX rather than by claim, because the
+    // rules derive `log-<name>` from whatever opted in — most of those fields
+    // are never declared, so `defaultBadge: false` could not claim them, and
+    // the catch-all would otherwise draw `log-priority:2` beside the log's own
+    // chip.
+    .filter((name) => !name.startsWith('log-') && !claimed.has(name) && !hidden.has(name))
     .sort()
 }
 

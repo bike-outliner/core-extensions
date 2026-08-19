@@ -24,7 +24,9 @@ export function registerClock() {
     type: 'duration',
     description: 'Time a clock entry recorded. Present but empty means it is still running.',
     defaultBadge: false,
-    metadata: { calendar: false, contextMenu: false, palette: false },
+    // The clock's own bookkeeping, not something to type onto a row — see
+    // `log-date` in log.ts for what `user: false` means.
+    metadata: { calendar: false, user: false },
   })
 
   // Time worked below a row, folded from every clock entry in the branch —
@@ -79,10 +81,18 @@ export function registerClock() {
     axis: 'descendant',
   })
 
-  // A finished entry: a stopwatch and "1h 28m". The entry's own text already
-  // says "Worked 1h 28m" in prose; the badge is what a filtered or folded view
-  // can still read at a glance.
-  bike.badge('clock', {
+  // A finished entry: a stopwatch and "1h 28m". The entry's text names the
+  // event ("Clocked out") and never the length, so this chip is the only place
+  // the duration is stated — and being a chip, it re-reads the attribute
+  // rather than freezing a number into prose.
+  //
+  // Named `logInterval*` rather than `clock*` so the log's date chip sorts
+  // ahead of it: badges have no order of their own and ties break
+  // alphabetically on the decoration name, so `clock` would have put the
+  // duration before the date on an entry while status entries read date-first.
+  // The rollups below keep their `clock*` names — they sit on ordinary rows,
+  // where nothing competes with them.
+  bike.badge('logInterval', {
     where: '.@clock-duration and not @clock-duration = ""',
     inputs: { duration: '@clock-duration' },
     render: (values, env) => {
@@ -90,7 +100,7 @@ export function registerClock() {
       if (raw == null || raw === '') return null
       return clockBadge(env, env.formatAttribute('clock-duration', raw))
     },
-    onClick: ({ editor, row }) => showClockMenu(editor, row, 'clock'),
+    onClick: ({ editor, row }) => showClockMenu(editor, row, 'logInterval'),
   })
 
   // The same badge for a RUNNING entry, counting up from `log-date`.
@@ -99,7 +109,7 @@ export function registerClock() {
   // fixed property of a badge: every visible row carrying a ticking badge is
   // re-styled once a second. Split, a finished entry costs nothing and only a
   // live one ticks.
-  bike.badge('clockRunning', {
+  bike.badge('logIntervalRunning', {
     where: '.@clock-duration = ""',
     tick: 1,
     // `now()` and `date()` share an epoch, so this subtraction is seconds.
@@ -108,7 +118,7 @@ export function registerClock() {
     inputs: { elapsed: 'now() - date(@log-date)' },
     render: (values, env) =>
       clockBadge(env, env.formatValue('duration', isoDuration(Number(values['elapsed'] ?? '0'))), true),
-    onClick: ({ editor, row }) => showClockMenu(editor, row, 'clockRunning'),
+    onClick: ({ editor, row }) => showClockMenu(editor, row, 'logIntervalRunning'),
   })
 
   // The rollup: a stopwatch and "Σ1h 32m" on any row with clocked time below

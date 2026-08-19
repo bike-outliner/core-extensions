@@ -9,11 +9,11 @@
 // re-implementing the same transaction and selection guard each time.
 //
 // `status`, `log`, and `clock` are the features with no commands of their
-// own, on purpose: their commands are native (`status:*`, `log:*`, `clock:*`)
-// because the checkbox, the Space key, container creation and folding, and
-// the clock-out-inside-a-status-change all need editor state. They are also
-// row-generic — none of the three is about tasks; `tasks` is a separate
-// feature that composes on top.
+// own, on purpose: their commands are native (`status:*`, `clock:*`, and the
+// log's single `row:create-log`) because the checkbox, the Space key,
+// container creation and folding, and the clock-out-inside-a-status-change
+// all need editor state. They are also row-generic — none of the three is
+// about tasks; `tasks` is a separate feature that composes on top.
 //
 // Three pieces can't live here, because an extension's contexts have separate
 // entry points: `status` renders as the checkbox and row styling

@@ -1,4 +1,4 @@
-import { BadgeEnvironment, Image, Text } from 'bike/app'
+import { attributeTag } from './helpers'
 
 // The `status` feature: a row's state.
 //
@@ -50,24 +50,29 @@ export function registerStatus() {
     // have skipped the log entry and the clock-out; the host records a
     // transition wherever it came from now, so there is nothing left to
     // protect against.
-    metadata: { calendar: false },
+    // Recorded in the log: a state change is the thing a history is most
+    // often kept for. The rules read this key rather than knowing `status`
+    // by name (see OutlineStore+LogRules).
+    metadata: { calendar: false, log: true },
   })
 
-  // Status's own log field — declared here because status is what writes it.
-  // Each feature owns the `log-*` attributes it records; the log itself owns
-  // only `log-date`.
+  // Status's own log field. The rules derive `log-status` from the attribute
+  // name on their own, so this is NOT what makes a state change recordable —
+  // `log: true` above is. What declaring the twin buys is the type: the log's
+  // badge formats it as "Done" rather than "done", and clicking that chip
+  // gets the four states as radios instead of a bare "Value…" box.
   //
-  // The `logStatus` badge below presents it, together with the entry's date —
-  // opt out of the catch-all.
+  // A feature that skips this still gets recorded and still gets a chip; it
+  // just gets a plainer one. That is the intended gradient.
   bike.attribute('log-status', {
     title: 'Logged Status',
     type: 'choice',
     choices: STATUS_CHOICES,
     description: 'The state a log entry records.',
     defaultBadge: false,
-    // `palette: false`: never OFFERED by the @-palette — these mean nothing
-    // typed onto an ordinary row. Entries already carrying them still list.
-    metadata: { calendar: false, contextMenu: false, palette: false },
+    // `user: false`: a state RECORDED by the log, not one to set by hand —
+    // see `log-date` in log.ts. Entries carrying it still list and edit.
+    metadata: { calendar: false, user: false },
   })
 
   // Every row carrying a status shows it — all four states, on ANY row type.
@@ -97,7 +102,7 @@ export function registerStatus() {
       // emptyLabel, so nothing offers it and it has no stated meaning. Draw
       // nothing rather than an empty tag box.
       if (label === '') return null
-      return statusTag(env, label)
+      return attributeTag(env, label)
     },
     // The built-in attribute menu, which for a closed choice IS the four
     // states as radios — plus the filter items and Remove that every other
@@ -116,63 +121,6 @@ export function registerStatus() {
     // attribute, and absent reads as todo either way. Both are a transition
     // away from a recorded state, so both log one.
     onClick: ({ editor, row }) => editor.showAttributeMenu({ row, anchor: 'status' }, 'status'),
-  })
-
-  // A state entry, drawn whole: "Today 12:37 PM status = Done".
-  //
-  // A state entry carries no text — the native writer records the two
-  // attributes and nothing else — so this badge IS the entry, and it draws
-  // BOTH fields: the date the log owns and the state this feature recorded.
-  // That is the rule for log entries generally (see log.ts): `log-date`
-  // presents nothing by itself, and whichever feature wrote the entry spells
-  // out the whole record, so an entry reads as one line instead of a pair of
-  // loose `name:value` chips.
-  //
-  // `status = ` names the field in the form a query would, and the plain
-  // `status` rather than `log-status`: on an entry, the `log-` prefix is what
-  // the row already IS.
-  bike.badge('logStatus', {
-    where: '.@log-status',
-    inputs: { status: '@log-status', date: '@log-date' },
-    // The date label is now-relative ("Today", then "Yesterday" tomorrow), so
-    // it goes stale at midnight without a tick — the same minute tick the
-    // catch-all badge runs for exactly this reason.
-    tick: 60,
-    render: (values, env) => {
-      const status = env.formatAttribute('log-status', values['status'] ?? '')
-      if (status === '') return null
-      const date = values['date']
-      // Dateless is still a legible record of a state change. Every entry the
-      // log writes carries a date, but one written by hand may not, and half a
-      // record beats none.
-      const when = date == null || date === '' ? '' : `${env.formatAttribute('log-date', date)} `
-      return statusTag(env, `${when}status = ${status}`)
-    },
-    // What the catch-all badge gave these tags before this one claimed them:
-    // the type-aware menu, which for a closed choice is the four states as
-    // radios. History is data the user can correct.
-    //
-    // The built-in menu is right HERE, where the badge above must avoid it:
-    // correcting a record is exactly a direct attribute edit. There is nothing
-    // to maintain — an entry is not a state, and rewriting one must not append
-    // another entry recording that you rewrote it.
-    onClick: ({ editor, row }) => editor.showAttributeMenu({ row, anchor: 'logStatus' }, 'log-status'),
-  })
-}
-
-// The shared tag for both badges above: a label in the same box the
-// due/priority/estimate tags use.
-//
-// Deliberately NO done-fade, unlike those three: each of these badges IS a
-// state — the row's own, or the one an entry records — so fading it on a closed
-// row would bury exactly what it exists to say.
-function statusTag(env: BadgeEnvironment, label: string): Image {
-  const bm = env.badgeMetrics
-  return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), env.color.alphaSet(0.8))).withBackground({
-    stroke: env.color.alphaSet(0.3),
-    strokeWidth: bm.strokeWidth,
-    cornerRadius: bm.cornerRadius,
-    padding: bm.padding,
   })
 }
 

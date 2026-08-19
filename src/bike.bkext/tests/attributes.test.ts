@@ -254,13 +254,40 @@ describe('default attribute set', () => {
         // priority is a closed set — a choice, not a number.
         assert.equal(byName.get('priority')?.type, 'choice')
         assert.equal((byName.get('priority')! as any).choices.map((c: any) => c.value).join(','), '1,2,3')
-        // The calendar shows every `date` attribute; the log's opts out (a
-        // completion stamp is history, not schedule), due doesn't. Done also
-        // opts out of the context menu's attribute group — Toggle Done owns it.
+        // The calendar shows every `date` attribute; the log's and the clock's
+        // opt out (a completion stamp is history, not schedule), due doesn't.
         assert.equal(byName.get('status')?.metadata['calendar'], false)
-        assert.equal(byName.get('status')?.metadata['contextMenu'], false)
         assert.equal(byName.get('log-date')?.metadata['calendar'], false)
         assert.equal(byName.get('clock-duration')?.metadata['calendar'], false)
+        // status is IN the context menu's attribute group: that group is the
+        // only way to set it across a whole selection, and setting it there
+        // records the change like any other write. The log's and the clock's
+        // own fields stay out — they describe an ENTRY, not the row you
+        // right-clicked.
+        // `user` defaults true, so an attribute says nothing to be offered.
+        assert.equal(byName.get('status')?.metadata['user'], undefined)
+        // `log: true` is what makes a change recordable. The rules read this
+        // key rather than knowing any attribute by name, so an extension gets
+        // history by declaring it and the built-ins are not special.
+        for (const name of ['status', 'priority', 'flagged', 'due', 'estimate']) {
+            assert.equal(byName.get(name)?.metadata['log'], true, name + ' should be recorded')
+        }
+        // Opt-IN: everything else stays out of the log, including the fields
+        // that live ON an entry (recording those would recurse).
+        for (const name of ['log-status', 'log-date', 'clock-duration']) {
+            assert.equal(byName.get(name)?.metadata['log'], undefined, name + ' should not be recorded')
+        }
+        // The entry fields are the only opt-outs: a feature writes and reads
+        // them, so neither the palette nor the context menu offers them on a
+        // row that lacks one. A row that HAS one still shows it.
+        assert.equal(byName.get('log-status')?.metadata['user'], false)
+        assert.equal(byName.get('log-date')?.metadata['user'], false)
+        assert.equal(byName.get('clock-duration')?.metadata['user'], false)
+        // The keys this replaced are gone, not merely unused.
+        for (const name of ['log-status', 'log-date', 'clock-duration']) {
+            assert.equal(byName.get(name)?.metadata['palette'], undefined)
+            assert.equal(byName.get(name)?.metadata['contextMenu'], undefined)
+        }
         // Namespaced so a log entry's recorded state can never be read as a
         // task's own — the collision that made stale entries render as done.
         assert.equal(byName.get('log-status')?.type, 'choice')
