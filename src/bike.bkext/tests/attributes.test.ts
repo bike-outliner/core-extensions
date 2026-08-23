@@ -1,6 +1,6 @@
 import { Image, SymbolConfiguration } from 'bike/app'
 import { unclaimedNames } from '../app/default-badge'
-import { parseHiddenBadgeAttributes } from '../dom/protocols'
+import { isPolicyEligible, readOverrides, seedFor, withCell } from '../dom/protocols'
 
 // Attribute editing is the native attribute palette (editor.
 // showAttributePalette) and the standalone value picker (editor.showPicker;
@@ -266,16 +266,11 @@ describe('default attribute set', () => {
         // right-clicked.
         // `user` defaults true, so an attribute says nothing to be offered.
         assert.equal(byName.get('status')?.metadata['user'], undefined)
-        // `log: true` is what makes a change recordable. The rules read this
-        // key rather than knowing any attribute by name, so an extension gets
-        // history by declaring it and the built-ins are not special.
+        // What gets recorded is the USER's call, not a declaration's — the key
+        // that used to say so is gone, not merely unused. `user: false` is the
+        // only thing a declaration still settles, and it settles all three.
         for (const name of ['status', 'priority', 'flagged', 'due', 'estimate']) {
-            assert.equal(byName.get(name)?.metadata['log'], true, name + ' should be recorded')
-        }
-        // Opt-IN: everything else stays out of the log, including the fields
-        // that live ON an entry (recording those would recurse).
-        for (const name of ['log-status', 'log-date', 'clock-duration']) {
-            assert.equal(byName.get(name)?.metadata['log'], undefined, name + ' should not be recorded')
+            assert.equal(byName.get(name)?.metadata['log'], undefined, name + ' should not declare log')
         }
         // The entry fields are the only opt-outs: a feature writes and reads
         // them, so neither the palette nor the context menu offers them on a
@@ -287,6 +282,10 @@ describe('default attribute set', () => {
         for (const name of ['log-status', 'log-date', 'clock-duration']) {
             assert.equal(byName.get(name)?.metadata['palette'], undefined)
             assert.equal(byName.get(name)?.metadata['contextMenu'], undefined)
+        }
+        // And a feature's own field carries no user policy at all.
+        for (const name of ['log-status', 'log-date', 'clock-duration']) {
+            assert.equal(isPolicyEligible(name, byName.get(name)?.metadata['user'] as boolean), false)
         }
         // Namespaced so a log entry's recorded state can never be read as a
         // task's own — the collision that made stale entries render as done.
@@ -334,46 +333,83 @@ describe('default badge names', () => {
     const none = new Set<string>()
 
     it('sorts unclaimed names from the values map', () => {
-        const names = unclaimedNames({ foo: 'x', bar: '' }, none, none)
+        const names = unclaimedNames({ foo: 'x', bar: '' }, none, {})
         assert.equal(names.join(','), 'bar,foo')
     })
 
     it('skips claimed names', () => {
-        const names = unclaimedNames({ foo: 'x', due: '2026-01-01', priority: '2' }, new Set(['due', 'priority']), none)
+        const names = unclaimedNames({ foo: 'x', due: '2026-01-01', priority: '2' }, new Set(['due', 'priority']), {})
         assert.equal(names.join(','), 'foo')
     })
 
     it('empty map or all-claimed yields nothing', () => {
-        assert.equal(unclaimedNames({}, none, none).length, 0)
-        assert.equal(unclaimedNames({ due: '1' }, new Set(['due']), none).length, 0)
+        assert.equal(unclaimedNames({}, none, {}).length, 0)
+        assert.equal(unclaimedNames({ due: '1' }, new Set(['due']), {}).length, 0)
     })
 
-    it('skips names the user hid', () => {
-        const names = unclaimedNames({ foo: 'x', syncid: 'a1', reviewer: 'kim' }, none, new Set(['syncid']))
+    it('skips names the user unchecked', () => {
+        const names = unclaimedNames({ foo: 'x', syncid: 'a1', reviewer: 'kim' }, none, { syncid: { badge: false } })
         assert.equal(names.join(','), 'foo,reviewer')
     })
 
-    it('hiding every attribute yields nothing, so no badge is drawn', () => {
-        assert.equal(unclaimedNames({ syncid: 'a1' }, none, new Set(['syncid'])).length, 0)
+    it('unchecking every attribute yields nothing, so no badge is drawn', () => {
+        assert.equal(unclaimedNames({ syncid: 'a1' }, none, { syncid: { badge: false } }).length, 0)
+    })
+
+    it('draws a claimed name the user checked ON, alongside its own badge', () => {
+        const names = unclaimedNames({ due: '2026-01-01' }, new Set(['due']), { due: { badge: true } })
+        assert.equal(names.join(','), 'due')
+    })
+
+    it('ignores a checked ON recorded twin: those carry no policy', () => {
+        const names = unclaimedNames({ 'log-priority': '2' }, none, { 'log-priority': { badge: true } })
+        assert.equal(names.length, 0)
+    })
+
+    it('a column the user never touched leaves the others alone', () => {
+        const names = unclaimedNames({ syncid: 'a1' }, none, { syncid: { log: false } })
+        assert.equal(names.join(','), 'syncid')
     })
 })
 
-describe('hidden badge attribute parsing', () => {
-    it('splits on commas and trims', () => {
-        const hidden = parseHiddenBadgeAttributes('syncid, x-tool-hash ,reviewer')
-        assert.equal([...hidden].sort().join(','), 'reviewer,syncid,x-tool-hash')
+describe('attribute policy', () => {
+    // Key order is insertion order here, and every helper builds its entries
+    // in ATTRIBUTE_COLUMNS order, so a string compare is a real deep compare.
+    const json = (value: unknown) => JSON.stringify(value)
+
+    it('seeds pick and log on, and badge from the declaration', () => {
+        assert.equal(seedFor('pick', false), true)
+        assert.equal(seedFor('log', false), true)
+        assert.equal(seedFor('badge', undefined), true)
+        assert.equal(seedFor('badge', false), false)
     })
 
-    it('tolerates a leading @, newlines, and empty entries', () => {
-        const hidden = parseHiddenBadgeAttributes('@syncid,,\n  @x-hash , ')
-        assert.equal([...hidden].sort().join(','), 'syncid,x-hash')
+    it('excludes recorded twins and feature-owned fields', () => {
+        assert.equal(isPolicyEligible('log-priority'), false)
+        assert.equal(isPolicyEligible('clock-duration', false), false)
+        assert.equal(isPolicyEligible('syncid'), true)
+        assert.equal(isPolicyEligible('priority', true), true)
     })
 
-    it('empty, blank, and non-string values yield nothing', () => {
-        assert.equal(parseHiddenBadgeAttributes('').size, 0)
-        assert.equal(parseHiddenBadgeAttributes('  , ,').size, 0)
-        assert.equal(parseHiddenBadgeAttributes(undefined).size, 0)
-        assert.equal(parseHiddenBadgeAttributes(42).size, 0)
+    it('stores a disagreement and drops it again at the seed', () => {
+        const off = withCell({}, 'syncid', 'badge', false, true)
+        assert.equal(json(off), '{"syncid":{"badge":false}}')
+        // Back to what the declaration says: the name goes entirely, so a
+        // later change of mind by the extension is still followed.
+        assert.equal(json(withCell(off, 'syncid', 'badge', true, true)), '{}')
+    })
+
+    it('keeps other cells when one returns to its seed', () => {
+        const both = withCell({ syncid: { badge: false } }, 'syncid', 'log', false, true)
+        assert.equal(json(both), '{"syncid":{"badge":false,"log":false}}')
+        assert.equal(json(withCell(both, 'syncid', 'log', true, true)), '{"syncid":{"badge":false}}')
+    })
+
+    it('reads what parses and drops the rest', () => {
+        assert.equal(json(readOverrides({ a: { pick: false, junk: 1 }, b: 'nope', c: {} })), '{"a":{"pick":false}}')
+        assert.equal(json(readOverrides(undefined)), '{}')
+        assert.equal(json(readOverrides([])), '{}')
+        assert.equal(json(readOverrides('x')), '{}')
     })
 })
 

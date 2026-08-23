@@ -1,5 +1,10 @@
 import { BadgeEnvironment, Disposable, Image, Text } from 'bike/app'
-import { defaultBadgeDefaults, parseHiddenBadgeAttributes } from '../dom/protocols'
+import {
+  ATTRIBUTE_OVERRIDES_KEY,
+  AttributeOverrides,
+  LOG_FIELD_PREFIX,
+  readOverrides,
+} from '../dom/protocols'
 
 // The DEFAULT badge: ONE `bike.badge` whose match-any `where` and
 // `inputs: 'rowAttributes'` (the row's full attribute map) render a keyed
@@ -19,40 +24,45 @@ import { defaultBadgeDefaults, parseHiddenBadgeAttributes } from '../dom/protoco
 // palette and pickers use, so a `duration` reads "1h 30m" and a `date` reads
 // "Today" rather than showing its raw wire encoding.
 //
-// A user can opt individual attributes out entirely — Settings > Extensions >
-// Default Badge Exclusions — for files another tool writes into, where a sync
-// id or a hash isn't meant to be read as content. That list only reaches THIS
-// badge, so an attribute an extension presents itself is never affected.
+// The Badge column of Settings > Extensions > Bike > Attributes decides this
+// per attribute, and the user's answer beats the declaration in BOTH
+// directions: unchecking hides a tag a file another tool writes (a sync id, a
+// hash — bookkeeping not meant to be read as content), and checking one draws
+// a tag for an attribute that declared `defaultBadge: false`, alongside
+// whatever badge that extension draws itself.
 
 const VALUE_TRUNCATE_LENGTH = 20
 
 /**
- * The badge-worthy attribute names of a row's attribute map: everything not
- * claimed by a `defaultBadge: false` definition and not hidden by the user,
- * sorted. (`values` already excludes the reserved names — `inputs:
+ * The badge-worthy attribute names of a row's attribute map, sorted: the
+ * user's Badge choice where they made one, the declaration's where they
+ * didn't. (`values` already excludes the reserved names — `inputs:
  * 'rowAttributes'` filters them natively.) Pure — exported for tests.
  */
 export function unclaimedNames(
   values: Readonly<Record<string, string | undefined>>,
   claimed: ReadonlySet<string>,
-  hidden: ReadonlySet<string>
+  overrides: AttributeOverrides
 ): string[] {
   return Object.keys(values)
-    // `log-*` belongs to the log's own badge, which draws every recorded
-    // field on an entry. Skipped by PREFIX rather than by claim, because the
-    // rules derive `log-<name>` from whatever opted in — most of those fields
-    // are never declared, so `defaultBadge: false` could not claim them, and
-    // the catch-all would otherwise draw `log-priority:2` beside the log's own
-    // chip.
-    .filter((name) => !name.startsWith('log-') && !claimed.has(name) && !hidden.has(name))
+    .filter((name) => {
+      // `log-*` belongs to the log's own badge, which draws every recorded
+      // field on an entry. Skipped by PREFIX rather than by claim, because the
+      // rules derive `log-<name>` from whatever is recorded — most of those
+      // fields are never declared, so `defaultBadge: false` could not claim
+      // them, and the catch-all would otherwise draw `log-priority:2` beside
+      // the log's own chip. Not the user's to change, either: those names
+      // carry no policy at all.
+      if (name.startsWith(LOG_FIELD_PREFIX)) return false
+      const chosen = overrides[name]?.badge
+      return chosen !== undefined ? chosen : !claimed.has(name)
+    })
     .sort()
 }
 
 export function registerDefaultBadge() {
-  bike.defaults.registerDefaults(defaultBadgeDefaults)
-
   // Two things outside a row's own attributes decide what this badge draws:
-  // the claims snapshot and the user's hidden list. Both are captured in the
+  // the claims snapshot and the user's Badge column. Both are captured in the
   // render closure, and both re-register — a fresh badge identity means a
   // fresh render cache, so either change repaints without any dirtying
   // protocol. Row-attribute changes re-render through the style system.
@@ -67,7 +77,7 @@ export function registerDefaultBadge() {
     registerBadge()
   })
 
-  bike.defaults.observe('hiddenBadgeAttributes', registerBadge)
+  bike.defaults.observe(ATTRIBUTE_OVERRIDES_KEY, registerBadge)
 }
 
 /** The `defaultBadge: false` names, from the latest `observeAttributes`
@@ -77,10 +87,10 @@ let claimed: ReadonlySet<string> = new Set()
 let badge: Disposable | undefined
 
 /** Dispose the live badge and register a fresh one against current state.
- * Parsing the hidden list HERE rather than in `render` keeps it off the
- * per-row path — it only changes when the setting does. */
+ * Reading the overrides HERE rather than in `render` keeps them off the
+ * per-row path — they only change when the setting does. */
 function registerBadge() {
-  const hidden = parseHiddenBadgeAttributes(bike.defaults.get('hiddenBadgeAttributes'))
+  const overrides = readOverrides(bike.defaults.get(ATTRIBUTE_OVERRIDES_KEY))
   const claimedNow = claimed
 
   badge?.dispose()
@@ -88,7 +98,7 @@ function registerBadge() {
     where: '.*',
     inputs: 'rowAttributes',
     render: (values, env) => {
-      const names = unclaimedNames(values, claimedNow, hidden)
+      const names = unclaimedNames(values, claimedNow, overrides)
       // Every attribute hidden (or none to begin with) draws nothing at
       // all — no glyph and no reserved slot.
       if (names.length === 0) return null

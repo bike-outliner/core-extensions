@@ -22,8 +22,6 @@ export function registerPriority() {
     description: 'Importance from 1 (highest) to 3 (lowest).',
     // The badge below presents this attribute — opt out of the catch-all.
     defaultBadge: false,
-    // Recorded in the log — re-prioritising is a decision worth a record.
-    metadata: { log: true },
   })
 
   bike.commands.addCommands({

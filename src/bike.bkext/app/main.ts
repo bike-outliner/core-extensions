@@ -1,7 +1,14 @@
-import { AppExtensionContext, CommandContext, Window } from 'bike/app'
+import { AppExtensionContext, AttributeInfo, CommandContext, DOMScriptHandle, Window } from 'bike/app'
 import { clickHandleCommand, clickLinkCommand, clickFocusCommand } from './commands'
 import { registerFeatures } from './features'
 import { registerDefaultBadge } from './default-badge'
+import {
+  ATTRIBUTE_COLUMNS,
+  AttributeRow,
+  AttributesProtocol,
+  isPolicyEligible,
+  seedFor,
+} from '../dom/protocols'
 
 export async function activate(context: AppExtensionContext) {
   registerFeatures()
@@ -12,7 +19,7 @@ export async function activate(context: AppExtensionContext) {
   // extension's — the pane orders sections by label, not by the order they're
   // registered. Registered here rather than from each feature so the whole set
   // is visible in one place.
-  bike.settings.addItem({ label: 'Badges', script: 'BadgesSettings.js' })
+  registerAttributesSettings()
   bike.settings.addItem({ label: 'Tasks', script: 'TasksSettings.js' })
 
   // Hidden commands for style interactions (not shown in command palette)
@@ -85,6 +92,65 @@ export async function activate(context: AppExtensionContext) {
       addOrUpdateHomeLocation(window, editor?.outline.root.ensuredPersistentId ?? '')
     })
   })
+}
+
+/**
+ * The Attributes settings table's row list, which only the APP context can
+ * build: `observeAttributes` lives here, and so do the open documents.
+ *
+ * Declared names and names a document merely uses are treated alike — the
+ * whole point of the table is that an attribute another tool wrote is as much
+ * the user's to configure as one an extension shipped.
+ */
+function registerAttributesSettings() {
+  const handles = new Set<DOMScriptHandle<AttributesProtocol>>()
+  let infos: AttributeInfo[] = []
+
+  // `addItem` resolves only once the settings web view exists, so attach with
+  // `.then` — awaiting it here would stall the rest of activation until
+  // someone opens Settings.
+  bike.settings
+    .addItem<AttributesProtocol>({ label: 'Attributes', script: 'AttributesSettings.js' })
+    .then((handle) => {
+      handle.onmessage = () => handle.postMessage({ type: 'attributes', rows: rows() })
+      handles.add(handle)
+    })
+
+  // Live, never a one-shot snapshot: an extension can register an attribute
+  // long after this runs, and a panel already open should grow a row for it.
+  bike.observeAttributes((next) => {
+    infos = next
+    for (const handle of handles) {
+      handle.postMessage({ type: 'attributes', rows: rows() })
+    }
+  })
+
+  function rows(): AttributeRow[] {
+    const byName = new Map(infos.map((info) => [info.name, info]))
+    const names = new Set(byName.keys())
+    // A full scan per document, which is why it happens on `ready`/`refresh`
+    // and on registration rather than on every edit.
+    for (const document of bike.documents) {
+      for (const name of document.outline.attributeNames) names.add(name)
+    }
+
+    return [...names]
+      .filter((name) => isPolicyEligible(name, byName.get(name)?.metadata['user'] as boolean | undefined))
+      .sort()
+      .map((name) => {
+        const info = byName.get(name)
+        const seeds = {} as AttributeRow['seeds']
+        for (const column of ATTRIBUTE_COLUMNS) {
+          seeds[column] = seedFor(column, info?.defaultBadge)
+        }
+        return {
+          name,
+          title: info?.title ?? name.charAt(0).toUpperCase() + name.slice(1),
+          declared: info != null,
+          seeds,
+        }
+      })
+  }
 }
 
 function wrapTextSelection(startChar: string, endChar: string, context: CommandContext): boolean {

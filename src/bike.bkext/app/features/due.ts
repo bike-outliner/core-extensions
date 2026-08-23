@@ -25,9 +25,6 @@ export function registerDue() {
     emptyLabel: 'Soon',
     description: 'When the row is due — a calendar day, a timestamp, or valueless for "soon".',
     defaultBadge: false,
-    // Recorded in the log. The most history-worthy of them all: a deadline
-    // that moved twice is a fact about the work, and only the log remembers.
-    metadata: { log: true },
     suggestions: () => [{ name: 'Soon', value: '', menu: true }],
   })
 

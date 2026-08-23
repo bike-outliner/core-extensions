@@ -36,8 +36,6 @@ export function registerFlagged() {
     description: 'Marks the row for attention, in one of seven colors.',
     // The badge below presents this attribute — opt out of the catch-all.
     defaultBadge: false,
-    // Recorded in the log — flagging and unflagging is a judgement call.
-    metadata: { log: true },
   })
 
   bike.commands.addCommands({

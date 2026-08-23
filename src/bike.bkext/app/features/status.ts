@@ -50,17 +50,15 @@ export function registerStatus() {
     // have skipped the log entry and the clock-out; the host records a
     // transition wherever it came from now, so there is nothing left to
     // protect against.
-    // Recorded in the log: a state change is the thing a history is most
-    // often kept for. The rules read this key rather than knowing `status`
-    // by name (see OutlineStore+LogRules).
-    metadata: { calendar: false, log: true },
+    metadata: { calendar: false },
   })
 
   // Status's own log field. The rules derive `log-status` from the attribute
-  // name on their own, so this is NOT what makes a state change recordable —
-  // `log: true` above is. What declaring the twin buys is the type: the log's
-  // badge formats it as "Done" rather than "done", and clicking that chip
-  // gets the four states as radios instead of a bare "Value…" box.
+  // name on their own, and recording is the user's call in the Attributes
+  // settings table, so declaring the twin is NOT what makes a state change
+  // recordable. What it buys is the type: the log's badge formats it as
+  // "Done" rather than "done", and clicking that chip gets the four states as
+  // radios instead of a bare "Value…" box.
   //
   // A feature that skips this still gets recorded and still gets a chip; it
   // just gets a plainer one. That is the intended gradient.

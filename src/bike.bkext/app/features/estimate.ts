@@ -15,8 +15,6 @@ export function registerEstimate() {
     type: 'duration',
     description: 'Estimated effort as a duration: 30m, 2h, 1d.',
     defaultBadge: false,
-    // Recorded in the log — re-estimating is worth a record on long work.
-    metadata: { log: true },
     // Estimates are day-scale at most — the picker's segment editor shows
     // only these.
     components: ['days', 'hours', 'minutes'],

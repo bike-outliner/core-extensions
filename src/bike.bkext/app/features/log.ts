@@ -58,9 +58,9 @@ export function registerLog() {
   // row's whole attribute map and picks out `log-*` at render time, because a
   // badge's `where` cannot say "any attribute starting with log-" — OutlinePath
   // matches attribute names exactly. That map is also what makes this generic:
-  // a feature that opts into `log: true` gets its value presented here without
-  // registering anything, and an extension's own attribute is presented on the
-  // same terms as a built-in.
+  // any attribute the user keeps history for gets its value presented here
+  // without registering anything, and an extension's own attribute — or one no
+  // extension declared — is presented on the same terms as a built-in.
   //
   // Chips come back as an ARRAY, and array order is display order, so the date
   // always leads and the values follow in a stable order. That is stronger than
