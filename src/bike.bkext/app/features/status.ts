@@ -107,10 +107,10 @@ export function registerStatus() {
     // badge offers.
     //
     // This hand-rolled the same radios as `command:status:*` items for a
-    // while, because a direct attribute write skipped what `setRowStatus`
-    // owned — the log entry, the clock-out on close — and a state change made
-    // here would go unrecorded on a row that keeps a history. The host now
-    // records a transition wherever it came from, at the end of the
+    // while, because a direct attribute write skipped what only the command
+    // path did — the log entry, the clock-out on close — and a state change
+    // made here would go unrecorded on a row that keeps a history. The host
+    // now records a transition wherever it came from, at the end of the
     // transaction that made it, so the menu that writes the attribute keeps
     // history like any other writer and there is nothing left to hand-roll.
     //

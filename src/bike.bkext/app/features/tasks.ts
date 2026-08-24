@@ -154,28 +154,38 @@ function filterBranchTasks(predicate: string, label: string) {
 // step. A canceled task counts as closed and is left alone — marking it done
 // would silently reclassify a decision the user made.
 //
-// Through the host setter (`editor.setRowStatus`), not setAttribute: the
-// setter owns the maintenance — it stops a running clock and records the
-// change on tasks that keep a log. Writing the attribute directly is a data
-// edit that bypasses all of that.
+// A plain attribute write, like every other setter in these features: the host
+// derives a status transition's consequences from the transition itself, so a
+// task that keeps a log records the change and a running clock stops whichever
+// surface made the write. The one thing a keystroke gets that this doesn't is
+// `sortCompletedTasksToEnd` — that's a view preference the editor applies to
+// what the user just did in place, and the status badge's own menu doesn't
+// sort either.
 function markBranchDone({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
   const tasks = branchTasks(rows).filter((task) => !isClosed(task))
   if (tasks.length === 0) return false
-  editor.setRowStatus('done', tasks)
+  editor.outline.transaction({ label: 'Mark Branch Tasks Done' }, () => {
+    for (const task of tasks) task.setAttribute('status', 'done')
+  })
   return true
 }
 
 // Reopen every closed task in the selected rows' branches — done or canceled
-// alike, since both mean "off the list" and this puts them back on it. Same
-// host-setter routing as markBranchDone, for the same reason.
+// alike, since both mean "off the list" and this puts them back on it.
+//
+// Clears the attribute rather than writing 'todo': absent IS todo, and leaving
+// nothing behind is what the rest of the app does when a state goes away. The
+// transition is still done → todo, so it records like any other.
 function reopenBranch({ editor, selection }: CommandContext): boolean {
   const rows = selection?.rows ?? []
   if (!editor || rows.length === 0) return false
   const tasks = branchTasks(rows).filter((task) => isClosed(task))
   if (tasks.length === 0) return false
-  editor.setRowStatus('todo', tasks)
+  editor.outline.transaction({ label: 'Reopen Branch Tasks' }, () => {
+    for (const task of tasks) task.removeAttribute('status')
+  })
   return true
 }
 
