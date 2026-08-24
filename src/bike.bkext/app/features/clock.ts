@@ -17,6 +17,24 @@ import { isoDuration } from './helpers'
 // whether a clock is actually running — see the badges below. All four are
 // clickable, and offer those two native commands for the row the badge speaks
 // for.
+//
+// HELD BACK from the 2.0 release: nothing below the attribute declaration is
+// registered, so the clock has no badges, no rollups, and no menu. The model,
+// the native commands, and the attribute CLAIM all stay — see `CLOCK_BADGES`.
+
+// Whether the clock draws. Off until the feature ships.
+//
+// The declaration above the gate is not optional: `defaultBadge: false` is what
+// claims `clock-duration` from the catch-all badge (default-badge.ts), and
+// `user: false` is what keeps it out of the `@` palette. Stop declaring it and
+// documents that already hold clock entries get WORSE, not quieter — raw
+// `clock-duration:PT1H0M0S` chips and an offered attribute. So the gate sits
+// after the claim, not around it.
+//
+// Annotated `: boolean` on purpose: a bare `= false` narrows to the literal
+// type, and TypeScript then reports the whole rest of the function as
+// unreachable.
+const CLOCK_BADGES: boolean = false
 
 export function registerClock() {
   bike.attribute('clock-duration', {
@@ -28,6 +46,8 @@ export function registerClock() {
     // `log-date` in log.ts for what `user: false` means.
     metadata: { calendar: false, user: false },
   })
+
+  if (!CLOCK_BADGES) return
 
   // Time worked below a row, folded from every clock entry in the branch —
   // the read side of `clock-duration`, and what makes clocking more than
@@ -203,8 +223,11 @@ function showClockMenu(editor: OutlineEditor, row: Row, badge: string): void {
     { row, anchor: badge },
     {
       items: [
-        { type: 'button', id: 'command:clock:in', title: 'Clock In', enabled: !running },
-        { type: 'button', id: 'command:clock:out', title: 'Clock Out', enabled: running },
+        // `clock:.in`, not `clock:in` — hidden ids while the feature is held
+        // back. This menu is unreachable today (nothing registers the badges
+        // that open it); the ids are kept in step so it works when it returns.
+        { type: 'button', id: 'command:clock:.in', title: 'Clock In', enabled: !running },
+        { type: 'button', id: 'command:clock:.out', title: 'Clock Out', enabled: running },
       ],
     }
   )

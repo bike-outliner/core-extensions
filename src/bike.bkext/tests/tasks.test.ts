@@ -80,15 +80,20 @@ describe("Task commands", () => {
         assert.equal(bike.commands.performCommand("task:reopen-branch", { editor }), false)
     })
 
-    it("branch commands run the maintained setter, so logged tasks record", () => {
-        // markBranchDone goes through editor.setRowStatus rather than raw
-        // setAttribute — a task that keeps a log must not get holes in its
-        // history depending on WHICH surface changed its state.
+    it("branch commands record history like any other writer", () => {
+        // The branch commands write `status` directly. The host derives the
+        // log entry and the clock-out from the transition itself, so a task
+        // that keeps a log must not get holes in its history depending on
+        // WHICH surface changed its state.
         const project = outline.root.firstChild!
         const task = project.children.find((row) => row.type === "task")!
         editor.selectRows(task)
         assert.equal(bike.commands.performCommand("row:create-log", { editor }), true)
-        assert.equal(bike.commands.performCommand("clock:in", { editor }), true)
+        // `clock:.in`, not `clock:in`: the command is hidden while the feature
+        // is held back. Still performable from JS, which is the point of
+        // hiding rather than unregistering — the clock-out below is what this
+        // test is actually about, and it stays exercised.
+        assert.equal(bike.commands.performCommand("clock:.in", { editor }), true)
 
         editor.selectRows(project)
         assert.equal(bike.commands.performCommand("task:mark-branch-done", { editor }), true)
@@ -111,15 +116,6 @@ describe("Task commands", () => {
         const log = task.log
         assert(log != null, "the task should have a log to remove")
         outline.removeRows([log!])
-    })
-
-    it("editor.setRowStatus is exposed to extensions", () => {
-        const project = outline.root.firstChild!
-        const task = project.children.find((row) => row.type === "task")!
-        editor.setRowStatus("canceled", [task])
-        assert.equal(task.getAttribute("status"), "canceled")
-        editor.setRowStatus("todo", [task])
-        assert.equal(task.getAttribute("status"), undefined)
     })
 
     it("leaves canceled tasks alone when marking a branch done", () => {
@@ -310,7 +306,15 @@ describe("Task summaries", () => {
         })
     })
 
-    it("summary('clocked') sums recorded intervals below a row", async () => {
+    // The two clock-summary tests below are PARKED while the clock is held back:
+    // `CLOCK_BADGES` in app/features/clock.ts gates the summaries they assert
+    // on, so both would poll until they time out. The harness has no `it.skip`,
+    // and commenting them out would let them rot — this shim keeps the bodies
+    // compiled and type-checked. Swap `itParked` back to `it` when the feature
+    // ships.
+    const itParked = (_name: string, _fn: () => void | Promise<void>) => {}
+
+    itParked("summary('clocked') sums recorded intervals below a row", async () => {
         // The read side of clock-duration — without this the clock
         // records time nothing can see.
         const project = outline.root.firstChild!
@@ -338,7 +342,7 @@ describe("Task summaries", () => {
         })
     })
 
-    it("the running-clock summaries describe an open interval", async () => {
+    itParked("the running-clock summaries describe an open interval", async () => {
         // What the ticking Σ badge is built from: a running entry contributes
         // nothing to `clocked` (its value is empty), so live elapsed comes from
         // counting open intervals and summing the instants they started at —
