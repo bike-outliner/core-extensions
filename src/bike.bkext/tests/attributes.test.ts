@@ -377,8 +377,8 @@ describe('attribute policy', () => {
     // in ATTRIBUTE_COLUMNS order, so a string compare is a real deep compare.
     const json = (value: unknown) => JSON.stringify(value)
 
-    it('seeds pick and log on, and badge from the declaration', () => {
-        assert.equal(seedFor('pick', false), true)
+    it('seeds palette and log on, and badge from the declaration', () => {
+        assert.equal(seedFor('palette', false), true)
         assert.equal(seedFor('log', false), true)
         assert.equal(seedFor('badge', undefined), true)
         assert.equal(seedFor('badge', false), false)
@@ -406,7 +406,7 @@ describe('attribute policy', () => {
     })
 
     it('reads what parses and drops the rest', () => {
-        assert.equal(json(readOverrides({ a: { pick: false, junk: 1 }, b: 'nope', c: {} })), '{"a":{"pick":false}}')
+        assert.equal(json(readOverrides({ a: { palette: false, junk: 1 }, b: 'nope', c: {} })), '{"a":{"palette":false}}')
         assert.equal(json(readOverrides(undefined)), '{}')
         assert.equal(json(readOverrides([])), '{}')
         assert.equal(json(readOverrides('x')), '{}')

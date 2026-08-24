@@ -17,10 +17,10 @@ export type TaskProgressBadgeType = 'fraction' | 'pie'
  * table. Each column is a question some part of the editor already asked; the
  * declaration seeds the answer and this overrides it.
  */
-export type AttributeColumn = 'pick' | 'badge' | 'log'
+export type AttributeColumn = 'palette' | 'badge' | 'log'
 
 /** Display order, and the order the table's columns render in. */
-export const ATTRIBUTE_COLUMNS: readonly AttributeColumn[] = ['pick', 'badge', 'log']
+export const ATTRIBUTE_COLUMNS: readonly AttributeColumn[] = ['palette', 'badge', 'log']
 
 /** Only the cells the user changed. Absent = still at its seed. */
 export type AttributeOverride = Partial<Record<AttributeColumn, boolean>>
@@ -53,7 +53,7 @@ export function isPolicyEligible(name: string, declaredUser?: boolean): boolean 
 }
 
 /**
- * The declaration's answer for one column, before the user's. Pick and Log are
+ * The declaration's answer for one column, before the user's. Palette and Log are
  * seeded on for everything eligible; only Badge varies, because
  * `defaultBadge: false` is how an extension says "I present this myself".
  */

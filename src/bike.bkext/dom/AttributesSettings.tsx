@@ -20,15 +20,15 @@ export function activate(context: DOMExtensionContext<AttributesProtocol>) {
 }
 
 const COLUMN_LABELS: Record<AttributeColumn, string> = {
-  pick: 'Pick',
+  palette: 'Palette',
   badge: 'Badge',
   log: 'Log',
 }
 
 const COLUMN_HELP: Record<AttributeColumn, string> = {
-  pick: 'suggest it where a row doesn’t have it',
-  badge: 'draw an automatic tag for it',
-  log: 'record changes in the row’s log',
+  palette: 'Suggest this attribute in the palette, even when the row doesn’t have it set.',
+  badge: 'Show the default badge. Unchecked for custom or unwanted badges.',
+  log: 'Record changes to this attribute in the row’s log, if it exists.',
 }
 
 /**
@@ -93,6 +93,9 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
       onChange={(expanded) => expanded && context.postMessage({ type: 'refresh' })}
     >
       <Label color="secondary" size="small">
+        Configure how Bike handles specific attributes:
+      </Label>
+      <Label color="secondary" size="small">
         {ATTRIBUTE_COLUMNS.map((column, index) => (
           <Fragment key={column}>
             {index > 0 && <br />}
@@ -127,13 +130,16 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {rows.map((row, index) => (
             <tr key={row.name}>
-              <td style={bodyCell('left')} title={row.declared ? undefined : 'Used in an open document'}>
+              <td
+                style={bodyCell('left', index === 0)}
+                title={row.declared ? undefined : 'Used in an open document'}
+              >
                 {row.title}
               </td>
               {ATTRIBUTE_COLUMNS.map((column) => (
-                <td key={column} style={bodyCell('center')}>
+                <td key={column} style={bodyCell('center', index === 0)}>
                   {/* No visible label beside the box — the column header is
                       the label, and only for someone who can see it. */}
                   <Checkbox
@@ -151,19 +157,26 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
   )
 }
 
+// The rule under the header needs air on both sides, or the header reads as
+// part of the first row rather than as a heading over the whole column. Room
+// below it is the header's own padding; room above the first row is that row's,
+// since a table's cells are the only thing there is to pad.
 function headerCell(align: 'left' | 'center'): React.CSSProperties {
   return {
     textAlign: align,
     fontWeight: 'normal',
-    padding: '2px 0',
+    padding: '0 0 6px',
     borderBottom: '0.5px solid var(--separator)',
   }
 }
 
-function bodyCell(align: 'left' | 'center'): React.CSSProperties {
+function bodyCell(align: 'left' | 'center', first: boolean): React.CSSProperties {
   return {
     textAlign: align,
-    padding: '2px 0',
+    // 3px matches `.bike-form-row`, so rows sit on the same rhythm as the rest
+    // of the settings pane.
+    paddingTop: first ? '6px' : '3px',
+    paddingBottom: '3px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
