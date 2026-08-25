@@ -43,7 +43,7 @@ export function registerLog() {
     defaultBadge: false,
     // History is not schedule: on the calendar every completed row would
     // land on its completion day and drown the actual plan. And the
-    // @-palette never offers it — it means nothing typed onto a row outside
+    // Attributes Editor never offers it — it means nothing typed onto a row outside
     // a log (rows already carrying it still list).
     // `user: false`: never OFFERED on a row that lacks it. This is the
     // log's own bookkeeping — it means nothing typed onto an ordinary row,

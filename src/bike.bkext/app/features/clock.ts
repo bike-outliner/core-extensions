@@ -26,7 +26,7 @@ import { isoDuration } from './helpers'
 //
 // The declaration above the gate is not optional: `defaultBadge: false` is what
 // claims `clock-duration` from the catch-all badge (default-badge.ts), and
-// `user: false` is what keeps it out of the `@` palette. Stop declaring it and
+// `user: false` is what keeps it out of the Attributes Editor. Stop declaring it and
 // documents that already hold clock entries get WORSE, not quieter — raw
 // `clock-duration:PT1H0M0S` chips and an offered attribute. So the gate sits
 // after the claim, not around it.

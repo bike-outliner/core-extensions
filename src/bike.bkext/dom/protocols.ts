@@ -17,10 +17,10 @@ export type TaskProgressBadgeType = 'fraction' | 'pie'
  * table. Each column is a question some part of the editor already asked; the
  * declaration seeds the answer and this overrides it.
  */
-export type AttributeColumn = 'palette' | 'badge' | 'log'
+export type AttributeColumn = 'editor' | 'badge' | 'log'
 
 /** Display order, and the order the table's columns render in. */
-export const ATTRIBUTE_COLUMNS: readonly AttributeColumn[] = ['palette', 'badge', 'log']
+export const ATTRIBUTE_COLUMNS: readonly AttributeColumn[] = ['editor', 'badge', 'log']
 
 /** Only the cells the user changed. Absent = still at its seed. */
 export type AttributeOverride = Partial<Record<AttributeColumn, boolean>>
@@ -53,7 +53,7 @@ export function isPolicyEligible(name: string, declaredUser?: boolean): boolean 
 }
 
 /**
- * The declaration's answer for one column, before the user's. Palette and Log are
+ * The declaration's answer for one column, before the user's. Editor and Log are
  * seeded on for everything eligible; only Badge varies, because
  * `defaultBadge: false` is how an extension says "I present this myself".
  */
@@ -116,16 +116,83 @@ export type AttributeRow = {
   /** Whether any declaration claims it, so the table can say which names
    * merely turned up in a document. */
   declared: boolean
+  /** Whether an open document uses it right now. An undeclared row that isn't
+   * present is here only because the override map still names it. */
+  present: boolean
   /** The declaration's answer per column, before this user's. */
   seeds: Record<AttributeColumn, boolean>
 }
 
+/**
+ * The slice of `AttributeInfo` a row is built from. Structural rather than
+ * imported: this file is shared with the DOM context, which has no `bike/app`.
+ */
+export type AttributeDeclarationLike = {
+  name: string
+  title: string
+  defaultBadge: boolean
+  metadata: Record<string, unknown>
+}
+
+/**
+ * The table's rows, from the three places a name can come from: a declaration,
+ * an open document, or the override map itself.
+ *
+ * That third source is what keeps a decision reachable. Uncheck a badge for a
+ * name a document brought in, close the document, and without it the row —
+ * and the only way back to it — would be gone while the override went on
+ * applying. Such a row still gets the seeds it would have had, so unchecking
+ * it back to agreement drops the override and the row leaves on its own.
+ *
+ * Pure, so the assembly is testable without an app context.
+ */
+export function buildRows(
+  infos: readonly AttributeDeclarationLike[],
+  documentNames: ReadonlySet<string>,
+  overrides: AttributeOverrides
+): AttributeRow[] {
+  const byName = new Map(infos.map((info) => [info.name, info]))
+  const names = new Set([...byName.keys(), ...documentNames, ...Object.keys(overrides)])
+
+  return [...names]
+    .filter((name) => isPolicyEligible(name, byName.get(name)?.metadata['user'] as boolean | undefined))
+    .map((name) => {
+      const info = byName.get(name)
+      const seeds = {} as AttributeRow['seeds']
+      for (const column of ATTRIBUTE_COLUMNS) {
+        seeds[column] = seedFor(column, info?.defaultBadge)
+      }
+      return {
+        name,
+        title: info?.title ?? name.charAt(0).toUpperCase() + name.slice(1),
+        declared: info != null,
+        present: documentNames.has(name),
+        seeds,
+      }
+    })
+    // Grouped before it's alphabetized, so the attributes Bike and your
+    // extensions actually mean read as the list, and the names that merely
+    // turned up settle underneath it. Within a group, by what the table SHOWS
+    // — a declaration is free to title itself something that sorts elsewhere —
+    // with the name breaking ties so a shared title keeps a stable order.
+    .sort((a, b) => rankOf(a) - rankOf(b) || a.title.localeCompare(b.title) || a.name.localeCompare(b.name))
+}
+
+/** Declared, then merely used, then not even that — the last group being the
+ * names kept alive by a setting alone. */
+function rankOf(row: AttributeRow): number {
+  if (row.declared) return 0
+  return row.present ? 1 : 2
+}
+
 export interface AttributesProtocol extends DOMProtocol {
-  /** Every attribute that may carry policy: declared ones plus whatever the
-   * open documents use. Sent in reply to `ready`/`refresh`, and re-pushed
-   * whenever the attribute registry changes. */
+  /** Every attribute that may carry policy: declared ones, whatever the open
+   * documents use, and any name the override map still holds. Sent in reply to
+   * `ready`/`refresh`, and re-pushed whenever the attribute registry changes or
+   * the overrides gain or lose a name. */
   toDOM: { type: 'attributes'; rows: AttributeRow[] }
   /** `ready` once the panel can receive; `refresh` when it's about to be
-   * looked at, which is when the document scan is worth doing. */
-  toApp: { type: 'ready' } | { type: 'refresh' }
+   * looked at; `watch` when the table starts or stops being read, which is the
+   * whole of what decides whether the app context follows the open documents. */
+  toApp: { type: 'ready' } | { type: 'refresh' } | { type: 'watch'; active: boolean }
 }

@@ -4,7 +4,7 @@
   "author": "Jesse Grosjean",
   "url": "https://github.com/bike-outliner/core-extensions/tree/main/src/calendar.bkext",
   "version": "0.1.0",
-  "api_version": "0.68.0",
+  "api_version": "0.69.0",
   "permissions": [],
   "host_permissions": []
 }

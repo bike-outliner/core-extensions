@@ -2,11 +2,27 @@ import { DOMExtensionContext } from 'bike/dom'
 import { JSONValue } from 'bike/core'
 import { Box, Checkbox, Disclosure, FormRow, FormGroup, SFSymbol } from 'bike/components'
 import { createRoot } from 'react-dom/client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { calendarDefaults, startOfWeek, substituteDate } from './protocols'
+import { SettingsGroupAccessory } from './settings-group'
 
 type FormatKey = 'yearNameFormat' | 'monthNameFormat' | 'weekNameFormat' | 'dayNameFormat'
 type EnableKey = 'yearEnabled' | 'monthEnabled' | 'weekEnabled'
+
+/** Kept in step by hand with a `GuideURL` case, which an extension can't reach. */
+const HELP_URL = 'https://www.hogbaysoftware.com/bike/guide/using-bike/using-calendar#settings'
+
+/**
+ * Whether anything under this panel's keys differs from what it ships with.
+ * Unset reads as `undefined` here — `registerDefaults` runs in the app context
+ * and doesn't seed this page — so absence is agreement, not disagreement.
+ */
+function isChanged(): boolean {
+  return Object.entries(calendarDefaults).some(([key, value]) => {
+    const current = bike.defaults.get(key)
+    return current !== undefined && JSON.stringify(current) !== JSON.stringify(value)
+  })
+}
 
 export function activate(context: DOMExtensionContext) {
   createRoot(context.element).render(<SettingsPanel />)
@@ -25,6 +41,30 @@ function SettingsPanel() {
     }
   }
 
+  // The format fields and the week-numbers checkbox each hold their own state,
+  // so a reset re-mounts them rather than reaching in — the token is what says
+  // "read yourself again". Asking the defaults directly keeps the button honest
+  // about writes from anywhere, this panel included.
+  const [resetToken, setResetToken] = useState(0)
+  const [changed, setChanged] = useState(isChanged)
+
+  useEffect(() => {
+    const disposables = Object.keys(calendarDefaults).map((key) =>
+      bike.defaults.observe(key, () => setChanged(isChanged()))
+    )
+    return () => disposables.forEach((disposable) => disposable.dispose())
+  }, [])
+
+  function onReset() {
+    // Deleted, not written back: a default the extension later changes should
+    // still be followed.
+    for (const key of Object.keys(calendarDefaults)) bike.defaults.delete(key)
+    setYearEnabled(calendarDefaults.yearEnabled)
+    setMonthEnabled(calendarDefaults.monthEnabled)
+    setWeekEnabled(calendarDefaults.weekEnabled)
+    setResetToken((token) => token + 1)
+  }
+
   // Indent each preview by the number of enabled levels above it, mirroring the
   // generated outline nesting.
   const aboveMonth = yearEnabled ? 1 : 0
@@ -32,8 +72,19 @@ function SettingsPanel() {
   const aboveDay = aboveWeek + (weekEnabled ? 1 : 0)
 
   return (
-    <Disclosure label="Calendar" defaultExpanded>
-      <WeekNumbersRow />
+    <Disclosure
+      label="Calendar"
+      accessory={
+        <SettingsGroupAccessory
+          canReset={changed}
+          onReset={onReset}
+          helpURL={HELP_URL}
+          helpTitle="Calendar help"
+        />
+      }
+      accessoryAlignment="trailing"
+    >
+      <WeekNumbersRow key={resetToken} />
 
       <Box>
         <p>
@@ -47,7 +98,7 @@ function SettingsPanel() {
           <li>Check or uncheck Year, Month and Week to choose which levels the calendar generates.</li>
         </ul>
 
-        <FormGroup>
+        <FormGroup key={resetToken}>
           <FormatRow
             label="Year"
             formatKey="yearNameFormat"

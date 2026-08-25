@@ -11,7 +11,7 @@ import {
 //
 // A due value is `YYYY-MM-DD` (local calendar date), a full ISO-8601 UTC
 // timestamp when a time is included, or EMPTY — a valueless `@due` means
-// "soon": due, but no date yet. The palette sets date-only values; timed
+// "soon": due, but no date yet. The Attributes Editor sets date-only values; timed
 // values come from scripts/automation and still render in the badge.
 //
 // calendar.bkext ALSO renders due — it shows every `type: 'date'` attribute
@@ -84,7 +84,7 @@ export function registerDue() {
       // drawn badge on the row. Completed rows fade the text down to the
       // border's alpha so the whole tag reads as done.
       const bm = env.badgeMetrics
-      // The native display layer — the same labels the palette and
+      // The native display layer — the same labels the Attributes Editor and
       // pickers show, computed at env.now so they roll over on tick.
       const label = raw === '' ? 'Soon' : env.formatAttribute('due', raw)
       return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), color.alphaSet(done ? 0.3 : 0.8)))

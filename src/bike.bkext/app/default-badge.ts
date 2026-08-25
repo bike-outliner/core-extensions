@@ -21,7 +21,7 @@ import {
 // radios, else "Value…" — all built in, no menu code here.
 //
 // Labels go through `env.formatAttribute`, the same native display layer the
-// palette and pickers use, so a `duration` reads "1h 30m" and a `date` reads
+// Attributes Editor and pickers use, so a `duration` reads "1h 30m" and a `date` reads
 // "Today" rather than showing its raw wire encoding.
 //
 // The Badge column of Settings > Extensions > Bike > Attributes decides this

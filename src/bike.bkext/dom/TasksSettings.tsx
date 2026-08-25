@@ -3,6 +3,7 @@ import { Checkbox, Disclosure, RadioGroup, type RadioGroupItem } from 'bike/comp
 import { createRoot } from 'react-dom/client'
 import { useState } from 'react'
 import { TaskProgressBadgeType } from './protocols'
+import { SettingsGroupAccessory } from './settings-group'
 
 // One `settings.addItem` per section, each in its own file: the settings pane
 // sorts its sections by label, so a section stands on its own rather than
@@ -16,6 +17,21 @@ const TASK_PROGRESS_BADGE_TYPES: RadioGroupItem<TaskProgressBadgeType>[] = [
   { value: 'fraction', label: 'Fraction' },
   { value: 'pie', label: 'Pie chart' },
 ]
+
+/** Kept in step by hand with `GuideURL.settingsWindow.anchored("tasks")`, which
+ * an extension can't reach. */
+const HELP_URL = 'https://www.hogbaysoftware.com/bike/guide/using-bike/settings-window#tasks'
+
+/**
+ * What this panel resets TO — including `sortCompletedTasksToEnd`, whose
+ * default is native. Reset deletes the keys rather than writing these back, so
+ * a default that later changes is still followed.
+ */
+const DEFAULTS = {
+  sortCompletedTasksToEnd: false,
+  showTaskProgressBadges: true,
+  taskProgressBadgeType: 'fraction' as TaskProgressBadgeType,
+}
 
 // Everything about how tasks behave, in one place. `sortCompletedTasksToEnd` is
 // a NATIVE editor setting that happens to be keyed under this extension's
@@ -49,8 +65,31 @@ function TasksSection() {
     bike.defaults.set('taskProgressBadgeType', value)
   }
 
+  function onReset() {
+    for (const key of Object.keys(DEFAULTS)) bike.defaults.delete(key)
+    setSortDone(DEFAULTS.sortCompletedTasksToEnd)
+    setShowBadges(DEFAULTS.showTaskProgressBadges)
+    setBadgeType(DEFAULTS.taskProgressBadgeType)
+  }
+
+  const changed =
+    sortDone !== DEFAULTS.sortCompletedTasksToEnd ||
+    showBadges !== DEFAULTS.showTaskProgressBadges ||
+    badgeType !== DEFAULTS.taskProgressBadgeType
+
   return (
-    <Disclosure label="Tasks" defaultExpanded>
+    <Disclosure
+      label="Tasks"
+      accessory={
+        <SettingsGroupAccessory
+          canReset={changed}
+          onReset={onReset}
+          helpURL={HELP_URL}
+          helpTitle="Tasks help"
+        />
+      }
+      accessoryAlignment="trailing"
+    >
       <Checkbox checked={sortDone} onChange={(e) => onSortDoneChange(e.target.checked)}>
         Sort completed to end of list
       </Checkbox>

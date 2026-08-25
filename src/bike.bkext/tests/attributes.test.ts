@@ -1,9 +1,17 @@
 import { Image, SymbolConfiguration } from 'bike/app'
 import { unclaimedNames } from '../app/default-badge'
-import { isPolicyEligible, readOverrides, seedFor, withCell } from '../dom/protocols'
+import {
+    AttributeDeclarationLike,
+    AttributeRow,
+    buildRows,
+    isPolicyEligible,
+    readOverrides,
+    seedFor,
+    withCell,
+} from '../dom/protocols'
 
-// Attribute editing is the native attribute palette (editor.
-// showAttributePalette) and the standalone value picker (editor.showPicker;
+// Attribute editing is the native Attributes Editor (editor.
+// showAttributesEditor) and the standalone value picker (editor.showPicker;
 // badge menus' "Value…" opens the native equivalent). What's testable from
 // JS is the `bike.attribute` registration surface, the presentation
 // scheduling, plus the default badge's pure reconciliation.
@@ -213,7 +221,7 @@ describe('bike.parseAttribute', () => {
         assert(bike.parseAttribute('due', 'today')?.value.match(/^\d{4}-\d{2}-\d{2}$/))
         assert(bike.parseAttribute('due', 'next fri')?.value.match(/^\d{4}-\d{2}-\d{2}$/))
         // "soon" is not a date — the valueless due is committed by the
-        // palette's `""` row and the menu's "Soon" pick, not by parsing.
+        // Attributes Editor's `""` row and the menu's "Soon" pick, not by parsing.
         assert.equal(bike.parseAttribute('due', 'soon'), undefined)
     })
 
@@ -273,7 +281,7 @@ describe('default attribute set', () => {
             assert.equal(byName.get(name)?.metadata['log'], undefined, name + ' should not declare log')
         }
         // The entry fields are the only opt-outs: a feature writes and reads
-        // them, so neither the palette nor the context menu offers them on a
+        // them, so neither the Attributes Editor nor the context menu offers them on a
         // row that lacks one. A row that HAS one still shows it.
         assert.equal(byName.get('log-status')?.metadata['user'], false)
         assert.equal(byName.get('log-date')?.metadata['user'], false)
@@ -377,8 +385,8 @@ describe('attribute policy', () => {
     // in ATTRIBUTE_COLUMNS order, so a string compare is a real deep compare.
     const json = (value: unknown) => JSON.stringify(value)
 
-    it('seeds palette and log on, and badge from the declaration', () => {
-        assert.equal(seedFor('palette', false), true)
+    it('seeds editor and log on, and badge from the declaration', () => {
+        assert.equal(seedFor('editor', false), true)
         assert.equal(seedFor('log', false), true)
         assert.equal(seedFor('badge', undefined), true)
         assert.equal(seedFor('badge', false), false)
@@ -406,10 +414,88 @@ describe('attribute policy', () => {
     })
 
     it('reads what parses and drops the rest', () => {
-        assert.equal(json(readOverrides({ a: { palette: false, junk: 1 }, b: 'nope', c: {} })), '{"a":{"palette":false}}')
+        assert.equal(json(readOverrides({ a: { editor: false, junk: 1 }, b: 'nope', c: {} })), '{"a":{"editor":false}}')
         assert.equal(json(readOverrides(undefined)), '{}')
         assert.equal(json(readOverrides([])), '{}')
         assert.equal(json(readOverrides('x')), '{}')
+    })
+})
+
+describe('attribute row assembly', () => {
+    const json = (value: unknown) => JSON.stringify(value)
+    const names = (rows: AttributeRow[]) => rows.map((row) => row.name).join(',')
+    const declaration = (name: string, over: Partial<AttributeDeclarationLike> = {}): AttributeDeclarationLike => ({
+        name,
+        title: name.charAt(0).toUpperCase() + name.slice(1),
+        defaultBadge: true,
+        metadata: {},
+        ...over,
+    })
+
+    it('orders by the title shown, not the name underneath', () => {
+        // Sorting the names would put `alpha` first; sorting what the table
+        // actually prints puts Apple first.
+        const declared = [declaration('zzz', { title: 'Apple' }), declaration('alpha', { title: 'Zebra' })]
+        assert.equal(names(buildRows(declared, new Set(), {})), 'zzz,alpha')
+    })
+
+    it('groups declared attributes above the names that merely turned up', () => {
+        // Alphabetically this is apple, balloon, zebra. Grouped, the attribute
+        // an extension declared leads, whatever it's called.
+        const rows = buildRows([declaration('zebra')], new Set(['apple']), { balloon: { badge: false } })
+        assert.equal(names(rows), 'zebra,apple,balloon')
+    })
+
+    it('breaks a tie on the name, so a shared title still has an order', () => {
+        const shared = [declaration('b', { title: 'Same' }), declaration('a', { title: 'Same' })]
+        assert.equal(names(buildRows(shared, new Set(), {})), 'a,b')
+    })
+
+    it('lists a name only a document uses', () => {
+        const rows = buildRows([], new Set(['moose']), {})
+        assert.equal(rows.length, 1)
+        assert.equal(rows[0].title, 'Moose')
+        assert.equal(rows[0].declared, false)
+        assert.equal(rows[0].present, true)
+    })
+
+    it('keeps a name the overrides still speak about after its document closes', () => {
+        const rows = buildRows([], new Set(), { moose: { badge: false } })
+        assert.equal(rows.length, 1)
+        assert.equal(rows[0].declared, false)
+        assert.equal(rows[0].present, false)
+        // Seeded as if it had just turned up, so unchecking the row back to
+        // agreement drops the override and the row leaves with it.
+        assert.equal(json(rows[0].seeds), '{"editor":true,"badge":true,"log":true}')
+    })
+
+    it('gives a declared name one row, whichever sources also name it', () => {
+        const rows = buildRows(
+            [declaration('due', { title: 'Due', defaultBadge: false })],
+            new Set(['due']),
+            { due: { editor: false } }
+        )
+        assert.equal(rows.length, 1)
+        assert.equal(rows[0].declared, true)
+        assert.equal(rows[0].present, true)
+        assert.equal(json(rows[0].seeds), '{"editor":true,"badge":false,"log":true}')
+    })
+
+    it('admits no row an override can only have reached by hand', () => {
+        // The overrides are a plist a person can edit, so eligibility gates
+        // that source too — a recorded twin or a feature-owned field is no
+        // more the user's to configure for having been typed in.
+        const rows = buildRows(
+            [declaration('clock-duration', { metadata: { user: false } })],
+            new Set(['log-status']),
+            { 'log-priority': { badge: true }, 'clock-duration': { editor: false } }
+        )
+        assert.equal(names(rows), '')
+    })
+
+    it('takes its override names through the same reader the panel uses', () => {
+        const rows = buildRows([], new Set(), readOverrides({ ghost: { editor: false }, junk: 'nope' }))
+        assert.equal(names(rows), 'ghost')
     })
 })
 
@@ -429,12 +515,12 @@ describe('default badge registration', () => {
     })
 })
 
-describe('attribute palette', () => {
-    it('showAttributePalette is callable (headless: schedules, no panel)', () => {
+describe('Attributes Editor', () => {
+    it('showAttributesEditor is callable (headless: schedules, no panel)', () => {
         const editor = bike.testEditor()
         const outline = editor.outline
         const [row] = outline.insertRows(['Buy milk'], outline.root)
-        editor.showAttributePalette(row)
+        editor.showAttributesEditor(row)
     })
 })
 
