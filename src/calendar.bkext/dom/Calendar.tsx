@@ -473,6 +473,15 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
         locale={bike.systemLocale}
         calendarType={gridCalendarType()}
         formatShortWeekday={(_locale: any, date: Date) => date.toLocaleDateString(bike.systemLocale, { weekday: 'narrow' })}
+        // The day number as a NUMBER, not a date. react-calendar's default
+        // runs `Intl.DateTimeFormat(locale, { day: 'numeric' })`, and ICU's
+        // day-only skeleton in CJK locales is `d日` / `d일` — "21日" doesn't
+        // fit the fixed 1.6em cell and wraps. ASCII rather than the locale's
+        // own digits: the week-number column beside it renders a raw JS
+        // number and react-calendar exposes no hook to change that, so
+        // localized digits could only ever half-apply. The tile's
+        // aria-label still carries the full localized date.
+        formatDay={(_locale: any, date: Date) => String(date.getDate())}
         tileContent={dateTileMark}
         tileClassName={({ date, view }: { date: Date; view: string }) => {
           if (view !== 'month') return null
