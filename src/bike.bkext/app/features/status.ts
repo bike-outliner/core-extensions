@@ -1,3 +1,4 @@
+import { Disposable } from 'bike/app'
 import { attributeTag } from './helpers'
 
 // The `status` feature: a row's state.
@@ -73,22 +74,64 @@ export function registerStatus() {
     metadata: { calendar: false, user: false },
   })
 
-  // Every row carrying a status shows it — all four states, on ANY row type.
-  //
-  // The states are one closed set, so drawing only some of them would leave the
-  // rest to be read off an absence, and "no badge" would have to mean todo,
-  // done, and "no status at all" at once. A non-task row has no checkbox to
-  // carry that inference in the first place: without this badge a started body
-  // row shows nothing.
-  //
-  // On a task row the badge does repeat what the checkbox already says, and
-  // that's the trade taken deliberately: the checkbox is a shortcut the task
-  // type adds, not where status lives, so the state reads the same way in the
-  // same place whether the row is a task, a heading, or a body row. A row only
-  // has a status once something set one, so this is a chip on the rows in play,
-  // not on every row in the document.
-  bike.badge('status', {
-    where: '.@status',
+  // `where` is baked at registration and evaluated per row per style pass, so
+  // a settings change can only reach it by re-registering — and it MUST, since
+  // the native badge memo keys on (name, values, font) alone and would go on
+  // serving the images it already drew. Same shape as tasks.ts's own badge.
+  let badge = installStatusBadge()
+  bike.defaults.observe('hideDoneBadgeOnTasks', () => {
+    badge.dispose()
+    badge = installStatusBadge()
+  })
+}
+
+/**
+ * The badge's `where`, given whether a done task suppresses it. Exported so a
+ * test can prove the expression both parses and selects the right rows.
+ */
+export function statusBadgeWhere(hideDoneOnTasks: boolean): string {
+  return hideDoneOnTasks ? `.${HIDE_DONE_ON_TASKS_PREDICATE}` : '.@status'
+}
+
+/**
+ * Has a status, EXCEPT a done task.
+ *
+ * The parens are load-bearing: `not` takes a whole predicate expression and is
+ * greedy, so `not @type = task and @status = done` would negate both halves.
+ */
+export const HIDE_DONE_ON_TASKS_PREDICATE = '@status and not (@type = task and @status = done)'
+
+// Every row carrying a status shows it — all four states, on ANY row type.
+//
+// The states are one closed set, so drawing only some of them would leave the
+// rest to be read off an absence, and "no badge" would have to mean todo,
+// done, and "no status at all" at once. A non-task row has no checkbox to
+// carry that inference in the first place: without this badge a started body
+// row shows nothing.
+//
+// On a task row the badge does repeat what the checkbox already says: the
+// checkbox is a shortcut the task type adds, not where status lives, so the
+// state reads the same way in the same place whether the row is a task, a
+// heading, or a body row. That repetition is the default, and
+// `hideDoneBadgeOnTasks` (Settings > Extensions > Tasks) is how someone who
+// finds it noisy drops it — for DONE tasks only, which is the only case where
+// the checkbox says the same thing. Canceled keeps its badge, so with the
+// setting on a checked box alone reads "done" and a checked box with a
+// "Canceled" chip reads "canceled": the checkbox is binary (see
+// ../../style/layer-formatting `.task closed()`), and the badge goes on
+// carrying the one bit it can't.
+//
+// The log's own chip is untouched either way — that's the `logEntry` badge on
+// `@log-date` in ./log, on a history row with no checkbox beside it.
+//
+// A row only has a status once something set one, so this is a chip on the
+// rows in play, not on every row in the document.
+function installStatusBadge(): Disposable {
+  // `=== true`, not `!== false`: registerStatus() runs before registerTasks(),
+  // which is what calls registerDefaults(taskDefaults), so this can still read
+  // undefined — and undefined has to mean the registered default, which is off.
+  return bike.badge('status', {
+    where: statusBadgeWhere(bike.defaults.get('hideDoneBadgeOnTasks') === true),
     inputs: { status: '@status' },
     render: (values, env) => {
       // The definition's own display name, so the label can't drift from

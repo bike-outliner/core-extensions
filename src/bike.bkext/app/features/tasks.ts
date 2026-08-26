@@ -20,6 +20,12 @@ import { isClosed } from './status'
 // and how it draws — a typographic "done/total" fraction or a pie chart — is
 // `taskProgressBadgeType` ('fraction' by default). Both are extension defaults
 // set in Settings > Extensions > Tasks (dom/TasksSettings.tsx).
+//
+// That panel drives a third default this file doesn't use:
+// `hideDoneBadgeOnTasks` (off), which narrows the STATUS badge's `where` so a
+// done task drops the "Done" chip its checkbox already draws. It's declared
+// alongside these two in dom/protocols.ts and read in ./status — a task
+// redundancy, so it belongs in the Tasks section either way.
 
 export function registerTasks() {
   bike.commands.addCommands({

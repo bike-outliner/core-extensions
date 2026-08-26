@@ -5,6 +5,10 @@ import { DOMProtocol } from 'bike/core'
 export const taskDefaults = {
   showTaskProgressBadges: true,
   taskProgressBadgeType: 'fraction', // TaskProgressBadgeType
+  // Read by the `status` badge (../app/features/status.ts), not by the tasks
+  // feature — the redundancy it removes is a TASK one, so the switch belongs
+  // in the Tasks section even though the badge it narrows is status's.
+  hideDoneBadgeOnTasks: false,
 }
 
 /** How the task progress badge draws when it's shown. */

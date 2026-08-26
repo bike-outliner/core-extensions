@@ -29,6 +29,7 @@ const HELP_URL = 'https://www.hogbaysoftware.com/bike/guide/using-bike/settings-
  */
 const DEFAULTS = {
   sortCompletedTasksToEnd: false,
+  hideDoneBadgeOnTasks: false,
   showTaskProgressBadges: true,
   taskProgressBadgeType: 'fraction' as TaskProgressBadgeType,
 }
@@ -42,6 +43,13 @@ function TasksSection() {
   // to it explicitly so the checkbox is never indeterminate if that changes.
   const [sortDone, setSortDone] = useState(() => bike.defaults.get('sortCompletedTasksToEnd') === true)
 
+  // A done task's checkbox and its "Done" badge say the same thing. Off by
+  // default — the repetition is what the status badge intends (it reads the
+  // same on a task as on any other row), and this is the opt-out for whoever
+  // finds it noisy. Only DONE tasks: a canceled one also shows a checked box,
+  // so its badge is the only thing telling the two apart.
+  const [hideDoneBadge, setHideDoneBadge] = useState(() => bike.defaults.get('hideDoneBadgeOnTasks') === true)
+
   const [showBadges, setShowBadges] = useState(() => bike.defaults.get('showTaskProgressBadges') !== false)
 
   // Anything unrecognized reads as the 'fraction' default, so a stale or
@@ -53,6 +61,11 @@ function TasksSection() {
   function onSortDoneChange(value: boolean) {
     setSortDone(value)
     bike.defaults.set('sortCompletedTasksToEnd', value)
+  }
+
+  function onHideDoneBadgeChange(value: boolean) {
+    setHideDoneBadge(value)
+    bike.defaults.set('hideDoneBadgeOnTasks', value)
   }
 
   function onShowBadgesChange(value: boolean) {
@@ -68,12 +81,14 @@ function TasksSection() {
   function onReset() {
     for (const key of Object.keys(DEFAULTS)) bike.defaults.delete(key)
     setSortDone(DEFAULTS.sortCompletedTasksToEnd)
+    setHideDoneBadge(DEFAULTS.hideDoneBadgeOnTasks)
     setShowBadges(DEFAULTS.showTaskProgressBadges)
     setBadgeType(DEFAULTS.taskProgressBadgeType)
   }
 
   const changed =
     sortDone !== DEFAULTS.sortCompletedTasksToEnd ||
+    hideDoneBadge !== DEFAULTS.hideDoneBadgeOnTasks ||
     showBadges !== DEFAULTS.showTaskProgressBadges ||
     badgeType !== DEFAULTS.taskProgressBadgeType
 
@@ -92,6 +107,11 @@ function TasksSection() {
     >
       <Checkbox checked={sortDone} onChange={(e) => onSortDoneChange(e.target.checked)}>
         Sort completed to end of list
+      </Checkbox>
+      {/* Above the progress-badge checkbox, so that one stays adjacent to the
+          radios it owns. */}
+      <Checkbox checked={hideDoneBadge} onChange={(e) => onHideDoneBadgeChange(e.target.checked)}>
+        Hide Done badge on completed tasks
       </Checkbox>
       <Checkbox checked={showBadges} onChange={(e) => onShowBadgesChange(e.target.checked)}>
         Show task progress badge in parents
