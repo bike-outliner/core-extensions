@@ -36,6 +36,10 @@ describe('bike.attribute registration', () => {
 
     it('rejects reserved names', () => {
         assert.throws(() => bike.attribute('indent', { type: 'text' }))
+        assert.throws(() => bike.attribute('created', { type: 'date' }))
+        // Declaring a name the attribute API could never write is pointless,
+        // so registration shares the same rules.
+        assert.throws(() => bike.attribute('data-color', { type: 'text' }))
     })
 
     it('rejects invalid configs', () => {

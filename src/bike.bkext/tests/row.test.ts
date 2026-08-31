@@ -144,6 +144,35 @@ describe("Row attributes", () => {
         row.setAttribute("done", undefined as any)
         assert.equal(row.getAttribute("done"), undefined)
     })
+
+    it("rejects reserved, host-owned, and data- prefixed names", () => {
+        const row = outline.root.firstChild!
+        // `created` / `modified` / `id` / `text` / `type` are row properties
+        // with fields of their own; `indent` is Bike's layout state; and
+        // names are unprefixed because Bike adds `data-` when it writes the
+        // file, so `data-created` would be saved as `data-data-created` and
+        // read back as nothing.
+        //
+        // NOTE: this throwing behavior arrived in API 0.72.0.
+        assert.throws(() => { row.setAttribute("created", "2026-08-30T13:05:05Z") })
+        assert.throws(() => { row.setAttribute("type", "task") })
+        assert.throws(() => { row.setAttribute("indent", "2") })
+        assert.throws(() => { row.setAttribute("data-created", "x") })
+        assert.throws(() => { row.setAttribute("data-color", "red") })
+        assert.throws(() => { row.setAttribute("a b", "c") })
+        assert.throws(() => { row.setAttribute("", "c") })
+        assert.equal(row.getAttribute("created"), undefined)
+        assert.equal(row.getAttribute("data-color"), undefined)
+    })
+
+    it("still removes a name it would refuse to set", () => {
+        // The cleanup path: a document can carry an odd name from a JSON or
+        // OPML import, and `removeAttribute` has to be able to take it out.
+        const row = outline.root.firstChild!
+        assert.throws(() => { row.setAttribute("data-color", "red") })
+        row.removeAttribute("data-color")
+        assert.equal(row.getAttribute("data-color"), undefined)
+    })
 })
 
 describe("Row navigation", () => {
