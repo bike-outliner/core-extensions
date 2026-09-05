@@ -112,16 +112,33 @@ export function isClosed(row: DateRow): boolean {
   return status === 'done' || status === 'canceled'
 }
 
-export type DueUrgency = 'urgent' | 'soon' | 'later'
+/** Urgency at DAY granularity — all a calendar day tile can know. */
+export type DayUrgency = 'urgent' | 'soon' | 'later'
 
 /**
  * Urgency of OPEN (not @done) work due `dayDiff` days from today: urgent
- * (red) when due today or any time before, soon (orange) when due
- * tomorrow. Done items carry no urgency — callers exclude them first (a
- * checked row's overdue date is history, not a fire).
+ * (red) when due today or any day before, soon (orange) when due tomorrow.
+ * Done items carry no urgency — callers exclude them first (a checked row's
+ * overdue date is history, not a fire).
  */
-export function dueUrgency(dayDiff: number): DueUrgency {
+export function dayUrgency(dayDiff: number): DayUrgency {
   return dayDiff <= 0 ? 'urgent' : dayDiff === 1 ? 'soon' : 'later'
+}
+
+/**
+ * Urgency at ITEM granularity — `dayUrgency` plus an `overdue` level above
+ * `urgent` for a deadline that has actually PASSED: any day before today,
+ * or a timed due whose instant is behind `now`. A date-only due today is
+ * urgent all day (the day isn't over); a timed due later today is urgent
+ * too, and flips to overdue at its time. The due badge draws this; the
+ * calendar's day dots stay at day granularity.
+ */
+export type DueUrgency = 'overdue' | DayUrgency
+
+export function dueUrgency(due: DateValue, now: Date): DueUrgency {
+  const dayDiff = dayDiffFromToday(due.date, now)
+  if (dayDiff < 0 || (due.hasTime && due.date.getTime() < now.getTime())) return 'overdue'
+  return dayUrgency(dayDiff)
 }
 
 /**
@@ -254,20 +271,22 @@ export function bucketByDay<R extends DateRow>(
   return buckets
 }
 
-export type DayMarkVariant = DueUrgency | 'done'
+export type DayMarkVariant = DayUrgency | 'done'
 
 /**
  * The tint for a day's mark. Urgency belongs to OPEN work under the
  * deadline attribute: red when due today or overdue (an overdue item is a
  * fire whether or not the day is past), orange when due tomorrow. A day
  * placed only by non-deadline dates (a `start`) draws the neutral accent,
- * and a day whose rows are ALL closed is history, not a fire.
+ * and a day whose rows are ALL closed is history, not a fire. Day
+ * granularity only — the badge's distinct `overdue` level needs an
+ * item's instant, which a day tile doesn't have.
  */
 export function dayMarkVariant(hits: readonly DateHit[], dayDiff: number): DayMarkVariant {
   const open = hits.filter((hit) => !isClosed(hit.row))
   if (open.length === 0) return 'done'
   if (!open.some((hit) => hit.attribute === URGENCY_ATTRIBUTE)) return 'later'
-  return dueUrgency(dayDiff)
+  return dayUrgency(dayDiff)
 }
 
 /**

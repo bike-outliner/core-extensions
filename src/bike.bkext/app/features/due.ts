@@ -1,4 +1,9 @@
 import { Color, Image, Text } from 'bike/app'
+// The one urgency rule, shared with the calendar's day dots. Extensions
+// bundle separately, but date-marks.ts is deliberately import-free (ambient
+// `bike` codec globals only), so esbuild inlines a copy here and the source
+// stays single.
+import { dueUrgency } from '../../../calendar.bkext/dom/date-marks'
 import {
   clearAttributeOnSelection,
   filterCommand,
@@ -12,7 +17,8 @@ import {
 // A due value is `YYYY-MM-DD` (local calendar date), a full ISO-8601 UTC
 // timestamp when a time is included, or EMPTY — a valueless `@due` means
 // "soon": due, but no date yet. The Attributes Editor sets date-only values; timed
-// values come from scripts/automation and still render in the badge.
+// values come from scripts/automation and still render in the badge — and
+// once their instant passes they read as overdue.
 //
 // calendar.bkext ALSO renders due — it shows every `type: 'date'` attribute
 // on its calendar and agenda — but the badge lives here so `@due` is visible
@@ -67,18 +73,24 @@ export function registerDue() {
       if (raw == null) return null
       // The shared wire codec; undefined for the valueless "soon" (and any
       // junk a script stored).
-      const due = bike.decodeValue('date', raw)?.date
+      const due = bike.decodeValue('date', raw)
 
       const now = new Date((env.now ?? 0) * 1000)
-      const dayDiff = due ? dayDiffFromToday(due, now) : 0
       const done = values['closed'] === 'true'
-      // Urgency tint for OPEN items: red when due today or overdue, orange
-      // when due tomorrow or "soon" (a valueless @due — due, no date yet).
-      // A closed row's due is history — it keeps the row's inherited color
-      // no matter the date.
-      const urgency = done ? 'later' : !due ? 'soon' : dueUrgency(dayDiff)
+      // Urgency tint for OPEN items: red when due today, orange when due
+      // tomorrow or "soon" (a valueless @due — due, no date yet), and
+      // INVERTED red — filled, with the text in the editor background — once
+      // the deadline has passed (any earlier day, or a timed due whose time
+      // is behind now). A closed row's due is history — it keeps the row's
+      // inherited color no matter the date.
+      const urgency = done ? 'later' : !due ? 'soon' : dueUrgency(due, now)
       const color =
-        urgency === 'urgent' ? Color.systemRed() : urgency === 'soon' ? Color.systemOrange() : env.color
+        urgency === 'overdue' || urgency === 'urgent'
+          ? Color.systemRed()
+          : urgency === 'soon'
+            ? Color.systemOrange()
+            : env.color
+      const overdue = urgency === 'overdue'
       // The full badge-metrics recipe (fontSize + padding size the tag,
       // stroke/radius draw its border), so this tag matches every other
       // drawn badge on the row. Completed rows fade the text down to the
@@ -87,13 +99,17 @@ export function registerDue() {
       // The native display layer — the same labels the Attributes Editor and
       // pickers show, computed at env.now so they roll over on tick.
       const label = raw === '' ? 'Soon' : env.formatAttribute('due', raw)
-      return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), color.alphaSet(done ? 0.3 : 0.8)))
-        .withBackground({
-          stroke: color.alphaSet(0.3),
-          strokeWidth: bm.strokeWidth,
-          cornerRadius: bm.cornerRadius,
-          padding: bm.padding,
-        })
+      const textColor = overdue ? env.theme.colors.background : color.alphaSet(done ? 0.3 : 0.8)
+      return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), textColor)).withBackground({
+        // Overdue fills the tag; the stroke is the same red so the outline
+        // and the fill meet without a seam. Every other state keeps the
+        // hairline-only look.
+        fill: overdue ? color : undefined,
+        stroke: overdue ? color : color.alphaSet(0.3),
+        strokeWidth: bm.strokeWidth,
+        cornerRadius: bm.cornerRadius,
+        padding: bm.padding,
+      })
     },
     // The built-in attribute menu for @due: filter / Value… (the standalone
     // due value picker) / remove.
@@ -109,22 +125,4 @@ function dayStamp(offset: number): string {
   const day = new Date()
   day.setDate(day.getDate() + offset)
   return bike.encodeValue('date', day)!
-}
-
-// Just enough date MATH for the urgency tint — wire parsing itself is
-// bike.decodeValue (the shared codec, above). calendar.bkext has richer
-// calendar helpers (dom/date-marks.ts, which also buckets by day and labels
-// the agenda), but extensions bundle separately so neither can import the
-// other's.
-//
-// Whole local days from `now`'s day to `date`'s day: 0 today, 1 tomorrow,
-// negative in the past.
-function dayDiffFromToday(date: Date, now: Date): number {
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  return Math.round((startOfDate.getTime() - startOfToday.getTime()) / 86400000)
-}
-
-function dueUrgency(dayDiff: number): 'urgent' | 'soon' | 'later' {
-  return dayDiff <= 0 ? 'urgent' : dayDiff === 1 ? 'soon' : 'later'
 }

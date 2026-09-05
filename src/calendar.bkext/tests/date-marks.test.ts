@@ -11,6 +11,7 @@ import {
   dayKey,
   dayMarkTooltip,
   dayMarkVariant,
+  dayUrgency,
   dueUrgency,
   isClosed,
   isSafeAttributeName,
@@ -384,17 +385,50 @@ describe('isClosed', () => {
   })
 })
 
-describe('dueUrgency', () => {
+describe('dayUrgency', () => {
   it('is urgent for today AND any day before', () => {
-    assert.equal(dueUrgency(-30), 'urgent')
-    assert.equal(dueUrgency(-1), 'urgent')
-    assert.equal(dueUrgency(0), 'urgent')
+    assert.equal(dayUrgency(-30), 'urgent')
+    assert.equal(dayUrgency(-1), 'urgent')
+    assert.equal(dayUrgency(0), 'urgent')
   })
 
   it('is soon for tomorrow, later beyond', () => {
-    assert.equal(dueUrgency(1), 'soon')
-    assert.equal(dueUrgency(2), 'later')
-    assert.equal(dueUrgency(30), 'later')
+    assert.equal(dayUrgency(1), 'soon')
+    assert.equal(dayUrgency(2), 'later')
+    assert.equal(dayUrgency(30), 'later')
+  })
+})
+
+describe('dueUrgency', () => {
+  // A fixed mid-afternoon "now", built from local components so the day
+  // boundaries below hold in any zone.
+  const now = new Date(2026, 6, 16, 15, 0)
+  const dateOnly = (y: number, m: number, d: number) => ({ date: new Date(y, m, d), hasTime: false })
+  const timed = (y: number, m: number, d: number, h: number, min = 0) => ({
+    date: new Date(y, m, d, h, min),
+    hasTime: true,
+  })
+
+  it('is overdue for any day before today', () => {
+    assert.equal(dueUrgency(dateOnly(2026, 6, 15), now), 'overdue')
+    assert.equal(dueUrgency(dateOnly(2026, 5, 1), now), 'overdue')
+    assert.equal(dueUrgency(timed(2026, 6, 15, 23, 59), now), 'overdue')
+  })
+
+  it('is urgent all day for a date-only due today', () => {
+    assert.equal(dueUrgency(dateOnly(2026, 6, 16), now), 'urgent')
+  })
+
+  it('splits a timed due today at its instant', () => {
+    assert.equal(dueUrgency(timed(2026, 6, 16, 14, 59), now), 'overdue')
+    assert.equal(dueUrgency(timed(2026, 6, 16, 15, 0), now), 'urgent', 'exactly now is not yet past')
+    assert.equal(dueUrgency(timed(2026, 6, 16, 15, 1), now), 'urgent')
+  })
+
+  it('is soon for tomorrow (timed or not), later beyond', () => {
+    assert.equal(dueUrgency(dateOnly(2026, 6, 17), now), 'soon')
+    assert.equal(dueUrgency(timed(2026, 6, 17, 9), now), 'soon')
+    assert.equal(dueUrgency(dateOnly(2026, 6, 21), now), 'later')
   })
 })
 
