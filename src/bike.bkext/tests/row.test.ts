@@ -31,17 +31,17 @@ describe("Row properties", () => {
 
     it("can ensure persistentId", () => {
         const row = outline.root.firstChild!
-        const pid = row.ensuredPersistentId
-        assert(typeof pid === "string", "ensuredPersistentId should return a string")
-        assert(pid.length > 0, "ensuredPersistentId should not be empty")
+        const pid = row.ensurePersistentId()
+        assert(typeof pid === "string", "ensurePersistentId should return a string")
+        assert(pid.length > 0, "ensurePersistentId should not be empty")
         assert.equal(row.persistentId, pid, "persistentId should match after ensuring")
     })
 
-    it("ensuredPersistentId is stable", () => {
+    it("ensurePersistentId is stable", () => {
         const row = outline.root.firstChild!
-        const pid1 = row.ensuredPersistentId
-        const pid2 = row.ensuredPersistentId
-        assert.equal(pid1, pid2, "ensuredPersistentId should return the same value")
+        const pid1 = row.ensurePersistentId()
+        const pid2 = row.ensurePersistentId()
+        assert.equal(pid1, pid2, "ensurePersistentId should return the same value")
     })
 
     it("can insert row with persistentId", () => {
@@ -57,8 +57,8 @@ describe("Row properties", () => {
 
     it("has url", () => {
         const row = outline.root.firstChild!
-        assert(row.url, "row should have a url")
-        assert(typeof row.url.absoluteString === "string", "url absoluteString should be a string")
+        assert(row.url(), "row should have a url")
+        assert(typeof row.url().absoluteString === "string", "url absoluteString should be a string")
     })
 
     it("has type", () => {
@@ -307,14 +307,14 @@ describe("row log", () => {
 
         let log: ReturnType<typeof outline.insertRows>[0]
         outline.transaction({ label: "enable" }, () => {
-            log = row!.ensuredLog
+            log = row!.ensureLog()
         })
         assert.equal(log!.type, "log")
-        assert.equal(row!.log?.id, log!.id, "found by the getter afterwards")
+        assert.equal(row!.log?.id, log!.id, "found by the `log` getter afterwards")
 
         // Idempotent: asking again returns the same container, not a second.
         outline.transaction({ label: "again" }, () => {
-            assert.equal(row!.ensuredLog.id, log!.id)
+            assert.equal(row!.ensureLog().id, log!.id)
         })
         assert.equal(row!.children.filter((child: { type: string }) => child.type === "log").length, 1)
 
@@ -330,5 +330,56 @@ describe("row log", () => {
         outline.transaction({ label: "teardown" }, () => {
             outline.removeRows([row!])
         })
+    })
+})
+
+describe("reading a row", () => {
+    const editor = bike.testEditor()
+    const outline = editor.outline
+
+    outline.transaction({ label: "setup" }, () => {
+        outline.insertRows(["Body Row"], outline.root)
+    })
+
+    // The bug this guards: `ensuredLog`, `ensuredPersistentId` and `url` used
+    // to be getters, so building a console preview — or any generic property
+    // walk — edited the document. They are calls as of API 0.73.0.
+    it("never mutates the outline", () => {
+        let row: ReturnType<typeof outline.insertRows>[0]
+        outline.transaction({ label: "setup" }, () => {
+            ;[row] = outline.insertRows(["Inspect me"], outline.root)
+        })
+
+        const before = outline.root.descendants.length
+
+        // Read every member the way an inspector preview does.
+        for (let proto = Object.getPrototypeOf(row!); proto && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) {
+            for (const name of Object.getOwnPropertyNames(proto)) {
+                try {
+                    ;(row! as unknown as Record<string, unknown>)[name]
+                } catch {
+                    // A getter may reject; the point is that it must not write.
+                }
+            }
+        }
+
+        assert.equal(row!.persistentId, undefined, "reading a row must not mint a persistent id")
+        assert.equal(row!.log, undefined, "reading a row must not create a log")
+        assert.equal(outline.root.descendants.length, before, "reading a row must not add rows")
+
+        outline.transaction({ label: "teardown" }, () => {
+            outline.removeRows([row!])
+        })
+    })
+
+    it("exposes the mutating members as calls, not properties", () => {
+        const row = outline.root.firstChild!
+        assert.equal(typeof row.ensureLog, "function", "ensureLog should be a method")
+        assert.equal(typeof row.ensurePersistentId, "function", "ensurePersistentId should be a method")
+        assert.equal(typeof row.url, "function", "url should be a method")
+
+        const legacy = row as unknown as Record<string, unknown>
+        assert.equal(legacy["ensuredLog"], undefined, "ensuredLog was removed in API 0.73.0")
+        assert.equal(legacy["ensuredPersistentId"], undefined, "ensuredPersistentId was removed in API 0.73.0")
     })
 })

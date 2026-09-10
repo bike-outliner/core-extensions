@@ -151,7 +151,7 @@ function filterBranchTasks(predicate: string, label: string) {
   return ({ editor, selection }: CommandContext): boolean => {
     const row = selection?.rows[0]
     if (!editor || !row) return false
-    editor.filter = { label, path: `//@id = "${row.ensuredPersistentId}"//task ${predicate}` }
+    editor.filter = { label, path: `//@id = "${row.ensurePersistentId()}"//task ${predicate}` }
     return true
   }
 }

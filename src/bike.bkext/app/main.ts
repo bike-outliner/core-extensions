@@ -87,9 +87,9 @@ export async function activate(context: AppExtensionContext) {
   bike.observeWindows(async (window: Window) => {
     // hack to make sure home location is added before other locations
     // probably better to add ordering weights to sidebar locations later
-    addOrUpdateHomeLocation(window, window.currentOutlineEditor?.outline.root.ensuredPersistentId ?? '')
+    addOrUpdateHomeLocation(window, window.currentOutlineEditor?.outline.root.ensurePersistentId() ?? '')
     window.observeCurrentOutlineEditor((editor) => {
-      addOrUpdateHomeLocation(window, editor?.outline.root.ensuredPersistentId ?? '')
+      addOrUpdateHomeLocation(window, editor?.outline.root.ensurePersistentId() ?? '')
     })
   })
 }

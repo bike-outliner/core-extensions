@@ -320,7 +320,7 @@ describe("Task summaries", () => {
         const project = outline.root.firstChild!
         const task = project.children.find((row) => row.type === "task")!
         outline.transaction({ label: "setup" }, () => {
-            const log = task.ensuredLog
+            const log = task.ensureLog()
             const [a, b] = outline.insertRows(
                 [
                     { text: "Clocked out" },
@@ -351,7 +351,7 @@ describe("Task summaries", () => {
         const project = outline.root.firstChild!
         const task = project.children.find((row) => row.type === "task")!
         outline.transaction({ label: "setup" }, () => {
-            const log = task.ensuredLog
+            const log = task.ensureLog()
             const [running] = outline.insertRows([{ text: "Clocked in" }], log)
             running.setAttribute("log-date", "2026-08-13T15:00:00Z")
             // Present but empty: still running.
