@@ -84,6 +84,7 @@ function SettingsPanel() {
       }
       accessoryAlignment="trailing"
     >
+      <NewestFirstRow key={`newest-${resetToken}`} />
       <WeekNumbersRow key={resetToken} />
 
       <Box>
@@ -200,6 +201,21 @@ function FormatRow({
         )}
       </span>
     </FormRow>
+  )
+}
+
+function NewestFirstRow() {
+  const [checked, setChecked] = useState(() => bike.defaults.get('newestFirst') === true)
+
+  function onChange(value: boolean) {
+    setChecked(value)
+    bike.defaults.set('newestFirst', value)
+  }
+
+  return (
+    <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)}>
+      Insert newest date rows first
+    </Checkbox>
   )
 }
 

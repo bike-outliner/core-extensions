@@ -98,6 +98,11 @@ Bike's keybindings.
 
 Open Bike's Settings and choose the **Calendar** pane.
 
+- **Insert newest date rows first** — build every level newest-first, so a new day row goes
+  above the days before it, a new month above earlier months, and so on. Off by
+  default. It only decides where *new* rows go: turning it on or off never moves
+  rows that already exist, so an outline switched part-way keeps whatever order
+  its older rows were created in.
 - **Show week numbers** — toggle the week-number column in the calendar grid.
 - **Year / Month / Week / Day** — the text for each level's rows. Put the date in
   a `{ … }` span; everything outside the span is markdown. A field may hold more

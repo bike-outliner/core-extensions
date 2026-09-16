@@ -1,3 +1,4 @@
+import { Row } from "bike/app"
 import { dayIdFromDate, startOfWeek, substituteDate, weekIdFromDate } from "../dom/protocols"
 import { getDayRow, getMonthRow, getWeekRow, getYearRow } from "../app/calendar-rows"
 import { getDaysInWeek } from "../app/util"
@@ -252,5 +253,98 @@ describe("markdown sets the row type on insert", () => {
     // template) must NOT change the row type — the German `28. Mai 2026` bug.
     it("a date whose own text starts with a number is body, not ordered", () => {
         assert.equal(dayTypeFor("{ d. MMMM yyyy }"), "body")
+    })
+})
+
+describe("newest dates first", () => {
+    // Defaults off, so every case here opts in and cleans up after itself —
+    // the suite reads live user preferences, and a leaked key breaks the rest.
+    function withNewestFirst(extra: Record<string, boolean>, body: () => void) {
+        bike.defaults.set("newestFirst", true)
+        for (const [key, value] of Object.entries(extra)) bike.defaults.set(key, value)
+        try {
+            body()
+        } finally {
+            bike.defaults.delete("newestFirst")
+            for (const key of Object.keys(extra)) bike.defaults.delete(key)
+        }
+    }
+
+    /** The date ids under `row`, in document order. Joined into one string
+     * because this runner's `assert` has `equal` but no deep-equality check. */
+    function childIds(row: Row): string {
+        return row.children
+            .map((child) => child.persistentId)
+            .filter((id) => id != null)
+            .join(" ")
+    }
+
+    it("is off by default — days stay oldest-first", () => {
+        const outline = bike.testEditor().outline
+        for (const day of [24, 26, 25]) getDayRow(outline, new Date(2026, 4, day))
+        const month = outline.getRowById("2026/05/00")!
+        assert.equal(childIds(month), "2026/05/24 2026/05/25 2026/05/26")
+    })
+
+    it("puts newer days above older ones, whatever order they're created in", () => {
+        withNewestFirst({}, () => {
+            const outline = bike.testEditor().outline
+            // Deliberately out of order: each day has to find its own slot
+            // rather than simply landing where it was appended.
+            for (const day of [24, 26, 25]) getDayRow(outline, new Date(2026, 4, day))
+            const month = outline.getRowById("2026/05/00")!
+            assert.equal(childIds(month), "2026/05/26 2026/05/25 2026/05/24")
+        })
+    })
+
+    it("reverses months under their year and years under the root", () => {
+        withNewestFirst({}, () => {
+            const outline = bike.testEditor().outline
+            getDayRow(outline, new Date(2025, 2, 15)) // March 2025
+            getDayRow(outline, new Date(2026, 0, 10)) // January 2026
+            getDayRow(outline, new Date(2026, 6, 4)) // July 2026
+
+            assert.equal(childIds(outline.root), "2026/00/00 2025/00/00", "years newest first")
+            const y2026 = outline.getRowById("2026/00/00")!
+            assert.equal(childIds(y2026), "2026/07/00 2026/01/00", "months newest first")
+        })
+    })
+
+    it("reverses weeks too", () => {
+        withNewestFirst({ weekEnabled: true, monthEnabled: false }, () => {
+            const outline = bike.testEditor().outline
+            const may26 = new Date(2026, 4, 26)
+            const weekBefore = new Date(2026, 4, 19)
+            getDayRow(outline, weekBefore)
+            getDayRow(outline, may26)
+            const year = outline.getRowById("2026/00/00")!
+            assert.equal(
+                childIds(year),
+                `${weekIdFromDate(may26)} ${weekIdFromDate(weekBefore)}`,
+                "weeks newest first"
+            )
+        })
+    })
+
+    it("fills a whole month newest-first", () => {
+        withNewestFirst({}, () => {
+            const outline = bike.testEditor().outline
+            getMonthRow(outline, new Date(2026, 1, 1)) // February 2026
+            const month = outline.getRowById("2026/02/00")!
+            assert.equal(month.firstChild!.persistentId, "2026/02/28", "last day of February first")
+            assert.equal(month.lastChild!.persistentId, "2026/02/01", "first day of February last")
+        })
+    })
+
+    it("still joins a relocated calendar, newest peer first", () => {
+        withNewestFirst({}, () => {
+            const outline = bike.testEditor().outline
+            const journal = outline.insertRows([{ text: "Journal" }], outline.root)[0]
+            const y2025 = outline.insertRows([{ persistentId: "2025/00/00", text: "2025" }], journal)[0]
+            getDayRow(outline, new Date(2026, 0, 1))
+            const y2026 = outline.getRowById("2026/00/00")!
+            assert.equal(y2026.parent!.id, journal.id, "2026 joins the calendar under Journal")
+            assert.equal(y2026.nextSibling!.id, y2025.id, "ordered before 2025")
+        })
     })
 })

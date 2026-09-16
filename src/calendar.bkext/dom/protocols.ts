@@ -90,6 +90,10 @@ export const calendarDefaults = {
   // Off by default: existing outlines keep the year/month/day shape they have.
   weekEnabled: false,
   showWeekNumbers: true,
+  // Build each level newest-first instead of oldest-first. Off by default, and
+  // it only decides where NEW rows go — flipping it never moves rows that are
+  // already there.
+  newestFirst: false,
 }
 
 // --- Field rendering (shared by row generation and the settings preview) ---

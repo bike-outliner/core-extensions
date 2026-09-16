@@ -116,10 +116,16 @@ function parentRow(outline: Outline, date: Date, level: Level): Row {
 }
 
 function insertDateRow(outline: Outline, id: string, text: string, parent: Row): Row {
+  // Oldest first: sit before the first LATER sibling. Newest first: before the
+  // first EARLIER one, so the new date lands above the dates it follows.
+  // Comparing against the siblings rather than appending is what makes one flag
+  // enough for every level, and what makes the whole-month/year fills come out
+  // in the right order without caring which day they generate first.
+  const newestFirst = bike.defaults.get('newestFirst') === true
   let insertBefore: Row | undefined
   for (const child of parent.children) {
     const pid = child.persistentId
-    if (pid && pid.match(dateIdPattern) && id < pid) {
+    if (pid && pid.match(dateIdPattern) && (newestFirst ? id > pid : id < pid)) {
       insertBefore = child
       break
     }
