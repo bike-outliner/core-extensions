@@ -17,19 +17,27 @@ export function registerBaseLayer(style: EditorStyle) {
     caret((context, caret) => {
       let values = computeValues(context)
       let colors = context.theme.colors
+      let pointSize = values.fontAttributes.pointSize
+
+      // Font and companion colors first, and outside the isKey branch: the row
+      // type hint and the loaded-attribute symbols are content, not focus
+      // chrome, so they must not change size when focus leaves the editor.
+      // Setting them only in the isKey branch left the non-key state on
+      // CaretStyle's defaults — systemBody (13pt) and white symbols — so the
+      // hint's font flipped with first responder
+      // (https://support.hogbaysoftware.com/t/6507).
+      caret.width = 2 * values.uiScale
+      caret.messageFont = values.font
+      caret.messageColor = colors.caretMessage
+      caret.loadedAttributesFont = values.font.withPointSize(pointSize * 0.6)
+      caret.loadedAttributesColor = Color.white()
+
       if (context.isKey) {
-        let pointSize = values.fontAttributes.pointSize
         caret.color = colors.caret
-        caret.width = 2 * values.uiScale
         caret.blinkStyle = 'continuous'
         caret.lineColor = context.settings.showCaretLine ? colors.caretLine : Color.clear()
-        caret.messageFont = values.font
-        caret.messageColor = colors.caretMessage
-        caret.loadedAttributesFont = values.font.withPointSize(pointSize * 0.6)
-        caret.loadedAttributesColor = Color.white()
       } else {
         caret.color = colors.contentBackgroundSelectedUnemphasized.alphaMultiplied(2)
-        caret.width = 2 * values.uiScale
         caret.blinkStyle = 'none'
         caret.lineColor = context.settings.showCaretLine ? colors.contentBackgroundSelectedUnemphasized.alphaMultiplied(0.5) : Color.clear()
       }
