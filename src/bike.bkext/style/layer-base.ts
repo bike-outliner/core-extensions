@@ -9,8 +9,7 @@ export function registerBaseLayer(style: EditorStyle) {
       let colors = context.theme.colors
       viewport.padding = values.viewportPadding
       viewport.backgroundColor = colors.background
-      // The outline's base font: row-independent chrome (badges) renders
-      // with this so a badge never changes weight/size between rows.
+      // Row-independent chrome (badges) uses this so it's the same on every row.
       viewport.font = values.font
     })
 
@@ -19,13 +18,8 @@ export function registerBaseLayer(style: EditorStyle) {
       let colors = context.theme.colors
       let pointSize = values.fontAttributes.pointSize
 
-      // Font and companion colors first, and outside the isKey branch: the row
-      // type hint and the loaded-attribute symbols are content, not focus
-      // chrome, so they must not change size when focus leaves the editor.
-      // Setting them only in the isKey branch left the non-key state on
-      // CaretStyle's defaults — systemBody (13pt) and white symbols — so the
-      // hint's font flipped with first responder
-      // (https://support.hogbaysoftware.com/t/6507).
+      // Outside the isKey branch: these are content, not focus chrome, and
+      // must not change with first responder (https://support.hogbaysoftware.com/t/6507).
       caret.width = 2 * values.uiScale
       caret.messageFont = values.font
       caret.messageColor = colors.caretMessage
@@ -52,10 +46,8 @@ export function registerBaseLayer(style: EditorStyle) {
       row.decoration('handle', (handle, layout) => {
         handle.commandName = 'bike:.click-handle'
         handle.capabilities = ['drag-row', 'accept-drop']
-        // Anchor within a text-height strip at the top of the first line, so
-        // the handle stays in the upper-leading corner when an inline image
-        // makes the line tall. For text lines strip == line height, so this
-        // is exactly firstLine.centerY.
+        // Anchor in a text-height strip at the first line's top, so a tall
+        // inline image line keeps the handle in the upper corner.
         let strip = layout.firstLine.height.min(values.lineHeight)
         let size = layout.firstLine.height.min(values.indent)
         handle.contents.gravity = 'center'
@@ -71,9 +63,7 @@ export function registerBaseLayer(style: EditorStyle) {
 
       if (context.settings.showGuideLines) {
         row.decoration('guide', (guide, layout) => {
-          // Start below the same capped first-line strip the handle anchors
-          // in, so a tall image line gets the guide along its flank instead
-          // of leaving it bare.
+          // Start below the capped first-line strip so tall image lines get a guide.
           let strip = layout.firstLine.height.min(values.lineHeight)
           guide.color = colors.guideLine
           guide.x = layout.leadingContent.offset(-values.indent / 2)

@@ -1,7 +1,5 @@
-// Tests for the fetch API surface (fetch, AbortController/AbortSignal,
-// TextEncoder/TextDecoder). bike.bkext declares no host_permissions, so
-// network requests are expected to be blocked — network-path coverage lives
-// in the native ScriptContextTests. Everything else is testable locally.
+// Fetch API surface tests. bike.bkext has no host_permissions, so network
+// requests are blocked; network paths are covered by native ScriptContextTests.
 
 describe("Fetch", () => {
     it("fetch function exists", () => {

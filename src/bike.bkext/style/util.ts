@@ -22,12 +22,9 @@ const OUTLINE_FOCUS_ALPHA = 0.0
 const TEXT_FOCUS_ALPHA = 0.15
 const BOTTOM_VIEWPORT_FRACTION = 0.5
 
-// Font-scaling + top-margin tiers, selected by how many *unscaled* row widths
-// fit across the viewport (fillRatio = viewportSize.width / baseRowWidth).
-// Font scale and top padding step together at these breakpoints, so the wrap
-// width is constant while resizing inside a tier — a re-wrap happens only once,
-// when a boundary is crossed. Grow boundaries sit at scale * 1.6 so each tier
-// reaches ~golden fill (≈0.618 of the viewport) at its low edge.
+// Font-scale and top-margin tiers by fillRatio (viewport width / unscaled row
+// width). Stepping keeps wrap width constant within a tier. Boundaries at
+// scale * 1.6 give ~golden fill at each tier's low edge.
 const FONT_SCALE_TIERS = [
   { minFillRatio: 4.4, scale: 2.75, paddingInLineHeights: 8 },
   { minFillRatio: 4.0, scale: 2.5, paddingInLineHeights: 4 },
@@ -43,24 +40,8 @@ const FONT_SCALE_TIERS = [
 ]
 
 /**
- * This function computes/caches values derived from `StyleContext` state. Bike
- * styles should use `context.settings` and `context.theme` values directly
- * where appropriate, but this function is useful for values that need
- * computation or caching.
- *
- * For example, consider the case where the editor is wrapping text to a
- * specific column (`lineWidth`) while displaying in a large viewport. In
- * that case we can end up with a tiny column of text in the center of a large
- * viewport. This function detects that case and dynamically scales the user's
- * choosen font to better fill the viewport, while maintaining the user's
- * `lineWidth` setting.
- *
- * This function is not a required part of an editor style, but I think it's a
- * useful pattern, especially for more complex editor styles that try to work
- * under a variety of conditions.
- *
- * @param context
- * @returns The computed values derived from the context
+ * Computes and caches values derived from `StyleContext`, e.g. scaling the
+ * font to fill a large viewport while keeping the user's `lineWidth`.
  */
 export function computeValues(context: StyleContext): {
   font: Font
@@ -96,17 +77,13 @@ export function computeValues(context: StyleContext): {
   } else {
     let xWidth = geometry.fontAttributes.xWidth
     let textWidth = Math.ceil(xWidth * lineWidth)
-    // Row width of the user's UNSCALED font. Stateless anchor: never derived
-    // from the scaled result, so there is no feedback loop with rowWrapWidth.
+    // Unscaled, so there's no feedback loop with rowWrapWidth.
     let baseRowWidth =
       textWidth +
       geometry.rowPadding.width +
       Math.max(geometry.rowTextMargin.width, geometry.rowTextPadding.width)
     let fillRatio = viewportSize.width / baseRowWidth
 
-    // Coarse, stateless step function of viewport width. Font scale and top
-    // margin both come from this single tier, so they jump together and stay
-    // constant (no re-wrap) while dragging inside a tier.
     let tier = FONT_SCALE_TIERS[FONT_SCALE_TIERS.length - 1]
     for (const candidate of FONT_SCALE_TIERS) {
       if (fillRatio >= candidate.minFillRatio) {
@@ -116,9 +93,7 @@ export function computeValues(context: StyleContext): {
     }
 
     if (context.settings.allowFontScaling == true && tier.scale != 1) {
-      // Snap to a whole point once per tier. tier.scale is constant across the
-      // whole tier, so the rounded size is constant too: no sub-pixel flicker
-      // and no re-wrap while resizing within a tier.
+      // Whole points: no sub-pixel flicker or re-wrap within a tier.
       let scaledPointSize = Math.round(geometry.fontAttributes.pointSize * tier.scale)
       font = font.withPointSize(scaledPointSize)
       geometry = computeGeometryForFont(font, context)
@@ -137,9 +112,7 @@ export function computeValues(context: StyleContext): {
     if (typewriterMode) {
       geometry.viewportPadding.top = visibleViewportHeight * typewriterMode
     } else if (tier.paddingInLineHeights > 0) {
-      // Tiers only *raise* the top margin. When paddingInLineHeights is 0 the
-      // default VIEWPORT_PADDING_BASE * uiScale set in computeGeometryForFont is
-      // left in place, so the minimum top margin matches the pre-tier behavior.
+      // Tiers only raise the top margin above computeGeometryForFont's default.
       let lineHeight = geometry.fontAttributes.pointSize * context.settings.lineHeightMultiple
       geometry.viewportPadding.top = lineHeight * tier.paddingInLineHeights
     }
@@ -157,10 +130,8 @@ export function computeValues(context: StyleContext): {
   let handleImage = buildHandleImage(handleWidth, handleHeight, context.theme.colors.handle)
   let handleUnloadedImage = buildHandleImage(handleWidth, handleHeight, context.theme.colors.handleUnloaded)
 
-  // A single text line's height (descender is negative), with headroom so it
-  // always exceeds a real line fragment: capping a line anchor with
-  // `.min(lineHeight)` leaves text lines untouched while taming lines made
-  // tall by inline images.
+  // Headroom so `.min(lineHeight)` leaves text lines alone but caps lines made
+  // tall by inline images. Descender is negative.
   let lineHeight =
     (geometry.fontAttributes.ascender - geometry.fontAttributes.descender) *
     context.settings.lineHeightMultiple *
@@ -205,10 +176,8 @@ function computeGeometryForFont(
   let visibleViewportHeight = viewportSize.height - viewportContentInsets.top - viewportContentInsets.bottom
   let fontAttributes = font.resolve(context)
   let pointSize = fontAttributes.pointSize
-  // Native owns the ratio and its 14pt baseline. Resolved off whichever font
-  // this pass was handed, so the tier-scaled call below gets the scaled scale
-  // — and the font published as `viewport.font` is the one whose uiScale the
-  // rest of the editor (chrome, badges) sees.
+  // Native owns the ratio (14pt baseline); resolved off this pass's font so the
+  // tier-scaled call gets the scaled value.
   let uiScale = fontAttributes.uiScale
   let indent = INDENT_MULTIPLIER * uiScale
   let rowPaddingBase = context.settings.rowSpacingMultiple * pointSize * uiScale

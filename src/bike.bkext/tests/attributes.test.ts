@@ -10,11 +10,8 @@ import {
     withCell,
 } from '../dom/protocols'
 
-// Attribute editing is the native Attributes Editor (editor.
-// showAttributesEditor) and the standalone value picker (editor.showPicker;
-// badge menus' "Value…" opens the native equivalent). What's testable from
-// JS is the `bike.attribute` registration surface, the presentation
-// scheduling, plus the default badge's pure reconciliation.
+// Editing UI is native; these cover `bike.attribute` registration,
+// presentation scheduling and the default badge's pure logic.
 
 describe('bike.attribute registration', () => {
     it('registers a minimal definition and disposes it', () => {
@@ -37,8 +34,7 @@ describe('bike.attribute registration', () => {
     it('rejects reserved names', () => {
         assert.throws(() => bike.attribute('indent', { type: 'text' }))
         assert.throws(() => bike.attribute('created', { type: 'date' }))
-        // Declaring a name the attribute API could never write is pointless,
-        // so registration shares the same rules.
+        // Registration shares the attribute API's name rules.
         assert.throws(() => bike.attribute('data-color', { type: 'text' }))
     })
 
@@ -93,8 +89,7 @@ describe('bike.attribute registration', () => {
     })
 
     it('reports a LOSSLESS, defaults-resolved facet per type', () => {
-        // Every facet field of the declared type is present with its default
-        // filled in, so switching on `type` recovers what was declared.
+        // Every facet field of the declared type is present, defaults filled in.
         const number = bike.attribute('smoke-test-number', { type: 'number', min: 0 })
         const choice = bike.attribute('smoke-test-choice', { type: 'choice', choices: [{ name: 'Ay', value: 'a' }] })
         const date = bike.attribute('smoke-test-date', { type: 'date' })
@@ -147,9 +142,7 @@ describe('bike.attribute registration', () => {
     })
 
     it('round-trips metadata verbatim, defaulting to {}', () => {
-        // Opaque to the host: whatever JSON went in comes back out, so a
-        // consumer can key its own policy off it (the calendar reads
-        // `calendar: false`) without this API growing a field per consumer.
+        // Opaque to the host: whatever JSON went in comes back out.
         const tagged = bike.attribute('smoke-test-meta', {
             type: 'text',
             metadata: { calendar: false, nested: { list: [1, 'two', true] } },
@@ -204,9 +197,7 @@ describe('bike.parseAttribute', () => {
     })
 
     it('parses a bare type with default facets, the mirror of displayValue', () => {
-        // No registered attribute involved — the TYPE parses. This is what a
-        // client rolling its own multi-value attribute splits and calls per
-        // item, so each item still resolves natively.
+        // No registered attribute involved; the type parses.
         assert.equal(bike.parseValue('duration', '90m')?.value, 'PT1H30M')
         assert.equal(bike.parseValue('duration', '2h 30m')?.value, 'PT2H30M')
         assert.equal(bike.parseValue('boolean', 'yes')?.value, 'true')
@@ -224,8 +215,7 @@ describe('bike.parseAttribute', () => {
         // Natural language, natively — no extension code involved.
         assert(bike.parseAttribute('due', 'today')?.value.match(/^\d{4}-\d{2}-\d{2}$/))
         assert(bike.parseAttribute('due', 'next fri')?.value.match(/^\d{4}-\d{2}-\d{2}$/))
-        // "soon" is not a date — the valueless due is committed by the
-        // Attributes Editor's `""` row and the menu's "Soon" pick, not by parsing.
+        // "soon" is not a date; the valueless due isn't made by parsing.
         assert.equal(bike.parseAttribute('due', 'soon'), undefined)
     })
 
@@ -266,31 +256,22 @@ describe('default attribute set', () => {
         // priority is a closed set — a choice, not a number.
         assert.equal(byName.get('priority')?.type, 'choice')
         assert.equal((byName.get('priority')! as any).choices.map((c: any) => c.value).join(','), '1,2,3')
-        // The calendar shows every `date` attribute; the log's and the clock's
-        // opt out (a completion stamp is history, not schedule), due doesn't.
+        // The log's and clock's date attributes opt out of the calendar.
         assert.equal(byName.get('status')?.metadata['calendar'], false)
         assert.equal(byName.get('log-date')?.metadata['calendar'], false)
         assert.equal(byName.get('clock-duration')?.metadata['calendar'], false)
-        // status is IN the context menu's attribute group: that group is the
-        // only way to set it across a whole selection, and setting it there
-        // records the change like any other write. The log's and the clock's
-        // own fields stay out — they describe an ENTRY, not the row you
-        // right-clicked.
+        // status is in the context menu's attribute group; entry fields aren't.
         // `user` defaults true, so an attribute says nothing to be offered.
         assert.equal(byName.get('status')?.metadata['user'], undefined)
-        // What gets recorded is the USER's call, not a declaration's — the key
-        // that used to say so is gone, not merely unused. `user: false` is the
-        // only thing a declaration still settles, and it settles all three.
+        // Recording is the user's call; `user: false` is all a declaration settles.
         for (const name of ['status', 'priority', 'flagged', 'due', 'estimate']) {
             assert.equal(byName.get(name)?.metadata['log'], undefined, name + ' should not declare log')
         }
-        // The entry fields are the only opt-outs: a feature writes and reads
-        // them, so neither the Attributes Editor nor the context menu offers them on a
-        // row that lacks one. A row that HAS one still shows it.
+        // Entry fields are the only opt-outs.
         assert.equal(byName.get('log-status')?.metadata['user'], false)
         assert.equal(byName.get('log-date')?.metadata['user'], false)
         assert.equal(byName.get('clock-duration')?.metadata['user'], false)
-        // The keys this replaced are gone, not merely unused.
+        // The replaced keys are gone.
         for (const name of ['log-status', 'log-date', 'clock-duration']) {
             assert.equal(byName.get(name)?.metadata['palette'], undefined)
             assert.equal(byName.get(name)?.metadata['contextMenu'], undefined)
@@ -299,8 +280,7 @@ describe('default attribute set', () => {
         for (const name of ['log-status', 'log-date', 'clock-duration']) {
             assert.equal(isPolicyEligible(name, byName.get(name)?.metadata['user'] as boolean), false)
         }
-        // Namespaced so a log entry's recorded state can never be read as a
-        // task's own — the collision that made stale entries render as done.
+        // Namespaced, or stale log entries rendered as done.
         assert.equal(byName.get('log-status')?.type, 'choice')
         assert.equal(byName.get('log-status')?.defaultBadge, false)
         assert.equal(byName.get('due')?.metadata['calendar'], undefined)
@@ -331,8 +311,7 @@ describe('default attribute set', () => {
     })
 
     it('resolves estimate durations to ISO wire values', () => {
-        // The old `<n><unit>` spelling still TYPES the same; what changed is
-        // what gets stored.
+        // The old `<n><unit>` spelling still types the same.
         assert.equal(bike.parseAttribute('estimate', '90')?.value, 'PT1H30M')
         assert.equal(bike.parseAttribute('estimate', '90m')?.value, 'PT1H30M')
         assert.equal(bike.parseAttribute('estimate', '1.5h')?.value, 'PT1H30M')
@@ -406,8 +385,7 @@ describe('attribute policy', () => {
     it('stores a disagreement and drops it again at the seed', () => {
         const off = withCell({}, 'syncid', 'badge', false, true)
         assert.equal(json(off), '{"syncid":{"badge":false}}')
-        // Back to what the declaration says: the name goes entirely, so a
-        // later change of mind by the extension is still followed.
+        // Matching the seed removes the name entirely.
         assert.equal(json(withCell(off, 'syncid', 'badge', true, true)), '{}')
     })
 
@@ -437,15 +415,13 @@ describe('attribute row assembly', () => {
     })
 
     it('orders by the title shown, not the name underneath', () => {
-        // Sorting the names would put `alpha` first; sorting what the table
-        // actually prints puts Apple first.
+        // Sorted by displayed title, not name.
         const declared = [declaration('zzz', { title: 'Apple' }), declaration('alpha', { title: 'Zebra' })]
         assert.equal(names(buildRows(declared, new Set(), {})), 'zzz,alpha')
     })
 
     it('groups declared attributes above the names that merely turned up', () => {
-        // Alphabetically this is apple, balloon, zebra. Grouped, the attribute
-        // an extension declared leads, whatever it's called.
+        // Declared attributes lead regardless of title.
         const rows = buildRows([declaration('zebra')], new Set(['apple']), { balloon: { badge: false } })
         assert.equal(names(rows), 'zebra,apple,balloon')
     })
@@ -468,8 +444,7 @@ describe('attribute row assembly', () => {
         assert.equal(rows.length, 1)
         assert.equal(rows[0].declared, false)
         assert.equal(rows[0].present, false)
-        // Seeded as if it had just turned up, so unchecking the row back to
-        // agreement drops the override and the row leaves with it.
+        // Seeded normally, so returning to agreement drops the override.
         assert.equal(json(rows[0].seeds), '{"editor":true,"badge":true,"log":true}')
     })
 
@@ -486,9 +461,7 @@ describe('attribute row assembly', () => {
     })
 
     it('admits no row an override can only have reached by hand', () => {
-        // The overrides are a plist a person can edit, so eligibility gates
-        // that source too — a recorded twin or a feature-owned field is no
-        // more the user's to configure for having been typed in.
+        // Eligibility gates hand-edited overrides too.
         const rows = buildRows(
             [declaration('clock-duration', { metadata: { user: false } })],
             new Set(['log-status']),
@@ -558,8 +531,7 @@ describe('value picker (showPicker)', () => {
     })
 
     it('presents with NO placement, centered — no row required', () => {
-        // The case a row-anchored picker couldn't serve: an outline with no
-        // rows at all still gets a picker.
+        // An outline with no rows still gets a picker.
         const editor = bike.testEditor()
         editor.showPicker({ kind: 'date', onAccept() {} })
     })

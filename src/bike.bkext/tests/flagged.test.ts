@@ -1,7 +1,3 @@
-// The `flagged` commands are the only KEYBOARD path to flagging a row — the
-// badge renders on `.@flagged`, so it isn't there to click until the row
-// already carries the attribute.
-
 describe("Flagged commands", () => {
     const editor = bike.testEditor()
     const outline = editor.outline
@@ -34,8 +30,7 @@ describe("Flagged commands", () => {
         editor.selectRows(row)
         assert.equal(bike.commands.performCommand("flagged:red", { editor }), true)
         assert.equal(row.getAttribute("flagged"), "red")
-        // Re-running the same setter still reports success: the row IS what
-        // was asked for. (It writes nothing, so there's no empty undo step.)
+        // Re-running reports success but writes nothing.
         assert.equal(bike.commands.performCommand("flagged:red", { editor }), true)
         assert.equal(row.getAttribute("flagged"), "red")
     })
@@ -46,8 +41,7 @@ describe("Flagged commands", () => {
         assert.equal(bike.commands.performCommand("flagged:clear", { editor }), true)
         assert(rows[0].getAttribute("flagged") == null, "flag should be cleared")
         assert(rows[1].getAttribute("flagged") == null, "flag should be cleared")
-        // Nothing left to clear — declines rather than pushing an empty
-        // transaction onto the undo stack.
+        // Nothing left to clear, so it declines.
         assert.equal(bike.commands.performCommand("flagged:clear", { editor }), false)
     })
 
@@ -55,7 +49,7 @@ describe("Flagged commands", () => {
         const row = outline.root.children[0]
         editor.selectRows(row)
         assert.equal(bike.commands.performCommand("flagged:toggle", { editor }), true)
-        // Valueless — meaningful on its own, and the badge flies it red.
+        // Valueless; the badge draws it red.
         assert.equal(row.getAttribute("flagged"), "")
         assert.equal(bike.commands.performCommand("flagged:toggle", { editor }), true)
         assert(row.getAttribute("flagged") == null, "second toggle should lower the flag")
@@ -84,7 +78,7 @@ describe("Flagged commands", () => {
         const open = outline.query('//(@flagged and open())') as { type: string; value: any[] }
         assert.equal(open.type, "elements")
         assert.equal(open.value.length, 1)
-        // A completed row's flag is history — the filter drops it.
+        // The filter drops closed rows.
         outline.transaction({ label: "finish" }, () => rows[2].setAttribute("status", "done"))
         const afterDone = outline.query('//(@flagged and open())') as { type: string; value: any[] }
         assert.equal(afterDone.value.length, 0)

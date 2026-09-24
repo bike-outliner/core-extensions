@@ -129,8 +129,7 @@ describe("showPanel screen positioning", () => {
     })
 
     it("targets a specific screen via frame coordinates", async () => {
-        // To put a panel on a particular screen, pass an origin within
-        // that screen's frame — `screen` is no longer a separate option.
+        // To target a screen, pass an origin within its frame.
         const v = bike.mainScreen.frame
         const handle = await bike.showPanel({
             script: domScript,
@@ -145,7 +144,7 @@ describe("showPanel screen positioning", () => {
     })
 
     it("opens a panel covering the right two-thirds of mainScreen", async () => {
-        // Worked example from the screen API plan: 1/3 ⇄ 2/3 split.
+        // 1/3 ⇄ 2/3 split.
         const v = bike.mainScreen.visibleFrame
         const handle = await bike.showPanel({
             script: domScript,

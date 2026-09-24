@@ -37,8 +37,7 @@ describe("Priority commands", () => {
         assert.equal(bike.commands.performCommand("priority:clear", { editor }), true)
         assert(rows[0].getAttribute("priority") == null, "priority should be cleared")
         assert(rows[1].getAttribute("priority") == null, "priority should be cleared")
-        // Nothing left to clear — declines rather than pushing an empty
-        // transaction onto the undo stack.
+        // Nothing left to clear, so it declines.
         assert.equal(bike.commands.performCommand("priority:clear", { editor }), false)
     })
 

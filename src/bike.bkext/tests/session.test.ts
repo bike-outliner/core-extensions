@@ -1,10 +1,6 @@
-// Tests for the DOM-only `bike.session` API. They run in the app context, so
-// each test presents a sheet whose inline DOM script drives `bike.session.*`
-// and relays results back over postMessage (the only way to reach the API).
-//
-// `bike.testEditor()` opens a single real, frontmost, empty test document; the
-// test runner closes any other documents first, so session calls without an
-// `outline`/`editor` resolve to that test document.
+// Tests for the DOM-only `bike.session` API, driven from a sheet's inline DOM
+// script over postMessage. The runner closes other documents first, so calls
+// without `outline`/`editor` resolve to the test document.
 
 const SESSION_RPC = `
 var extensionExports = { activate: function (context) {
@@ -325,10 +321,7 @@ describe("bike.session DOM API", () => {
     try {
       let resolveSnap: (n: number) => void
       const editedSnap = new Promise<number>((res) => { resolveSnap = res })
-      // Resolve on the snapshot that REFLECTS the edit. The subscription seeds
-      // with the current (empty) outline immediately, then re-emits after the
-      // edit — wait for the populated one rather than assuming the seed and the
-      // edit coalesce into a single emission.
+      // Wait for the populated snapshot; the empty seed may emit separately.
       const sub = await s.observe({ path: "//*", shape: "flat" }, (n) => { if (n >= 1) resolveSnap(n) })
 
       await s.call("createRow", { markdown: "observed row" })
@@ -343,8 +336,7 @@ describe("bike.session DOM API", () => {
     bike.testEditor()
     const s = await openSession()
     try {
-      // The seed arrives asynchronously after subscribe resolves, so wait for
-      // the first event rather than reading it synchronously.
+      // The seed arrives asynchronously after subscribe resolves.
       const seen: string[] = []
       let resolveSeed: (t: string) => void
       const seed = new Promise<string>((res) => { resolveSeed = res })
@@ -482,8 +474,7 @@ describe("bike.session DOM API", () => {
         if (sync.ids.indexOf(a.id) === -1) resolveGone(sync)
       })
 
-      // Deleting the selected row removes it from the outline AND moves the
-      // selection — both arrive in one batch, outline applied first.
+      // Outline and selection changes arrive in one batch, outline first.
       await s.call("deleteRows", { rows: [a.id] })
       const sync = await withTimeout(aGone, 5000, "row removed from synced outline")
       assert(sync.ids.indexOf(a.id) === -1, "deleted row is gone from the maintained outline")

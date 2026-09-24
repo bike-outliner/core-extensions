@@ -1,28 +1,17 @@
 /**
- * Pure helpers behind the calendar's DATE ATTRIBUTES: the query paths, the
- * day bucketing, and the mark/agenda labels shared by the calendar
- * inspector (dom/Calendar.tsx), the agenda (dom/Agenda.tsx), and the range
- * filter (app/main.ts).
+ * Pure helpers for the calendar's date attributes: query paths, day
+ * bucketing, and mark/agenda labels shared by Calendar.tsx, Agenda.tsx and
+ * app/main.ts.
  *
- * The calendar shows every attribute registered with `type: 'date'` — `due`
- * today, whatever an extension adds tomorrow — EXCEPT those
- * declaring `metadata: { calendar: false }` (that's `done`: a completion
- * stamp is history, not schedule). The attribute set is discovered at
- * runtime through `bike.observeAttributes`, which exists only in the APP
- * context, so the app pushes the resolved list to the DOM panels over
- * CalendarProtocol and every function here takes the names as a parameter.
+ * The calendar shows every `type: 'date'` attribute except those with
+ * `metadata: { calendar: false }` (`done`). `bike.observeAttributes` is
+ * app-only, so the app pushes the list to the DOM over CalendarProtocol and
+ * every function here takes the names as a parameter.
  *
- * Deliberately free of React, the session API, and imports so all three
- * contexts — and the tests, typechecked in the app project where the
- * DOM-only ambient Session* types don't exist — can import them. Row shapes
- * and attribute-info shapes are structural stand-ins that the real
- * SessionRow / AttributeInfo satisfy. Wire encoding/decoding goes through
- * `bike.encodeValue`/`bike.decodeValue` — declared on BikeUtilityGlobals, so
- * the ambient `bike` satisfies BOTH the app and DOM typecheck projects, and
- * present at runtime everywhere this runs (tests run in the app context).
+ * Kept free of React, the session API and imports so app, DOM and tests can
+ * all import it; row and attribute-info shapes are structural stand-ins.
  */
 
-/** The structural subset of SessionRow these helpers read. */
 export interface DateRow {
   attributes?: Record<string, string>
   text: { string: string }[]
@@ -33,31 +22,19 @@ export interface DateValue {
   hasTime: boolean
 }
 
-/** One calendar-visible date attribute, as the calendar consumes it. */
 export interface DateAttribute {
-  /** Registered name — guaranteed OutlinePath-safe, see isSafeAttributeName. */
+  /** OutlinePath-safe, see isSafeAttributeName. */
   name: string
-  /** Registry title ("Due", "Start") for agenda labels and tile tooltips. */
   title: string
 }
 
-/**
- * One (row, attribute) placement. A row carrying both `start` and `due`
- * yields TWO hits, in two different day buckets — this pair, not the row,
- * is the unit the calendar buckets, sorts, and labels.
- */
+/** One (row, attribute) placement; a row with both `start` and `due` yields two hits. */
 export interface DateHit<R extends DateRow = DateRow> {
   row: R
-  /** The date attribute that placed this row on this day. */
   attribute: string
   value: DateValue
 }
 
-/**
- * The structural subset of `AttributeInfo` that dateAttributesFrom reads —
- * spelled out here rather than imported so this module stays free of
- * app-context types.
- */
 export interface AttributeInfoLike {
   name: string
   title: string
@@ -65,23 +42,12 @@ export interface AttributeInfoLike {
   metadata?: Record<string, unknown>
 }
 
-/**
- * Parse a date attribute value through the shared wire codec: `YYYY-MM-DD`
- * (LOCAL calendar date, so the day never shifts across zones) or a full
- * ISO-8601 timestamp when timed — a timed value carries its own zone and
- * lands on whatever LOCAL day it falls in. Null for anything else,
- * including the valueless `''`. (`DateValue` above is structurally the
- * codec's decoded-date shape.)
- */
+/** Parses `YYYY-MM-DD` (local day) or a timed ISO-8601 value; null otherwise, including `''`. */
 export function parseDateValue(value: string): DateValue | null {
   return bike.decodeValue('date', value) ?? null
 }
 
-/**
- * Local calendar day of `date` as `YYYY-MM-DD` via the shared wire codec —
- * the bucket key, and DELIBERATELY also the wire serialization of a
- * date-only value (a valid Date always encodes, hence the `!`).
- */
+/** Local day as `YYYY-MM-DD`: the bucket key and also the wire form of a date-only value. */
 export function dayKey(date: Date): string {
   return bike.encodeValue('date', date)!
 }
@@ -91,47 +57,30 @@ export function addDays(now: Date, n: number): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() + n)
 }
 
-/** Whole local days from the start of `now`'s day to the start of `date`'s. */
+/** Whole local days from `now`'s day to `date`'s. */
 export function dayDiffFromToday(date: Date, now: Date): number {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
   return Math.round((startOfDate.getTime() - startOfToday.getTime()) / 86400000)
 }
 
-/**
- * Whether a row is off the list — done or canceled. Paths say `closed()`;
- * this is the copy for code holding a row object, and calendar.bkext bundles
- * separately from bike.bkext so it needs its own.
- *
- * Orthogonal to which date attributes the calendar shows: this reads a row
- * the query already returned, so `status` staying OFF the calendar doesn't
- * stop closed rows from being dimmed.
- */
+/** Done or canceled; the row-object copy of `closed()` (calendar.bkext bundles separately). */
 export function isClosed(row: DateRow): boolean {
   const status = row.attributes?.['status']
   return status === 'done' || status === 'canceled'
 }
 
-/** Urgency at DAY granularity — all a calendar day tile can know. */
+/** Urgency at day granularity, all a day tile can know. */
 export type DayUrgency = 'urgent' | 'soon' | 'later'
 
-/**
- * Urgency of OPEN (not @done) work due `dayDiff` days from today: urgent
- * (red) when due today or any day before, soon (orange) when due tomorrow.
- * Done items carry no urgency — callers exclude them first (a checked row's
- * overdue date is history, not a fire).
- */
+/** Urgency of open work due `dayDiff` days from today; callers exclude done rows first. */
 export function dayUrgency(dayDiff: number): DayUrgency {
   return dayDiff <= 0 ? 'urgent' : dayDiff === 1 ? 'soon' : 'later'
 }
 
 /**
- * Urgency at ITEM granularity — `dayUrgency` plus an `overdue` level above
- * `urgent` for a deadline that has actually PASSED: any day before today,
- * or a timed due whose instant is behind `now`. A date-only due today is
- * urgent all day (the day isn't over); a timed due later today is urgent
- * too, and flips to overdue at its time. The due badge draws this; the
- * calendar's day dots stay at day granularity.
+ * Item-granularity urgency: adds `overdue` for a passed deadline (an earlier
+ * day, or a timed due behind `now`). A date-only due today stays urgent all day.
  */
 export type DueUrgency = 'overdue' | DayUrgency
 
@@ -141,31 +90,19 @@ export function dueUrgency(due: DateValue, now: Date): DueUrgency {
   return dayUrgency(dayDiff)
 }
 
-/**
- * The attribute whose dates carry DEADLINE urgency. "Urgent" means a
- * deadline passed — a `start` in the past is not a fire, and neither is
- * whatever date attribute an extension registers next. Named explicitly
- * here rather than inferred from the type, so registering a date attribute
- * can never silently turn the calendar red.
- */
+/** The only attribute with deadline urgency; explicit so a new date attribute can't turn the calendar red. */
 export const URGENCY_ATTRIBUTE = 'due'
 
 /**
  * Whether `name` can be interpolated into an OutlinePath as `@name`. The
- * registry does NOT constrain names to the path grammar — it only rejects
- * reserved ones — so a definition like `@my attr` would corrupt every
- * generated query. Such names are DROPPED, not escaped (there is no escape
- * syntax). A conservative subset of the path grammar's XML name rule.
+ * registry doesn't enforce the path grammar and there's no escape syntax,
+ * so unsafe names are dropped.
  */
 export function isSafeAttributeName(name: string): boolean {
   return /^[A-Za-z_][A-Za-z0-9_.:-]*$/.test(name)
 }
 
-/**
- * The calendar-visible date attributes of an `observeAttributes` snapshot,
- * in registry order: every `type: 'date'` definition that hasn't opted out
- * with `metadata: { calendar: false }` and whose name is path-safe.
- */
+/** Calendar-visible date attributes of an `observeAttributes` snapshot, in registry order. */
 export function dateAttributesFrom(infos: readonly AttributeInfoLike[]): DateAttribute[] {
   return infos
     .filter(
@@ -175,20 +112,13 @@ export function dateAttributesFrom(infos: readonly AttributeInfoLike[]): DateAtt
     .map(({ name, title }) => ({ name, title }))
 }
 
-/** A path that deliberately matches nothing — the zero-clause fallback. */
+/** Matches nothing; the zero-clause fallback. */
 export const NEVER_MATCH = '//@id = ""'
 
 /**
- * The or-chained half-open range predicate over every named date
- * attribute: `(@due >=[d] "s" and @due <[d] "e") or (@start >=[d] …)`.
- * `endExclusive` is EXCLUSIVE (pairs with a `<[d]` compare). Bare date
- * literals resolve to local midnight, matching dayKey's local-day
- * semantics; the `[d]` modifier makes date-only and timed values compare as
- * raw timestamps (no day truncation), so a single day is a half-open range
- * too, not an `=` compare — `=[d]` would miss timed items.
- *
- * Null for zero attributes, so callers omit the clause entirely rather than
- * emit a malformed `//()`.
+ * Or-chained half-open range predicate over every named date attribute.
+ * `[d]` compares raw timestamps, so even a single day must be a range:
+ * `=[d]` would miss timed items. Null for zero attributes (avoids `//()`).
  */
 export function dateRangeClause(
   names: readonly string[],
@@ -201,12 +131,7 @@ export function dateRangeClause(
   return names.map((name) => `(@${name} >=[d] "${startKey}" and @${name} <[d] "${endKey}")`).join(' or ')
 }
 
-/**
- * Outline path matching rows dated inside `range`, plus rows dated on
- * `today`'s day — the agenda falls back to Today when no date is selected,
- * so today's rows must arrive even when the calendar is paged to a distant
- * month.
- */
+/** Rows dated inside `range` plus today, since the agenda falls back to Today. */
 export function dateQueryPath(
   names: readonly string[],
   range: { start: Date; end: Date },
@@ -216,14 +141,9 @@ export function dateQueryPath(
 }
 
 /**
- * dateQueryPath plus an id match for every day in `range`, so ONE query
- * drives both the calendar's date marks and its has-day-row marks. Day-row
- * ids are `YYYY/MM/DD` (see protocols.dayIdFromDate — formatted inline here
- * to keep this module import-free).
- *
- * Built from the same clause list rather than concatenated onto
- * dateQueryPath's output: with no date attributes that would splice in
- * NEVER_MATCH's dead `@id = ""` term ahead of the real day ids.
+ * dateQueryPath plus an id match for every day in `range` (inlined
+ * protocols.dayIdFromDate), so one query drives both kinds of mark.
+ * Built from the clause list so NEVER_MATCH isn't spliced in.
  */
 export function calendarQueryPath(
   names: readonly string[],
@@ -238,16 +158,9 @@ export function calendarQueryPath(
 }
 
 /**
- * Bucket query-result rows by the local day each of their dates falls on.
- * `names` drives the scan — NOT the rows' own attribute maps — so an
- * attribute the calendar excludes can never place a row, and the query's
- * or-chain can't drift from what gets bucketed. Rows iterate in document
- * order (the query's order); within a row, attributes iterate in registry
- * order. Unparseable values are skipped.
- *
- * A row whose `start` and `due` land on the same day contributes TWO hits
- * to that one bucket — correct, and what lets the tooltip and agenda name
- * both.
+ * Buckets rows by the local day of each date. `names` drives the scan, not
+ * the rows' attribute maps, so excluded attributes never place a row.
+ * Same-day `start` and `due` give two hits in one bucket.
  */
 export function bucketByDay<R extends DateRow>(
   rows: readonly R[] | undefined,
@@ -274,13 +187,8 @@ export function bucketByDay<R extends DateRow>(
 export type DayMarkVariant = DayUrgency | 'done'
 
 /**
- * The tint for a day's mark. Urgency belongs to OPEN work under the
- * deadline attribute: red when due today or overdue (an overdue item is a
- * fire whether or not the day is past), orange when due tomorrow. A day
- * placed only by non-deadline dates (a `start`) draws the neutral accent,
- * and a day whose rows are ALL closed is history, not a fire. Day
- * granularity only — the badge's distinct `overdue` level needs an
- * item's instant, which a day tile doesn't have.
+ * A day mark's tint: urgency only for open deadline hits, neutral for days
+ * placed only by other dates, `done` when every row is closed.
  */
 export function dayMarkVariant(hits: readonly DateHit[], dayDiff: number): DayMarkVariant {
   const open = hits.filter((hit) => !isClosed(hit.row))
@@ -289,11 +197,7 @@ export function dayMarkVariant(hits: readonly DateHit[], dayDiff: number): DayMa
   return dayUrgency(dayDiff)
 }
 
-/**
- * A day mark's tooltip — "2 Due, 1 Start". Tiles are too small for numbers,
- * and with several date attributes in play the count alone wouldn't say
- * what put the rows there. Attributes appear in first-hit (registry) order.
- */
+/** A day mark's tooltip, e.g. "2 Due, 1 Start". */
 export function dayMarkTooltip(
   hits: readonly DateHit[],
   titleByName: ReadonlyMap<string, string>
@@ -307,39 +211,25 @@ export function dayMarkTooltip(
     .join(', ')
 }
 
-/** A row's plain display text — all runs concatenated, not just the first. */
+/** All runs concatenated, not just the first. */
 export function rowDisplayText(row: DateRow): string {
   return row.text.map((run) => run.string).join('')
 }
 
-/**
- * Agenda display order for one day's hits: date-only items first (calendar
- * apps put all-day entries on top), then timed items by time ascending.
- * Bucket order (document order, then registry order within a row) breaks
- * ties — Array.prototype.sort is stable.
- */
+/** Date-only items first, then timed items by time; stable sort keeps bucket order for ties. */
 export function sortAgendaHits<H extends DateHit<DateRow>>(hits: readonly H[]): H[] {
   const sortKey = (hit: H): number => (hit.value.hasTime ? hit.value.date.getTime() : -1)
   return [...hits].sort((a, b) => sortKey(a) - sortKey(b))
 }
 
-/**
- * The local wall-clock time to lead a timed agenda item with, or null for a
- * date-only value. A timed value at exactly midnight also gets null,
- * matching the due badge (the bare day reads cleaner than a redundant
- * "12:00 AM").
- */
+/** Local time label for a timed item; null for date-only or exactly midnight (matches the due badge). */
 export function agendaTimeLabel(value: DateValue, locale?: string): string | null {
   if (!value.hasTime) return null
   if (value.date.getHours() === 0 && value.date.getMinutes() === 0) return null
   return new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(value.date)
 }
 
-/**
- * The date range worth querying while `activeStartDate`'s month is
- * displayed: the month padded by a week on both sides, so react-calendar's
- * neighboring-month tiles get marks too. `end` is EXCLUSIVE.
- */
+/** The month padded a week each side so neighboring-month tiles get marks; `end` is exclusive. */
 export function visibleRange(activeStartDate: Date): { start: Date; end: Date } {
   const year = activeStartDate.getFullYear()
   const month = activeStartDate.getMonth()
@@ -349,7 +239,6 @@ export function visibleRange(activeStartDate: Date): { start: Date; end: Date } 
   }
 }
 
-/** The visible range's clause plus today's, dropping either when empty. */
 function dateClauses(
   names: readonly string[],
   range: { start: Date; end: Date },
@@ -363,7 +252,6 @@ function dateClauses(
   return clauses
 }
 
-/** One `//`-rooted or-chain, or a path matching nothing when there is none. */
 function joinPredicates(clauses: readonly string[]): string {
   return clauses.length > 0 ? `//${clauses.join(' or ')}` : NEVER_MATCH
 }

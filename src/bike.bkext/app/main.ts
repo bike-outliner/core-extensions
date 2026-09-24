@@ -15,10 +15,7 @@ export async function activate(context: AppExtensionContext) {
   // Last, so its `observeAttributes` sees every feature's attribute.
   registerDefaultBadge()
 
-  // One settings item per section, so each sorts on its own among every other
-  // extension's — the pane orders sections by label, not by the order they're
-  // registered. Registered here rather than from each feature so the whole set
-  // is visible in one place.
+  // One settings item per section; the pane orders sections by label.
   registerAttributesSettings()
   bike.settings.addItem({ label: 'Tasks', script: 'TasksSettings.js' })
 
@@ -33,13 +30,11 @@ export async function activate(context: AppExtensionContext) {
       'text:wrap-"': (context) => wrapTextSelection('"', '"', context),
       'text:wrap-{': (context) => wrapTextSelection('{', '}', context),
       'text:wrap-(': (context) => wrapTextSelection('(', ')', context),
-      // ⌘→'s text-mode binding: only claims the key when the caret is
-      // already at the END of the row's text — otherwise returns false and
-      // the event falls through to the standard move-to-line-end.
+      // Claims ⌘→ only at the end of the row's text; otherwise falls through.
       'format:row-attributes-if-text-end': ({ selection }) => {
         if (selection?.type !== 'caret') return false
         if (selection.detail.char !== selection.row.text.count) return false
-        // performCommand is `boolean | undefined` (undefined = no handler).
+        // undefined = no handler.
         return bike.commands.performCommand('format:row-attributes') === true
       },
     },
@@ -51,8 +46,6 @@ export async function activate(context: AppExtensionContext) {
       'Shift-Return': 'row:insert-above',
       'Command-Return': 'row:insert-below',
       'Command-Shift-Return': 'row:insert-child',
-      // At the row text's end this opens the Attributes Editor; anywhere
-      // else the handler declines and stock move-to-line-end runs.
       'Command-RightArrow': 'format:row-attributes-if-text-end',
       "'": "text:wrap-'",
       '[': 'text:wrap-[',
@@ -94,17 +87,10 @@ export async function activate(context: AppExtensionContext) {
   })
 }
 
-/** How long the document scan waits for the typing to stop. */
+/** Milliseconds the document scan waits for typing to stop. */
 const RESCAN_DELAY = 1000
 
-/**
- * The Attributes settings table's row list, which only the APP context can
- * build: `observeAttributes` lives here, and so do the open documents.
- *
- * Declared names and names a document merely uses are treated alike — the
- * whole point of the table is that an attribute another tool wrote is as much
- * the user's to configure as one an extension shipped.
- */
+/** Builds the Attributes settings rows, which need the app context's registry and documents. */
 function registerAttributesSettings() {
   const handles = new Set<DOMScriptHandle<AttributesProtocol>>()
   let infos: AttributeInfo[] = []
@@ -113,9 +99,7 @@ function registerAttributesSettings() {
   let watchers: Disposable[] = []
   let rescanTimer: number | undefined
 
-  // `addItem` resolves only once the settings web view exists, so attach with
-  // `.then` — awaiting it here would stall the rest of activation until
-  // someone opens Settings.
+  // Don't await: `addItem` resolves only once Settings is opened.
   bike.settings
     .addItem<AttributesProtocol>({ label: 'Attributes', script: 'AttributesSettings.js' })
     .then((handle) => {
@@ -128,42 +112,29 @@ function registerAttributesSettings() {
             scheduleRescan()
             break
           default:
-            // `ready`: a panel that has just mounted needs the rows even when
-            // they match what the last one was sent.
+            // `ready`: a new panel needs rows even if unchanged.
             pushRows(true)
         }
       }
       handles.add(handle)
     })
 
-  // Live, never a one-shot snapshot: an extension can register an attribute
-  // long after this runs, and a panel already open should grow a row for it.
   bike.observeAttributes((next) => {
     infos = next
     pushRows()
   })
 
-  // The panel tracks the override VALUES itself, so the only thing left for
-  // this side to notice is a change to the row SET: a stored name that has no
-  // row yet, or an absent row whose last override just went away — including
-  // every one of them at once, when Restore Defaults clears the key.
+  // The panel tracks override values itself; this catches changes to the row set.
   bike.defaults.observe(ATTRIBUTE_OVERRIDES_KEY, () => pushRows())
 
-  /**
-   * Watching costs a change observer per open document, and those see every
-   * keystroke — so it is held only while the panel is genuinely on screen, and
-   * dropped the moment it isn't. Without it the table is a snapshot, and a name
-   * you just typed into a document shows up only if you happen to collapse and
-   * reopen the section, which reads as the table being wrong rather than late.
-   */
+  /** Observes every open document's changes, so only while the panel is on screen. */
   function setWatching(active: boolean) {
     if (active === watching) return
     watching = active
     if (active) {
       const disposables: Disposable[] = []
       watchers = disposables
-      // Fires for documents already open as well as ones opened later, so this
-      // one call covers both. Each document's observer leaves with it.
+      // Fires for already-open documents too.
       disposables.push(
         bike.observeDocuments((document) => {
           const changes = document.outline.observeChanges(() => scheduleRescan())
@@ -177,7 +148,6 @@ function registerAttributesSettings() {
           scheduleRescan()
         })
       )
-      // Whatever happened while we weren't looking.
       pushRows()
     } else {
       for (const disposable of watchers) disposable.dispose()
@@ -189,9 +159,7 @@ function registerAttributesSettings() {
     }
   }
 
-  // Trailing, so a burst of typing scans once after it stops rather than once
-  // per keystroke — and the scan is the whole point of the delay: it walks
-  // every attribute name in every open document.
+  // Trailing debounce: the scan walks every attribute name in every document.
   function scheduleRescan() {
     if (rescanTimer !== undefined) clearTimeout(rescanTimer)
     rescanTimer = setTimeout(() => {
@@ -202,8 +170,7 @@ function registerAttributesSettings() {
 
   function pushRows(force = false) {
     const next = rows()
-    // Everything the panel draws from, not just the names: `present` flips
-    // when the last document using a name closes, and nothing else would say so.
+    // Compare whole rows, not names: `present` can flip on its own.
     const signature = JSON.stringify(next)
     if (!force && signature === lastSent) return
     lastSent = signature

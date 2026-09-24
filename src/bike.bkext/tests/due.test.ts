@@ -1,14 +1,10 @@
-// `due:today` / `due:tomorrow` / `due:soon` are the zero-dialog setters —
-// what `priority:1/2/3` are to the priority menu. They write DATE-ONLY wire
-// values; a timed `@due` is a different thing (what scripts write) and the
-// badge renders it differently.
+// `due:today` / `due:tomorrow` / `due:soon` write date-only wire values.
 
 describe("Due commands", () => {
     const editor = bike.testEditor()
     const outline = editor.outline
 
-    // The same local-day date-only encoding the commands use, computed here
-    // independently so the test doesn't just restate the implementation.
+    // Computed independently of the implementation.
     function localDay(offset: number): string {
         const day = new Date()
         day.setDate(day.getDate() + offset)
@@ -50,8 +46,7 @@ describe("Due commands", () => {
         editor.selectRows(row)
         assert.equal(bike.commands.performCommand("due:soon", { editor }), true)
         assert.equal(row.getAttribute("due"), "")
-        // Present-but-empty: `@due` still matches, which is what makes the
-        // row show up in the badge and the filter.
+        // Present-but-empty still matches `@due`.
         const matched = outline.query("//@due") as { type: string; value: any[] }
         assert(matched.value.length > 0, "a valueless @due should still match @due")
     })

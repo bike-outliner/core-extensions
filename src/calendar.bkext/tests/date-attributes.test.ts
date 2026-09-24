@@ -1,14 +1,11 @@
 import { AttributeInfo } from 'bike/app'
 import { dateAttributesFrom } from '../dom/date-marks'
 
-// The live contract behind the calendar's date marks: which attributes it
-// shows is DISCOVERED from the registry, not hardcoded. Only the app
-// context can observe the registry, so this is where it's testable — the
-// pure filtering itself is covered in date-marks.test.ts.
+// Calendar date attributes are discovered from the registry (app context
+// only); pure filtering is covered in date-marks.test.ts.
 
 function snapshot(): AttributeInfo[] {
-  // observeAttributes emits synchronously on registration, so this reads
-  // as a getter.
+  // observeAttributes emits synchronously on registration.
   let latest: AttributeInfo[] = []
   const observer = bike.observeAttributes((infos) => (latest = infos))
   observer.dispose()
@@ -19,9 +16,7 @@ describe('calendar date attributes', () => {
   it('picks up the shipped date attributes, minus the opt-outs', () => {
     const names = dateAttributesFrom(snapshot()).map((attribute) => attribute.name)
     assert(names.includes('due'), 'due should show on the calendar')
-    // The log's `log-date` is `type: 'date'` too, but declares
-    // metadata.calendar === false: history is not schedule, and every
-    // completed task would otherwise land on its completion day.
+    // `log-date` is a date but opts out with metadata.calendar === false.
     assert.equal(names.includes('log-date'), false, "the log's date should NOT show on the calendar")
     // Not a date at all.
     assert.equal(names.includes('estimate'), false)

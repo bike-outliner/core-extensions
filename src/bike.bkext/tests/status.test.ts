@@ -1,12 +1,8 @@
 import { Row } from 'bike/app'
 import { HIDE_DONE_ON_TASKS_PREDICATE, statusBadgeWhere } from '../app/features/status'
 
-// The status badge's own render path is native (formatAttribute, the tag
-// image), so what's testable from JS is the one thing the
-// `hideDoneBadgeOnTasks` setting actually changes: which rows the badge's
-// `where` selects. Run the predicate as a real query rather than string-
-// comparing it — that proves it parses AND that it draws the line where the
-// setting says, which a string assertion can't.
+// Tests which rows the status badge's `where` selects, run as a real query
+// so it proves the predicate parses too.
 
 describe('status badge where', () => {
     it('is the bare has-a-status test when nothing is suppressed', () => {
@@ -40,8 +36,7 @@ describe('suppressing the Done badge on tasks', () => {
         rows[4].setAttribute('status', 'done')
     })
 
-    // `//*` plus the predicate — the badge says `.` plus the same predicate,
-    // which is the self axis rather than every descendant.
+    // The badge uses `.` (self) with the same predicate.
     function badgedTexts(predicate: string): string[] {
         const rows = outline.query('//* ' + predicate).value as Row[]
         return rows.map((row) => row.text.string)
@@ -56,8 +51,7 @@ describe('suppressing the Done badge on tasks', () => {
         assert(texts.includes('Done heading'), 'a done heading is badged')
     })
 
-    // The whole point of the setting: a done task's checkbox already says
-    // "done", and nothing else here has a checkbox saying it.
+    // Only done tasks have a checkbox already saying "done".
     it('drops the done task, and only the done task', () => {
         const texts = badgedTexts(HIDE_DONE_ON_TASKS_PREDICATE)
         assert.equal(texts.length, 3)

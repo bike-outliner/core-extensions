@@ -6,9 +6,7 @@ export function yearCommand(context: CommandContext): boolean {
   if (!editor) return true
   editor.outline.transaction({ animate: 'default' }, () => {
     let outline = editor.outline
-    // Always generate the whole year's days; they're injected at whatever
-    // nesting the enabled levels produce. `yearRow` is the year row when shown,
-    // otherwise the Calendar container.
+    // `yearRow` is the year row when shown, otherwise the Calendar container.
     let yearRow = getYearRow(outline, new Date())
     editor.focus = yearRow
     editor.selectCaret(yearRow.firstChild ?? yearRow, 0)
@@ -21,7 +19,6 @@ export function monthCommand(context: CommandContext): boolean {
   if (!editor) return true
   editor.outline.transaction({ animate: 'default' }, () => {
     let outline = editor.outline
-    // Always generate the whole month's days, injected at the enabled nesting.
     let monthRow = getMonthRow(outline, new Date())
     editor.focus = monthRow
     editor.selectCaret(monthRow.firstChild ?? monthRow, 0)
@@ -34,7 +31,6 @@ export function weekCommand(context: CommandContext): boolean {
   if (!editor) return true
   editor.outline.transaction({ animate: 'default' }, () => {
     let outline = editor.outline
-    // Always generate the whole week's days, injected at the enabled nesting.
     let weekRow = getWeekRow(outline, new Date())
     editor.focus = weekRow
     editor.selectCaret(weekRow.firstChild ?? weekRow, 0)
@@ -48,12 +44,9 @@ export function todayCommand(context: CommandContext): boolean {
   editor.outline.transaction({ animate: 'default' }, () => {
     let outline = editor.outline
     let todayRow = getDayRow(outline, new Date())
-    // Clear any filter (e.g. a day agenda) so Today always lands on the
-    // plain unfiltered day row.
     editor.filter = undefined
     editor.focus = todayRow
-    // Caret at the end of the day row's own text — no auto-created empty
-    // child.
+    // No auto-created empty child.
     editor.selectCaret(todayRow, todayRow.text.string.length)
   })
   return true

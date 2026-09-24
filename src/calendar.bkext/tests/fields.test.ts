@@ -33,8 +33,7 @@ describe("substituteDate", () => {
     })
 
     describe("escapeMarkdown (row-generation path)", () => {
-        // `{ d. }` -> "26." reproduces, locale-independently, the leading marker
-        // that German `dateStyle:long` ("28. Mai 2026") emits.
+        // `{ d. }` reproduces German `dateStyle:long`'s leading "28." marker.
         it("escapes a leading ordered-list marker in the formatted date", () => {
             assert.equal(substituteDate(date, "{ d. }", { escapeMarkdown: true }), "26\\.")
         })
@@ -165,8 +164,7 @@ describe("week level", () => {
             const day = getDayRow(outline, date)
             const week = day.parent!
             assert.equal(week.persistentId, weekIdFromDate(date))
-            // The week's month is its FIRST day's month, which for a week inside
-            // one month is that month.
+            // The week's month is its first day's month.
             assert.equal(week.parent!.persistentId, "2026/05/00")
             assert.equal(week.parent!.parent!.persistentId, "2026/00/00")
         })
@@ -176,8 +174,7 @@ describe("week level", () => {
         withWeek({ monthEnabled: false }, () => {
             const outline = bike.testEditor().outline
             const days = getDaysInWeek(date)
-            // Deliberately out of order: the last day of the week creates the
-            // week row, the first must then join it rather than make a second.
+            // Out of order: the first day must join the existing week row.
             for (const day of [...days].reverse()) getDayRow(outline, day)
             const weekId = weekIdFromDate(date)
             const week = outline.getRowById(weekId)!
@@ -189,8 +186,7 @@ describe("week level", () => {
     })
 
     it("keeps a month-straddling week whole, under its first day's month", () => {
-        // Whichever day weeks start on, some day sits in a week that began in
-        // the previous month — find the first one in 2026.
+        // Find the first 2026 day whose week began in the previous month.
         let straddler: Date | undefined
         for (let d = new Date(2026, 0, 1); d.getFullYear() === 2026; d = new Date(2026, d.getMonth(), d.getDate() + 1)) {
             if (startOfWeek(d).getMonth() !== d.getMonth()) {
@@ -249,16 +245,15 @@ describe("markdown sets the row type on insert", () => {
     it("- is unordered", () => assert.equal(dayTypeFor("- { yyyy }"), "unordered"))
     it("plain is body", () => assert.equal(dayTypeFor("{ yyyy }"), "body"))
 
-    // A leading marker that comes from the formatted date itself (not the
-    // template) must NOT change the row type — the German `28. Mai 2026` bug.
+    // A leading marker from the formatted date must not change the row type
+    // (German `28. Mai 2026` bug).
     it("a date whose own text starts with a number is body, not ordered", () => {
         assert.equal(dayTypeFor("{ d. MMMM yyyy }"), "body")
     })
 })
 
 describe("newest dates first", () => {
-    // Defaults off, so every case here opts in and cleans up after itself —
-    // the suite reads live user preferences, and a leaked key breaks the rest.
+    // Each case opts in and cleans up; a leaked preference breaks later tests.
     function withNewestFirst(extra: Record<string, boolean>, body: () => void) {
         bike.defaults.set("newestFirst", true)
         for (const [key, value] of Object.entries(extra)) bike.defaults.set(key, value)
@@ -270,8 +265,7 @@ describe("newest dates first", () => {
         }
     }
 
-    /** The date ids under `row`, in document order. Joined into one string
-     * because this runner's `assert` has `equal` but no deep-equality check. */
+    /** Date ids under `row` joined into one string; `assert` has no deep equality. */
     function childIds(row: Row): string {
         return row.children
             .map((child) => child.persistentId)
@@ -289,8 +283,7 @@ describe("newest dates first", () => {
     it("puts newer days above older ones, whatever order they're created in", () => {
         withNewestFirst({}, () => {
             const outline = bike.testEditor().outline
-            // Deliberately out of order: each day has to find its own slot
-            // rather than simply landing where it was appended.
+            // Out of order, so each day must find its slot.
             for (const day of [24, 26, 25]) getDayRow(outline, new Date(2026, 4, day))
             const month = outline.getRowById("2026/05/00")!
             assert.equal(childIds(month), "2026/05/26 2026/05/25 2026/05/24")

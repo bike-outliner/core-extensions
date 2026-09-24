@@ -2,12 +2,8 @@ import { Color, HiddenControl, Image, StyleContext, RowStyle, TextRunStyle, Layo
 import { computeValues, symbolImage } from './util'
 
 /**
- * True when `control`'s category should fade right now: the user is "typing"
- * (the mouse cursor is auto-hidden) and this category is one the user chose to
- * hide. An empty selection means nothing fades.
- *
- * Mirrored in Swift by EditorStyle+Badges.swift for the `badge:` decorations,
- * which are applied after these rules run and so can't be gated here.
+ * True while typing (cursor hidden) if `control`'s category is set to hide.
+ * Mirrored in EditorStyle+Badges.swift for `badge:` decorations.
  */
 export function hiddenWhileTyping(context: StyleContext, control: HiddenControl): boolean {
   return context.isTyping && context.settings.hiddenControlsWhenTyping.includes(control)

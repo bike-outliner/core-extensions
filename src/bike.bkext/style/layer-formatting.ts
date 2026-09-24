@@ -79,29 +79,21 @@ export function registerFormattingLayers(style: EditorStyle) {
       listMark(context, row, symbolImage('square', row.text.color, row.text.font), 'status:toggle-done')
     })
 
-    // Closed is closed however it ended — done and canceled read the same
-    // here, and the status badge carries which.
+    // Done and canceled look the same; the status badge says which.
     row(`.closed()`, (context, row) => {
       row.text.strikethrough.thick = true
       row.text.strikethrough.color = row.text.color//.alphaSet(0.5)
     })
 
-    // The checkbox stays BINARY: one bit, "is this off my list". The two
-    // extra states ride a badge rather than more glyphs, so this stays a
-    // single override of the mark declared by `.task` above.
+    // The checkbox stays binary; other states are shown by the badge.
     row(`.task closed()`, (context, row) => {
       row.text.decoration('mark', (mark, _) => {
         mark.contents.image = symbolImage('checkmark.square', row.text.color, row.text.font)
       })
     })
 
-    // The log CONTAINER — one row holding a row's history. Its entries are
-    // ordinary rows and get no rule of their own; they read as the content
-    // they are. The book marks the container the way the checkbox marks a
-    // task, on the same metrics so the two line up down the left edge — and it
-    // is the ONLY thing that marks it: the text is body text (`theme.rows.log`
-    // has no default style, like `task`), so a theme decides otherwise or
-    // nothing does.
+    // The log container gets a book mark on the checkbox's metrics; entries
+    // get no rule of their own.
     row(`.log`, (context, row) => {
       context.theme.rows.log.apply(row.text)
       listMark(context, row, symbolImage('book.closed', row.text.color, row.text.font))
@@ -207,14 +199,9 @@ export function registerFormattingLayers(style: EditorStyle) {
       text.baselineOffset = baseSize * 0.25
     })
 
-    // Attachment chips: the label text and file icon are composed in
-    // Swift (only it resolves the file), but the chip's
-    // text color and its box appearance are themeable here. `text.color` is
-    // the label color; the `background` decoration gives the box its fill,
-    // border, and corner radius; and `text.padding` sets the interior gap
-    // between the label and the box edge — Swift reads all of these and folds
-    // the label into the same decoration. hr atoms also match `.@embed`, so
-    // Swift drops the `background` decoration on them.
+    // Attachment chips are composed in Swift, which reads `text.color`, the
+    // `background` decoration and `text.padding` from here. hr atoms also match
+    // `.@embed`; Swift drops their `background`.
     run(`.@embed`, (context, text) => {
       let values = computeValues(context)
       let colors = context.theme.colors

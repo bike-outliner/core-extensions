@@ -2,11 +2,8 @@ import { Color, Text, Image, EditorStyle } from 'bike/style'
 import { computeValues, symbolImage, buildCircleImage } from './util'
 import { underlineHighlight, dropLine } from './style-helpers'
 
-// iOS block-selection drag handles: filled dots at the selection band's
-// leading-top and trailing-bottom corners. Drawn by the style so they track
-// the band's exact geometry for any theme; the iOS host hit-tests them (by
-// commandName) to start the drag interaction. macOS uses the mouse and never
-// draws these.
+// iOS selection drag handles, drawn by the style to track the band's geometry;
+// the iOS host hit-tests them by commandName. Not drawn on macOS.
 const SELECTION_HANDLE_DIAMETER = 22
 
 export function registerInteractionLayers(style: EditorStyle) {
@@ -91,9 +88,8 @@ export function registerInteractionLayers(style: EditorStyle) {
       })
     })
 
-    // Text-selection leading handle: dot above the selection start (first
-    // selected run's leading edge). Same command name as the block handle —
-    // the host resolves the edge and re-anchors per selection kind.
+    // Text-selection leading handle. Shares the block handle's command name;
+    // the host resolves the edge per selection kind.
     run(`.start-of-matches(.@view-selected-range) = true`, (context, text) => {
       if (context.os !== 'iOS') return
       let values = computeValues(context)
@@ -114,8 +110,7 @@ export function registerInteractionLayers(style: EditorStyle) {
       })
     })
 
-    // Text-selection trailing handle: dot below the selection end (last
-    // selected run's trailing edge).
+    // Text-selection trailing handle.
     run(`.end-of-matches(.@view-selected-range) = true`, (context, text) => {
       if (context.os !== 'iOS') return
       let values = computeValues(context)
@@ -142,10 +137,8 @@ export function registerInteractionLayers(style: EditorStyle) {
       text.underline.color = colors.accent
     })
 
-    // A selected newline (the gap between two rows) draws a thin pilcrow sliver
-    // just past the end of the upstream row. Uses a row-text decoration at the
-    // last line's trailing edge so it also renders when the row is empty (where
-    // a run decoration would have nothing to attach to).
+    // A selected newline draws a sliver past the upstream row's end. A row-text
+    // decoration, so it also renders on empty rows.
     row(`.selected-newline() = upstream`, (context, row) => {
       let values = computeValues(context)
       let colors = context.theme.colors
@@ -174,10 +167,8 @@ export function registerInteractionLayers(style: EditorStyle) {
       text.underline.color = context.theme.colors.textBackgroundSelected
     })
 
-    // Invisibles: a space inside a text selection draws a faint glyph over the
-    // (otherwise blank) character so the user can see exactly what they've
-    // selected. The Swift side tags each selected space with
-    // `view-selected-space` (one run per char).
+    // Faint glyph over selected spaces, which Swift tags `view-selected-space`
+    // (one run per char).
     run(`.@view-selected-space`, (context, text) => {
       let values = computeValues(context)
       let colors = context.theme.colors
@@ -210,9 +201,8 @@ export function registerInteractionLayers(style: EditorStyle) {
     })
 
     run(`.@view-find-current or @view-check-current`, (context, run) => {
-      // While the editor itself is focused, fall back to the standard text-selection
-      // appearance — the bright "current match" highlight is only for when an external
-      // UI (Find panel, Check panel, Filter field) is driving and owns focus.
+      // The bright match highlight is only for when external UI (Find, Check,
+      // Filter) owns focus.
       if (context.isKey) return
 
       let colors = context.theme.colors

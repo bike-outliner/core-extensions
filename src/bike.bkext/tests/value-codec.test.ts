@@ -1,8 +1,6 @@
-// bike.encodeValue / bike.decodeValue — the machine-facing wire codecs, one
-// pure-JS implementation loaded into BOTH the app JSC context (Runtime/
-// format.js) and DOM pages (common.js). The conformance describe pins the JS
-// grammar to the NATIVE one through parseValue/displayValue round-trips, so
-// the two implementations can't silently drift.
+// bike.encodeValue / bike.decodeValue: one pure-JS codec loaded in the app
+// (Runtime/format.js) and DOM (common.js). Conformance tests pin it to the
+// native grammar.
 
 describe("bike.encodeValue", () => {
     it("exists in the app context", () => {
@@ -12,7 +10,7 @@ describe("bike.encodeValue", () => {
 
     it("encodes a date as its LOCAL calendar day by default", () => {
         assert.equal(bike.encodeValue("date", new Date(2026, 6, 28)), "2026-07-28")
-        // Late evening local time is still the LOCAL day, whatever UTC says.
+        // Late evening stays the local day, whatever UTC says.
         assert.equal(bike.encodeValue("date", new Date(2026, 0, 1, 23, 30)), "2026-01-01")
     })
 
@@ -131,8 +129,7 @@ describe("bike.decodeValue", () => {
 })
 
 describe("codec conformance with the native grammar", () => {
-    // These round-trips are what license the pure-JS implementation: if the
-    // JS wire grammar drifted from the native one, they break.
+    // Breaks if the JS grammar drifts from the native one.
 
     it("decode reads what native parse writes", () => {
         assert.equal(bike.decodeValue("duration", bike.parseValue("duration", "90m")!.value), 5400)
@@ -153,8 +150,7 @@ describe("codec conformance with the native grammar", () => {
 
 describe("codec in the DOM context", () => {
     it("both functions work inside a panel", async () => {
-        // The DOM pages load the same codec through common.js — prove it by
-        // computing in the panel and posting the results back.
+        // DOM pages load the same codec through common.js.
         const domScript = `
             var extensionExports = { activate: function(context) {
                 context.postMessage({

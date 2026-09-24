@@ -21,9 +21,7 @@ import {
   visibleRange,
 } from '../dom/date-marks'
 
-// All date expectations are built from LOCAL components (or round-tripped
-// through a local Date), so these tests pass in any time zone — the exact
-// property the helpers must preserve.
+// Expectations use local components so these pass in any time zone.
 
 describe('parseDateValue', () => {
   it('parses a date-only value from local components', () => {
@@ -37,8 +35,7 @@ describe('parseDateValue', () => {
   })
 
   it('buckets a timed UTC value to the LOCAL day it falls in', () => {
-    // 23:30 local can be the next day in UTC; the parsed date must still
-    // read back as the same local day.
+    // 23:30 local can be the next day in UTC.
     const local = new Date(2026, 6, 16, 23, 30)
     const value = parseDateValue(local.toISOString())
     assert(value, 'should parse')
@@ -59,8 +56,7 @@ describe('agendaTimeLabel', () => {
     const local = new Date(2026, 6, 16, 23, 30)
     const label = agendaTimeLabel(parseDateValue(local.toISOString())!, 'en-US')
     assert(label, 'timed value should have a label')
-    // ICU inserts a narrow no-break space before AM/PM in some versions —
-    // assert the parts, not the exact string.
+    // ICU may insert a narrow no-break space before AM/PM.
     assert(label!.includes('11:30'), `label shows the minutes: ${label}`)
     assert(/PM/.test(label!), `label shows the day period: ${label}`)
   })
@@ -98,8 +94,7 @@ describe('visibleRange', () => {
 })
 
 describe('isSafeAttributeName', () => {
-  // The registry only rejects RESERVED names, so a definition can carry a
-  // name the path grammar won't accept. Those are dropped, not escaped.
+  // Names the path grammar won't accept are dropped, not escaped.
   it('accepts path-grammar names', () => {
     for (const name of ['due', 'start', 'my-attr', 'a.b', 'a:b', '_x', 'x9']) {
       assert.equal(isSafeAttributeName(name), true, name)
@@ -175,8 +170,6 @@ describe('dateRangeClause', () => {
 })
 
 describe('dateQueryPath', () => {
-  // The single-attribute output is byte-for-byte what the due-only calendar
-  // emitted before date attributes were generalized.
   it('builds a half-open [d] range over local-date literals, plus a today clause', () => {
     const path = dateQueryPath(['due'], visibleRange(new Date(2026, 6, 15)), new Date(2026, 6, 16))
     assert.equal(
@@ -227,8 +220,7 @@ describe('calendarQueryPath', () => {
   })
 
   it('falls back to day ids ALONE when no date attributes are registered', () => {
-    // Bold day numbers must keep working, and the dead `@id = ""` term of
-    // NEVER_MATCH must not be spliced in ahead of the real ids.
+    // NEVER_MATCH's `@id = ""` must not be spliced in ahead of the real ids.
     const path = calendarQueryPath([], range, new Date(2026, 6, 16))
     assert.equal(path, `//${dayIds}`)
     assert.equal(path.includes('@id = ""'), false)
@@ -275,8 +267,7 @@ describe('bucketByDay', () => {
   })
 
   it('ignores attributes outside the names list', () => {
-    // The log-exclusion guard: `log-date` is a date attribute, but it is not
-    // in `names`, so a row is not placed on the day of its history.
+    // `log-date` isn't in `names`, so history doesn't place a row.
     const buckets = bucketByDay([row({ 'log-date': '2026-07-16', due: '2026-07-20' })], ['due'])
     assert.equal(buckets.has('2026-07-16'), false)
     assert.equal(buckets.get('2026-07-20')!.length, 1)
@@ -336,8 +327,7 @@ describe('dayMarkVariant', () => {
   })
 
   it('is never urgent for a non-deadline attribute', () => {
-    // A `start` that has passed is not a fire — this is the whole reason
-    // urgency is named rather than inferred from `type: 'date'`.
+    // A passed `start` is not urgent.
     assert.equal(dayMarkVariant([hit('start')], 0), 'later')
     assert.equal(dayMarkVariant([hit('start')], -5), 'later')
   })
@@ -400,8 +390,7 @@ describe('dayUrgency', () => {
 })
 
 describe('dueUrgency', () => {
-  // A fixed mid-afternoon "now", built from local components so the day
-  // boundaries below hold in any zone.
+  // Local components, so day boundaries hold in any zone.
   const now = new Date(2026, 6, 16, 15, 0)
   const dateOnly = (y: number, m: number, d: number) => ({ date: new Date(y, m, d), hasTime: false })
   const timed = (y: number, m: number, d: number, h: number, min = 0) => ({

@@ -9,9 +9,8 @@ import {
 } from "../dom/protocols"
 import { getDateComponents, getDaysInWeek } from "../app/util"
 
-// Week start follows the machine's system preference, so nothing here hardcodes
-// a weekday — the expectations are derived from startOfWeek/weekStartsOn and
-// hold whichever day weeks begin on.
+// Week start follows the system preference, so expectations derive from
+// startOfWeek/weekStartsOn.
 
 describe("startOfWeek", () => {
     it("lands on the configured first weekday", () => {
@@ -55,8 +54,7 @@ describe("weekIdFromDate", () => {
     })
 
     it("names the week for its first day's year, not the day's", () => {
-        // Whichever day weeks start on, some early-January day belongs to a week
-        // that began the previous December.
+        // Some early-January day belongs to a week that began in December.
         for (let day = 1; day <= 7; day++) {
             const date = new Date(2027, 0, day)
             const start = startOfWeek(date)
@@ -74,8 +72,7 @@ describe("weekIdFromDate", () => {
             const id = weekIdFromDate(d)
             if (ids[ids.length - 1] !== id) ids.push(id)
         }
-        // A week straddling New Year is named for the previous year; drop it so
-        // what remains is 2026's own run of weeks.
+        // Drop the week straddling New Year, which is named for the previous year.
         const own = ids.filter((id) => id.startsWith("2026/"))
         assert(own.length >= 52, `${own.length} weeks in 2026`)
         assert.equal(new Set(own).size, own.length, "no repeats")

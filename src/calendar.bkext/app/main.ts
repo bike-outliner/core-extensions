@@ -8,14 +8,8 @@ import { DateAttribute, addDays, dateAttributesFrom, dateRangeClause, dayKey } f
 export async function activate(context: AppExtensionContext) {
   bike.defaults.registerDefaults(calendarDefaults)
 
-  // Every attribute registered with `type: 'date'` shows on the calendar —
-  // `due` and `start` today, whatever an extension adds tomorrow — minus
-  // the ones opting out with `metadata: { calendar: false }` (`date`, the log's).
-  //
-  // Live, never a one-shot snapshot: extension activation order isn't
-  // guaranteed, so the first fire can predate bike.bkext registering the
-  // default set. The registry re-fires on every registration and disposal,
-  // and each fire re-pushes to the open panels.
+  // Observed live, not snapshotted: activation order isn't guaranteed, so the
+  // first fire can predate bike.bkext's registrations.
   let dateAttributes: DateAttribute[] = []
   const handles = new Set<DOMScriptHandle<CalendarProtocol>>()
 
@@ -60,9 +54,7 @@ export async function activate(context: AppExtensionContext) {
       script: 'Calendar.js',
     })
 
-    // Joins the broadcast set; the panel pulls its first list with `ready`
-    // below (pushing here would race its React commit). Leaving on window
-    // close so a registry change doesn't post into a dead webview.
+    // The panel pulls its first list with `ready` (a push here would race).
     handles.add(calendarHandle)
     window.onClose(() => handles.delete(calendarHandle))
 
@@ -73,26 +65,14 @@ export async function activate(context: AppExtensionContext) {
     })
     */
 
-    // Row selected programmatically by the last calendar action — the
-    // filter apply's first-match auto-selection (native applyFilter
-    // behavior) or openRange's block selection. Those caret moves are NOT
-    // user navigation — without remembering them, the selection observer
-    // below would echo them back as selectDate and collapse a freshly
-    // selected range highlight to that row's day (e.g. select 9–16 and a
-    // moment later the highlight snaps to 16, the first existing day row).
+    // Row selected programmatically by the last calendar action (filter
+    // auto-selection or openRange). Remembered so the selection observer
+    // doesn't echo it back and collapse the range highlight.
     let programmaticSelectionRowId: number | undefined
 
-    // Filter to an inclusive day range (calendar click, arrows, drag; a
-    // single day is start === end). NEVER creates day rows — 'all' unions
-    // the range's dated rows (every calendar-visible date attribute) with
-    // day rows that already exist (and their subtrees), 'dates' (⌘) is just
-    // the dated rows, 'days' (⌥) just the existing day rows. Exact-id
-    // matches (bounded: a drag spans at most one 42-tile grid) rather than
-    // a lexical @id range, which could match unrelated rows whose ids
-    // happen to fall inside the window. When the filter matches nothing
-    // (empty day, 'days' with no rows, or no date attributes registered at
-    // all), the editor shows the filter's emptyMessage centered instead of
-    // a blank view.
+    // Filters to an inclusive day range; never creates day rows. Uses exact
+    // day ids (at most 42) rather than a lexical @id range, which could match
+    // unrelated rows.
     function visitRange(editor: OutlineEditor, start: Date, end: Date, mode: CalendarSelectMode, live: boolean) {
       const endExclusive = addDays(end, 1)
       const dateClause = dateRangeClause(dateAttributes.map((a) => a.name), start, endExclusive)
@@ -104,9 +84,7 @@ export async function activate(context: AppExtensionContext) {
           dayIds.push(dayId)
         }
       }
-      // One or-chained step matches all the range's existing day rows, and
-      // one descendant step their subtrees — much shorter than per-day
-      // unions when the range is wide.
+      // One or-chained step rather than per-day unions.
       const dayPredicate = dayIds.map((id) => `@id = "${id}"`).join(' or ')
       const dayUnions = dayIds.length > 0 ? [`//(${dayPredicate})`, `//(${dayPredicate})//*`] : []
       const parts =
@@ -117,53 +95,38 @@ export async function activate(context: AppExtensionContext) {
       const singleDay = dayKey(start) === dayKey(end)
       const labelDates = singleDay ? fmt(start) : `${fmt(start)} – ${fmt(end)}`
       editor.transaction({ label: 'Show Agenda', animate: { spring: 'navigation' } }, () => {
-        // The focus setter pushes a navigation location even when focus is
-        // unchanged — skip it while already home, or every live drag
-        // refinement would leak a Back step through it.
+        // The focus setter pushes a location even when unchanged, which would
+        // leak Back steps during a drag.
         if (editor.focus.id !== editor.outline.root.id) {
           editor.focus = editor.outline.root
         }
         editor.filter = {
-          // A mode with nothing to union ('days' over a range with no
-          // existing day rows, or 'dates' with no date attributes
-          // registered): a never-matching path keeps the labeled filter —
-          // and its empty message — predictable.
+          // Never-matching fallback keeps the labeled filter and empty message.
           path: parts.length > 0 ? parts.join(' union ') : '//@id = ""',
           label: labelDates,
           emptyMessage: `**No rows for ${labelDates}**\nReturn or double-click in Calendar to create row`,
-          // A live refinement (drag growing its range) doesn't push a
-          // navigation step — the gesture's mousedown already did.
+          // The drag's mousedown already pushed a step.
           pushLocation: !live,
         }
       })
       programmaticSelectionRowId = editor.selection?.row?.id
     }
 
-    // Open a day (Return / double-click): find-or-create the day row, clear
-    // any filter, focus into the day, and hand keyboard focus to the
-    // editor. This is the ONLY calendar gesture that creates rows.
+    // Return / double-click; with openRange, the only gestures that create rows.
     function openDay(editor: OutlineEditor, date: Date) {
-      // One transaction so the layer sees a single old→new event — split up
-      // (filter, then focus — each JS setter opens its own top-level
-      // transaction), the first event starts branch animations for rows the
-      // second event then hides, and those layers linger on screen until
-      // their spring ends.
+      // One transaction: split up, the first event animates rows the second
+      // hides, and those layers linger until their spring ends.
       editor.transaction({ label: 'Go to Day', animate: { spring: 'navigation' } }, () => {
         const dateRow = getDayRow(editor.outline, date)
         editor.filter = undefined
         editor.focus = dateRow
-        // Caret at the end of the day row's own text — no auto-created
-        // empty child.
+        // No auto-created empty child.
         editor.selectCaret(dateRow, dateRow.text.string.length)
       })
       editor.activate()
     }
 
-    // Open every day in an inclusive multi-day range (Return with a range
-    // selected): find-or-create each day's row, clear any filter, and
-    // block-select the created rows so they're ready to act on. The
-    // programmatic block selection must not echo back into the calendar —
-    // the range highlight stays put.
+    // Return with a range selected; the block selection must not echo back.
     function openRange(editor: OutlineEditor, start: Date, end: Date) {
       const endExclusive = addDays(end, 1)
       editor.transaction({ label: 'Create Days', animate: { spring: 'navigation' } }, () => {
@@ -187,7 +150,6 @@ export async function activate(context: AppExtensionContext) {
     }
 
     calendarHandle.onmessage = (message) => {
-      // The panel's first pull needs no editor — answer it before the guard.
       if (message.type === 'ready') {
         calendarHandle.postMessage({ type: 'dateAttributes', attributes: dateAttributes })
         return
@@ -219,9 +181,7 @@ export async function activate(context: AppExtensionContext) {
     window.observeCurrentOutlineEditor((editor) => {
       if (editor) {
         editor.observeSelection((selection) => {
-          // Consume the filter-apply auto-selection: the first observer fire
-          // after a range filter reflects that programmatic caret move, not
-          // user navigation — don't echo it into the calendar.
+          // Don't echo the programmatic selection into the calendar.
           const autoSelected = programmaticSelectionRowId
           programmaticSelectionRowId = undefined
           if (!selection) {

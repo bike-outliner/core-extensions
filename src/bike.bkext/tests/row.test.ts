@@ -125,13 +125,8 @@ describe("Row attributes", () => {
 
     it("rejects non-string values", () => {
         const row = outline.root.firstChild!
-        // Attributes store wire strings; encoding is `bike.encodeValue`'s job,
-        // so a raw number or Date is a caller error rather than a silent
-        // coercion that would spell one value two ways.
-        //
-        // NOTE: this throwing behavior arrived in API 0.64.0. The manifest
-        // declares 0.63.0 because the extension's own code needs nothing newer
-        // — only these assertions do, so they fail against an older host.
+        // Attributes store wire strings; a raw number or Date is a caller error.
+        // Throws as of API 0.64.0, so these fail against an older host.
         assert.throws(() => { row.setAttribute("priority", 5 as any) })
         assert.throws(() => { row.setAttribute("done", new Date() as any) })
         assert.equal(row.getAttribute("priority"), undefined)
@@ -147,13 +142,8 @@ describe("Row attributes", () => {
 
     it("rejects reserved, host-owned, and data- prefixed names", () => {
         const row = outline.root.firstChild!
-        // `created` / `modified` / `id` / `text` / `type` are row properties
-        // with fields of their own; `indent` is Bike's layout state; and
-        // names are unprefixed because Bike adds `data-` when it writes the
-        // file, so `data-created` would be saved as `data-data-created` and
-        // read back as nothing.
-        //
-        // NOTE: this throwing behavior arrived in API 0.72.0.
+        // Reserved: row properties, `indent`, and `data-*` (Bike adds the prefix
+        // on save). Throws as of API 0.72.0.
         assert.throws(() => { row.setAttribute("created", "2026-08-30T13:05:05Z") })
         assert.throws(() => { row.setAttribute("type", "task") })
         assert.throws(() => { row.setAttribute("indent", "2") })
@@ -166,8 +156,7 @@ describe("Row attributes", () => {
     })
 
     it("still removes a name it would refuse to set", () => {
-        // The cleanup path: a document can carry an odd name from a JSON or
-        // OPML import, and `removeAttribute` has to be able to take it out.
+        // Imports can carry odd names, so removal must still work.
         const row = outline.root.firstChild!
         assert.throws(() => { row.setAttribute("data-color", "red") })
         row.removeAttribute("data-color")
@@ -318,8 +307,7 @@ describe("row log", () => {
         })
         assert.equal(row!.children.filter((child: { type: string }) => child.type === "log").length, 1)
 
-        // Entries are ordinary rows inside it — no type needed, just the
-        // `log-*` attribute convention.
+        // Entries are ordinary untyped rows with `log-*` attributes.
         outline.transaction({ label: "record" }, () => {
             const [entry] = outline.insertRows(["Started"], log!)
             entry.setAttribute("log-date", "2026-08-13T15:00:00Z")
@@ -341,9 +329,8 @@ describe("reading a row", () => {
         outline.insertRows(["Body Row"], outline.root)
     })
 
-    // The bug this guards: `ensuredLog`, `ensuredPersistentId` and `url` used
-    // to be getters, so building a console preview — or any generic property
-    // walk — edited the document. They are calls as of API 0.73.0.
+    // Guards against getters that write: a property walk (console preview) must
+    // not edit the document. `ensuredLog` etc. are calls as of API 0.73.0.
     it("never mutates the outline", () => {
         let row: ReturnType<typeof outline.insertRows>[0]
         outline.transaction({ label: "setup" }, () => {

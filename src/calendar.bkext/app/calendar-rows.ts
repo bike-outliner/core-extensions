@@ -11,9 +11,7 @@ const FIELD_KEY: Record<Level, string> = {
   day: 'dayNameFormat',
 }
 
-// Levels to generate, coarse → fine. Day is always present; Year/Month/Week
-// follow their include setting. Year and Month default on, Week off, so an
-// outline that has never touched the setting keeps the structure it has.
+// Coarse → fine. Day is always present; the others follow their settings.
 function enabledLevels(): Level[] {
   const levels: Level[] = []
   if (bike.defaults.get('yearEnabled') !== false) levels.push('year')
@@ -34,9 +32,7 @@ function idForLevel(level: Level, date: Date): string {
         : c.dayId
 }
 
-// The calendar level a persistentId belongs to, or null. `00` marks a slot the
-// level doesn't use, and a week keeps its ordinal in the day slot with the
-// month zeroed (see dateIdPattern).
+// The calendar level of a persistentId, or null (see dateIdPattern).
 function levelOfId(id: string): Level | null {
   if (!dateIdPattern.test(id)) return null
   const [, month, day] = id.split('/').map(Number)
@@ -44,28 +40,17 @@ function levelOfId(id: string): Level | null {
   return day > 0 ? 'week' : 'year'
 }
 
-// The date a level's row stands for. A week row belongs to its first day, so
-// its own ancestors must be resolved from that day rather than from whichever
-// day of the week happened to trigger creation — otherwise a week straddling a
-// month or year boundary lands under a different parent depending on the order
-// its days were opened.
+// A week resolves from its first day, so a week straddling a boundary always
+// gets the same parent.
 function canonicalDate(level: Level, date: Date): Date {
   return level === 'week' ? startOfWeek(date) : date
 }
 
 /**
- * Find-or-create the row for `date` at `level`, returning it.
- *
- * Placement:
- *  1. If the exact row id already exists, reuse it (never moved or duplicated).
- *  2. Its parent is the next coarser enabled level, created recursively — a day
- *     lands under its own week or month, a month under its year. A week goes
- *     under the month/year of its FIRST day, so one that straddles a boundary
- *     stays whole rather than splitting across two parents.
- *  3. The coarsest level has no calendar parent: it joins existing peer rows
- *     wherever they live (so the calendar can be moved anywhere), or the
- *     document root when there are none.
- * New rows are inserted in chronological order among their same-level siblings.
+ * Find-or-create the row for `date` at `level`. Existing rows are never moved.
+ * The parent is the next coarser enabled level, created recursively; the
+ * coarsest level joins existing peers wherever they live, else the root.
+ * New rows go in chronological order among siblings.
  */
 function ensureRow(outline: Outline, date: Date, level: Level): Row {
   const id = idForLevel(level, date)
@@ -83,18 +68,14 @@ function ensureRow(outline: Outline, date: Date, level: Level): Row {
   })
 }
 
-// The parent under which a new `level` row should go.
 function parentRow(outline: Outline, date: Date, level: Level): Row {
   const levels = enabledLevels()
   const idx = levels.indexOf(level)
 
-  // Coarser enabled level present → that level's row is the parent, resolved
-  // from this level's own date (a week's month is its first day's month).
   if (idx > 0) {
     return ensureRow(outline, canonicalDate(level, date), levels[idx - 1])
   }
 
-  // Coarsest level: join existing peers' container, else the document root.
   const targetId = idForLevel(level, date)
   const peers = outline.root.descendants.filter((r) => {
     const pid = r.persistentId
@@ -116,11 +97,8 @@ function parentRow(outline: Outline, date: Date, level: Level): Row {
 }
 
 function insertDateRow(outline: Outline, id: string, text: string, parent: Row): Row {
-  // Oldest first: sit before the first LATER sibling. Newest first: before the
-  // first EARLIER one, so the new date lands above the dates it follows.
-  // Comparing against the siblings rather than appending is what makes one flag
-  // enough for every level, and what makes the whole-month/year fills come out
-  // in the right order without caring which day they generate first.
+  // Insert before the first later (or, newest-first, earlier) sibling rather
+  // than appending, so fills come out ordered regardless of generation order.
   const newestFirst = bike.defaults.get('newestFirst') === true
   let insertBefore: Row | undefined
   for (const child of parent.children) {
@@ -130,8 +108,7 @@ function insertDateRow(outline: Outline, id: string, text: string, parent: Row):
       break
     }
   }
-  // Inserted as markdown: Bike's model parses the expanded string, so a leading
-  // marker (#, >, 1., -, etc.) sets the row type and inline markdown is applied.
+  // Inserted as markdown, so a leading marker sets the row type.
   return outline.insertRows(
     [{ persistentId: id, text, format: 'markdown' }],
     parent,
@@ -180,8 +157,7 @@ const COARSER_CHAIN: Record<Level, Level[]> = {
   year: ['year'],
 }
 
-// The row a command should focus/select: the requested level if shown, else the
-// nearest coarser shown level, else the document root.
+// The requested level if shown, else the nearest coarser shown level, else root.
 function focusRow(outline: Outline, date: Date, level: Level): Row {
   const enabled = enabledLevels()
   const coarserChain = COARSER_CHAIN[level]

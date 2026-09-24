@@ -1,6 +1,4 @@
-// Waits for an off-main summary recompute to land. Summaries fold on a
-// background processor with leading-edge emission, so values are eventually
-// consistent — poll rather than assert immediately.
+// Summaries recompute off-main and are eventually consistent, so poll.
 async function eventually(check: () => boolean, timeoutMs = 5000): Promise<void> {
     const start = Date.now()
     while (!check()) {
@@ -37,14 +35,10 @@ describe("Task commands", () => {
         assert(commands.includes("task:archive-branch-closed"), "should register archive-branch-closed")
     })
 
-    // NO behavioral test for `task:filter-open` / `task:filter-closed`
-    // yet. Any test that actually applies one of them to this editor makes a
-    // LATER session test crash the app: IPCMethods.editorSnapshot sorts
-    // `editor.collapsed` through `outline.compare`, which force-unwraps
-    // `nodes[id]!` (Tree.swift:130). Setting `editor.filter` from JS is what
-    // arms it — the same assignment the task badge menu has always made
-    // on click, so this predates these commands. Add coverage once that's
-    // fixed on the Swift side.
+    // No behavioral test for `task:filter-open`/`-closed` yet: setting
+    // `editor.filter` from JS makes a later session test crash
+    // (IPCMethods.editorSnapshot → `outline.compare` force-unwrap,
+    // Tree.swift:130). Add coverage once fixed.
 
     it("marks every task in the branch done", () => {
         const project = outline.root.firstChild!
@@ -81,18 +75,13 @@ describe("Task commands", () => {
     })
 
     it("branch commands record history like any other writer", () => {
-        // The branch commands write `status` directly. The host derives the
-        // log entry and the clock-out from the transition itself, so a task
-        // that keeps a log must not get holes in its history depending on
-        // WHICH surface changed its state.
+        // The host derives the log entry and clock-out from the transition,
+        // whichever surface wrote `status`.
         const project = outline.root.firstChild!
         const task = project.children.find((row) => row.type === "task")!
         editor.selectRows(task)
         assert.equal(bike.commands.performCommand("row:create-log", { editor }), true)
-        // `clock:.in`, not `clock:in`: the command is hidden while the feature
-        // is held back. Still performable from JS, which is the point of
-        // hiding rather than unregistering — the clock-out below is what this
-        // test is actually about, and it stays exercised.
+        // Hidden `clock:.in` while the feature is held back; still performable.
         assert.equal(bike.commands.performCommand("clock:.in", { editor }), true)
 
         editor.selectRows(project)
@@ -111,16 +100,13 @@ describe("Task commands", () => {
         assert(afterReopen.length > 0, "the reopen was recorded")
 
         // Teardown: drop the log so later suites see the original shape.
-        // Deleting the container IS the opt-out — there is no disable command,
-        // because discarding a row's history should read as the deletion it is.
         const log = task.log
         assert(log != null, "the task should have a log to remove")
         outline.removeRows([log!])
     })
 
     it("leaves canceled tasks alone when marking a branch done", () => {
-        // Canceled is closed, and marking it done would silently reclassify
-        // a decision the user made.
+        // Canceled is closed and left alone.
         const project = outline.root.firstChild!
         const task = project.children.find((row) => row.type === "task")!
         outline.transaction({ label: "cancel" }, () => task.setAttribute("status", "canceled"))
@@ -130,8 +116,7 @@ describe("Task commands", () => {
     })
 })
 
-// A row list as one comparable string — `assert` here has no deepEqual, and a
-// joined line reads better in a failure than an index-by-index walk.
+// `assert` has no deepEqual, so compare joined strings.
 function texts(rows: { text: { string: string } }[]): string {
     return rows.map((row) => row.text.string).join(", ")
 }
@@ -192,8 +177,7 @@ describe("Archive closed", () => {
         assert.equal(archive!.text.string, "Archive")
         assert.equal(archive!.parent!.id, outline.root.id, "Archive belongs at root")
 
-        // Task One, Note, Task Three — NOT Subtask, which is nested under an
-        // archived row and moves inside it.
+        // Not Subtask, which moves inside its archived parent.
         assert.equal(texts(archive!.children), "Task One, Note, Task Three")
 
         const three = archive!.lastChild!
@@ -224,8 +208,7 @@ describe("Archive closed", () => {
         const archiveBefore = outline.getRowById("archive")!
         const archivedBefore = archiveBefore.children.length
 
-        // Done rows in two different branches — the whole-outline command takes
-        // both, where the branch command would only have taken Project's.
+        // Done rows in two branches; the whole-outline command takes both.
         outline.transaction({ label: "setup" }, () => {
             project.firstChild!.setAttribute("status", "done")
             const [elsewhere] = outline.insertRows([{ type: "task", text: "Elsewhere" }], outline.root)
@@ -284,8 +267,7 @@ describe("Task summaries", () => {
     })
 
     it("summary('done') counts task rows only", async () => {
-        // A non-task row that is closed is completion history, not task
-        // progress — it must not push done past total in the badge fraction.
+        // A closed non-task row must not push done past total.
         const project = outline.root.firstChild!
         outline.transaction({ label: "setup" }, () => {
             const [note] = outline.insertRows(["S Note"], project)
@@ -306,17 +288,11 @@ describe("Task summaries", () => {
         })
     })
 
-    // The two clock-summary tests below are PARKED while the clock is held back:
-    // `CLOCK_BADGES` in app/features/clock.ts gates the summaries they assert
-    // on, so both would poll until they time out. The harness has no `it.skip`,
-    // and commenting them out would let them rot — this shim keeps the bodies
-    // compiled and type-checked. Swap `itParked` back to `it` when the feature
-    // ships.
+    // Parked while `CLOCK_BADGES` (app/features/clock.ts) is off; there's no
+    // `it.skip`, so this keeps them type-checked. Swap back to `it` when it ships.
     const itParked = (_name: string, _fn: () => void | Promise<void>) => {}
 
     itParked("summary('clocked') sums recorded intervals below a row", async () => {
-        // The read side of clock-duration — without this the clock
-        // records time nothing can see.
         const project = outline.root.firstChild!
         const task = project.children.find((row) => row.type === "task")!
         outline.transaction({ label: "setup" }, () => {
@@ -343,11 +319,7 @@ describe("Task summaries", () => {
     })
 
     itParked("the running-clock summaries describe an open interval", async () => {
-        // What the ticking Σ badge is built from: a running entry contributes
-        // nothing to `clocked` (its value is empty), so live elapsed comes from
-        // counting open intervals and summing the instants they started at —
-        // `count * now() - starts`, evaluated at the badge because a summary
-        // may not read the clock.
+        // Live elapsed is `count * now() - starts`, evaluated at the badge.
         const project = outline.root.firstChild!
         const task = project.children.find((row) => row.type === "task")!
         outline.transaction({ label: "setup" }, () => {
