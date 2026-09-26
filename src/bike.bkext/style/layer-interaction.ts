@@ -29,6 +29,29 @@ export function registerInteractionLayers(style: EditorStyle) {
       })
     })
 
+    // Tree behavior: unselected descendants that block commands (move, copy, delete…) carry
+    // along. A fainter band than the selection, under a distinct name so the two don't merge.
+    row(`.selection-branch() = block`, (context, row) => {
+      let colors = context.theme.colors
+      let values = computeValues(context)
+      let selection = context.isKey
+        ? colors.blockBackgroundSelected
+        : colors.contentBackgroundSelectedUnemphasized
+      row.decoration('selectionBranch', (background, layout) => {
+        background.anchor.x = 0
+        background.anchor.y = 0
+        background.x = layout.leadingContent
+        background.y = layout.top
+        background.width = layout.trailing.minus(layout.leadingContent)
+        background.height = layout.text.bottom.minus(layout.top).offset(row.text.margin.bottom)
+        background.color = selection.alphaMultiplied(0.35)
+        background.corners.radius = 3 * values.uiScale
+        background.mergable = true
+        background.transitions.color = false
+        background.zPosition = -2
+      })
+    })
+
     // Leading handle: dot at the band's top-leading corner (first block row).
     row(`.selection-first() = true`, (context, row) => {
       if (context.os !== 'iOS') return
