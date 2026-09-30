@@ -31,7 +31,7 @@ export async function activate(context: AppExtensionContext) {
       'text:wrap-{': (context) => wrapTextSelection('{', '}', context),
       'text:wrap-(': (context) => wrapTextSelection('(', ')', context),
       // Claims ⌘→ only at the end of the row's text; otherwise falls through.
-      'format:row-attributes-if-text-end': ({ selection }) => {
+      'format:.row-attributes-if-text-end': ({ selection }) => {
         if (selection?.type !== 'caret') return false
         if (selection.detail.char !== selection.row.text.count) return false
         // undefined = no handler.
@@ -46,7 +46,7 @@ export async function activate(context: AppExtensionContext) {
       'Shift-Return': 'row:insert-above',
       'Command-Return': 'row:insert-below',
       'Command-Shift-Return': 'row:insert-child',
-      'Command-RightArrow': 'format:row-attributes-if-text-end',
+      'Command-RightArrow': 'format:.row-attributes-if-text-end',
       "'": "text:wrap-'",
       '[': 'text:wrap-[',
       'Shift-"': 'text:wrap-"',
@@ -58,7 +58,7 @@ export async function activate(context: AppExtensionContext) {
   bike.keybindings.addKeybindings({
     keymap: 'block-mode',
     keybindings: {
-      Space: 'status:toggle-done',
+      Space: 'task:toggle-done',
       'Shift-Return': 'row:insert-above',
       'Command-Return': 'row:insert-below',
       'Command-Shift-Return': 'row:insert-child',

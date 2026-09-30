@@ -135,7 +135,7 @@ function AgendaPanel({ context }: { context: DOMExtensionContext<CalendarProtoco
                 // flipping the checkbox.
                 onClick={() =>
                   bike.session.evaluateCommands({
-                    ids: [closed ? 'status:todo' : 'status:done'],
+                    ids: [closed ? 'task:todo' : 'task:done'],
                     rows: [row.id],
                   })
                 }
