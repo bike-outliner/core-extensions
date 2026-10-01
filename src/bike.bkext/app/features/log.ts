@@ -5,7 +5,7 @@ import { attributeTag } from './helpers'
 // entries as untyped rows carrying `log-*` attributes. An entry's text names
 // the event; its values are drawn as badges. This file owns only `log-date`;
 // each feature declares the `log-*` fields it writes. The one command,
-// `row:create-log`, is native.
+// `row:insert-log`, is native.
 
 export function registerLog() {
   bike.attribute('log-date', {

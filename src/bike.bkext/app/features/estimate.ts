@@ -17,7 +17,7 @@ export function registerEstimate() {
   bike.commands.addCommands({
     commands: {
       'estimate:set': pickAttributeForSelection('estimate'),
-      'estimate:clear': clearAttributeOnSelection('estimate', 'Clear Estimate'),
+      'estimate:remove': clearAttributeOnSelection('estimate', 'Remove Estimate'),
       'estimate:filter': filterCommand({
         path: '//(@estimate and open())',
         label: 'Estimated',

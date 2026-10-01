@@ -12,7 +12,7 @@ describe("Flagged commands", () => {
             assert(commands.includes("flagged:" + color), "should register flagged:" + color)
         }
         assert(commands.includes("flagged:toggle"), "should register flagged:toggle")
-        assert(commands.includes("flagged:clear"), "should register flagged:clear")
+        assert(commands.includes("flagged:remove"), "should register flagged:remove")
         assert(commands.includes("flagged:filter"), "should register flagged:filter")
     })
 
@@ -38,11 +38,11 @@ describe("Flagged commands", () => {
     it("clears flags from the selection, and declines when there's nothing to clear", () => {
         const rows = outline.root.children
         editor.selectRows(rows[0], rows[1])
-        assert.equal(bike.commands.performCommand("flagged:clear", { editor }), true)
+        assert.equal(bike.commands.performCommand("flagged:remove", { editor }), true)
         assert(rows[0].getAttribute("flagged") == null, "flag should be cleared")
         assert(rows[1].getAttribute("flagged") == null, "flag should be cleared")
         // Nothing left to clear, so it declines.
-        assert.equal(bike.commands.performCommand("flagged:clear", { editor }), false)
+        assert.equal(bike.commands.performCommand("flagged:remove", { editor }), false)
     })
 
     it("toggle raises a valueless flag, then lowers it", () => {

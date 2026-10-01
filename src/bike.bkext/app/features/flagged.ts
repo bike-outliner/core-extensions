@@ -40,7 +40,7 @@ export function registerFlagged() {
       ...Object.fromEntries(
         FLAG_COLORS.map((color) => [`flagged:${color}`, setAttributeOnSelection('flagged', color, 'Set Flagged')])
       ) as Record<string, CommandDefinition>,
-      'flagged:clear': clearAttributeOnSelection('flagged', 'Clear Flagged'),
+      'flagged:remove': clearAttributeOnSelection('flagged', 'Remove Flagged'),
       'flagged:filter': filterCommand({
         path: '//(@flagged and open())',
         label: 'Flagged',

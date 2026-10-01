@@ -28,14 +28,14 @@ describe("Task commands", () => {
     it("registers the branch commands", () => {
         const commands = bike.commands.toString()
         assert(commands.includes("task:mark-branch-done"), "should register mark-branch-done")
-        assert(commands.includes("task:reopen-branch"), "should register reopen-branch")
-        assert(commands.includes("task:filter-open"), "should register filter-open")
-        assert(commands.includes("task:filter-closed"), "should register filter-closed")
+        assert(commands.includes("task:mark-branch-todo"), "should register mark-branch-todo")
+        assert(commands.includes("task:filter-branch-open"), "should register filter-branch-open")
+        assert(commands.includes("task:filter-branch-closed"), "should register filter-branch-closed")
         assert(commands.includes("task:archive-closed"), "should register archive-closed")
         assert(commands.includes("task:archive-branch-closed"), "should register archive-branch-closed")
     })
 
-    // No behavioral test for `task:filter-open`/`-closed` yet: setting
+    // No behavioral test for `task:filter-branch-open`/`-closed` yet: setting
     // `editor.filter` from JS makes a later session test crash
     // (IPCMethods.editorSnapshot → `outline.compare` force-unwrap,
     // Tree.swift:130). Add coverage once fixed.
@@ -62,7 +62,7 @@ describe("Task commands", () => {
     it("reopens the branch", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("task:reopen-branch", { editor }), true)
+        assert.equal(bike.commands.performCommand("task:mark-branch-todo", { editor }), true)
         for (const task of project.children.filter((row) => row.type === "task")) {
             assert(task.getAttribute("status") == null, "status should be removed")
         }
@@ -71,7 +71,7 @@ describe("Task commands", () => {
     it("reopen is a no-op when nothing is closed", () => {
         const project = outline.root.firstChild!
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("task:reopen-branch", { editor }), false)
+        assert.equal(bike.commands.performCommand("task:mark-branch-todo", { editor }), false)
     })
 
     it("branch commands record history like any other writer", () => {
@@ -80,7 +80,7 @@ describe("Task commands", () => {
         const project = outline.root.firstChild!
         const task = project.children.find((row) => row.type === "task")!
         editor.selectRows(task)
-        assert.equal(bike.commands.performCommand("row:create-log", { editor }), true)
+        assert.equal(bike.commands.performCommand("row:insert-log", { editor }), true)
         // Hidden `clock:.in` while the feature is held back; still performable.
         assert.equal(bike.commands.performCommand("clock:.in", { editor }), true)
 
@@ -95,7 +95,7 @@ describe("Task commands", () => {
 
         // Reopen through the same path records too.
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("task:reopen-branch", { editor }), true)
+        assert.equal(bike.commands.performCommand("task:mark-branch-todo", { editor }), true)
         const afterReopen = (task.log?.children ?? []).filter((row) => row.getAttribute("log-status") === "todo")
         assert(afterReopen.length > 0, "the reopen was recorded")
 
@@ -356,7 +356,7 @@ describe("Task summaries", () => {
             return result.type === "number" && result.value === 3
         })
         editor.selectRows(project)
-        assert.equal(bike.commands.performCommand("task:reopen-branch", { editor }), true)
+        assert.equal(bike.commands.performCommand("task:mark-branch-todo", { editor }), true)
         await eventually(() => {
             const result = outline.query('summary("done")') as { type: string; value: number }
             return result.type === "number" && result.value === 0

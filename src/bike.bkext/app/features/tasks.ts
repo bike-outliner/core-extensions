@@ -13,9 +13,9 @@ export function registerTasks() {
   bike.commands.addCommands({
     commands: {
       'task:mark-branch-done': markBranchDone,
-      'task:reopen-branch': reopenBranch,
-      'task:filter-open': filterBranchTasks('open()', 'Open Tasks'),
-      'task:filter-closed': filterBranchTasks('closed()', 'Closed Tasks'),
+      'task:mark-branch-todo': reopenBranch,
+      'task:filter-branch-open': filterBranchTasks('open()', 'Open Tasks'),
+      'task:filter-branch-closed': filterBranchTasks('closed()', 'Closed Tasks'),
       'task:archive-closed': archiveClosed,
       'task:archive-branch-closed': archiveBranchClosed,
     },
@@ -69,11 +69,11 @@ function installBadge(): Disposable | undefined {
       // Commands read the selection, which the click has set to `row`.
       editor.showMenu({ row, anchor: 'tasks' }, {
         items: [
-          { type: 'button', id: 'command:task:filter-open', title: 'Filter Open' },
-          { type: 'button', id: 'command:task:filter-closed', title: 'Filter Closed' },
+          { type: 'button', id: 'command:task:filter-branch-open', title: 'Filter Open' },
+          { type: 'button', id: 'command:task:filter-branch-closed', title: 'Filter Closed' },
           { type: 'separator' },
           { type: 'button', id: 'command:task:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: closed !== tasks.length },
-          { type: 'button', id: 'command:task:reopen-branch', title: 'Reopen Branch Tasks', enabled: closed !== 0 },
+          { type: 'button', id: 'command:task:mark-branch-todo', title: 'Reopen Branch Tasks', enabled: closed !== 0 },
           { type: 'separator' },
           // Archive takes any closed row, not just tasks, so ask its helper.
           {

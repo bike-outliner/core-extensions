@@ -35,7 +35,7 @@ const HELP_URL = 'https://www.hogbaysoftware.com/bike/guide/using-bike/settings-
 const COLUMN_HELP: Record<AttributeColumn, string> = {
   editor: 'Suggest this attribute in the Attributes Editor, even on rows that don’t have it set.',
   badge: 'Show Bike’s built-in badge. Turn off for attributes that draw their own, or that you’d rather hide.',
-  log: 'Record changes in the row’s log. Only rows with a log record anything; add one with row:create-log.',
+  log: 'Record changes in the row’s log. Only rows with a log record anything; add one with row:insert-log.',
 }
 
 // The column header is the checkbox's only visible label, so each box says the

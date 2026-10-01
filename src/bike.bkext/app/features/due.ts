@@ -29,7 +29,7 @@ export function registerDue() {
       'due:today': setAttributeOnSelection('due', () => dayStamp(0), 'Set Due'),
       'due:tomorrow': setAttributeOnSelection('due', () => dayStamp(1), 'Set Due'),
       'due:soon': setAttributeOnSelection('due', '', 'Set Due'),
-      'due:clear': clearAttributeOnSelection('due', 'Clear Due'),
+      'due:remove': clearAttributeOnSelection('due', 'Remove Due'),
       'due:filter': filterCommand({
         path: '//(@due and open())',
         label: 'Due',

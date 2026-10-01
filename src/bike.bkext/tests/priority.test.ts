@@ -8,10 +8,11 @@ describe("Priority commands", () => {
 
     it("registers the five priority commands", () => {
         const commands = bike.commands.toString()
+        assert(commands.includes("priority:set"), "should register priority:set")
         assert(commands.includes("priority:1"), "should register priority:1")
         assert(commands.includes("priority:2"), "should register priority:2")
         assert(commands.includes("priority:3"), "should register priority:3")
-        assert(commands.includes("priority:clear"), "should register priority:clear")
+        assert(commands.includes("priority:remove"), "should register priority:remove")
         assert(commands.includes("priority:filter"), "should register priority:filter")
     })
 
@@ -34,11 +35,11 @@ describe("Priority commands", () => {
     it("clears priority from selected rows", () => {
         const rows = outline.root.children
         editor.selectRows(rows[0], rows[1])
-        assert.equal(bike.commands.performCommand("priority:clear", { editor }), true)
+        assert.equal(bike.commands.performCommand("priority:remove", { editor }), true)
         assert(rows[0].getAttribute("priority") == null, "priority should be cleared")
         assert(rows[1].getAttribute("priority") == null, "priority should be cleared")
         // Nothing left to clear, so it declines.
-        assert.equal(bike.commands.performCommand("priority:clear", { editor }), false)
+        assert.equal(bike.commands.performCommand("priority:remove", { editor }), false)
     })
 
     it("the filter path counts open prioritized items only", () => {
@@ -66,6 +67,6 @@ describe("Priority commands", () => {
         assert.equal(matched.type, "elements")
         assert.equal(matched.value.length, 1)
         editor.selectRows(row)
-        bike.commands.performCommand("priority:clear", { editor })
+        bike.commands.performCommand("priority:remove", { editor })
     })
 })

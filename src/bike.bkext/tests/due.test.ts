@@ -18,7 +18,7 @@ describe("Due commands", () => {
 
     it("registers the setters alongside set/clear/filter", () => {
         const commands = bike.commands.toString()
-        for (const name of ["due:set", "due:today", "due:tomorrow", "due:soon", "due:clear", "due:filter"]) {
+        for (const name of ["due:set", "due:today", "due:tomorrow", "due:soon", "due:remove", "due:filter"]) {
             assert(commands.includes(name), "should register " + name)
         }
     })
@@ -51,13 +51,13 @@ describe("Due commands", () => {
         assert(matched.value.length > 0, "a valueless @due should still match @due")
     })
 
-    it("due:clear removes it, then declines when there's nothing to clear", () => {
+    it("due:remove removes it, then declines when there's nothing to remove", () => {
         const rows = outline.root.children
         editor.selectRows(rows[0], rows[1])
-        assert.equal(bike.commands.performCommand("due:clear", { editor }), true)
+        assert.equal(bike.commands.performCommand("due:remove", { editor }), true)
         assert(rows[0].getAttribute("due") == null, "due should be cleared")
         assert(rows[1].getAttribute("due") == null, "due should be cleared")
-        assert.equal(bike.commands.performCommand("due:clear", { editor }), false)
+        assert.equal(bike.commands.performCommand("due:remove", { editor }), false)
     })
 
     it("the filter path counts open due items only", () => {

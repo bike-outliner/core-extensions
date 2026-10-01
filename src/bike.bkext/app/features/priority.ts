@@ -1,5 +1,5 @@
 import { Image, Text } from 'bike/app'
-import { clearAttributeOnSelection, filterCommand, setAttributeOnSelection } from './helpers'
+import { clearAttributeOnSelection, filterCommand, pickAttributeForSelection, setAttributeOnSelection } from './helpers'
 
 // The `priority` feature: a 1/2/3 choice attribute, a "P1" badge and commands.
 
@@ -19,10 +19,11 @@ export function registerPriority() {
 
   bike.commands.addCommands({
     commands: {
+      'priority:set': pickAttributeForSelection('priority'),
       'priority:1': setAttributeOnSelection('priority', '1', 'Set Priority'),
       'priority:2': setAttributeOnSelection('priority', '2', 'Set Priority'),
       'priority:3': setAttributeOnSelection('priority', '3', 'Set Priority'),
-      'priority:clear': clearAttributeOnSelection('priority', 'Clear Priority'),
+      'priority:remove': clearAttributeOnSelection('priority', 'Remove Priority'),
       'priority:filter': filterCommand({
         path: '//(@priority and open())',
         label: 'Priority',

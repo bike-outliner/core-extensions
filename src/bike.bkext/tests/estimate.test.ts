@@ -12,7 +12,7 @@ describe("Estimate commands", () => {
 
     it("registers set/clear/filter", () => {
         const commands = bike.commands.toString()
-        for (const name of ["estimate:set", "estimate:clear", "estimate:filter"]) {
+        for (const name of ["estimate:set", "estimate:remove", "estimate:filter"]) {
             assert(commands.includes(name), "should register " + name)
         }
     })
@@ -24,10 +24,10 @@ describe("Estimate commands", () => {
             rows[1].setAttribute("estimate", "PT30M")
         })
         editor.selectRows(rows[0], rows[1])
-        assert.equal(bike.commands.performCommand("estimate:clear", { editor }), true)
+        assert.equal(bike.commands.performCommand("estimate:remove", { editor }), true)
         assert(rows[0].getAttribute("estimate") == null, "estimate should be cleared")
         assert(rows[1].getAttribute("estimate") == null, "estimate should be cleared")
-        assert.equal(bike.commands.performCommand("estimate:clear", { editor }), false)
+        assert.equal(bike.commands.performCommand("estimate:remove", { editor }), false)
     })
 
     it("the filter path counts open estimated items only", () => {
