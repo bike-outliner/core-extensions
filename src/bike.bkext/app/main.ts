@@ -30,13 +30,10 @@ export async function activate(context: AppExtensionContext) {
       'text:wrap-"': (context) => wrapTextSelection('"', '"', context),
       'text:wrap-{': (context) => wrapTextSelection('{', '}', context),
       'text:wrap-(': (context) => wrapTextSelection('(', ')', context),
-      // Claims ⌘→ only at the end of the row's text; otherwise falls through.
-      'format:.row-attributes-if-text-end': ({ selection }) => {
-        if (selection?.type !== 'caret') return false
-        if (selection.detail.char !== selection.row.text.count) return false
-        // undefined = no handler.
-        return bike.commands.performCommand('format:row-attributes') === true
-      },
+      'format:.row-attributes-if-text-end-left': (context) =>
+        rowAttributesPastTextEnd('cursor:to-line-left', context),
+      'format:.row-attributes-if-text-end-right': (context) =>
+        rowAttributesPastTextEnd('cursor:to-line-right', context),
     },
   })
 
@@ -46,7 +43,8 @@ export async function activate(context: AppExtensionContext) {
       'Command-Return': 'row:insert-below',
       'Command-Shift-Return': 'row:insert-above',
       'Command-Option-Return': 'row:insert-child',
-      'Command-RightArrow': 'format:.row-attributes-if-text-end',
+      'Command-LeftArrow': 'format:.row-attributes-if-text-end-left',
+      'Command-RightArrow': 'format:.row-attributes-if-text-end-right',
       "'": "text:wrap-'",
       '[': 'text:wrap-[',
       'Shift-"': 'text:wrap-"',
@@ -65,6 +63,21 @@ export async function activate(context: AppExtensionContext) {
       'Command-RightArrow': 'format:row-attributes',
     },
   })
+
+  // Claims ⌘← or ⌘→ at the end of the row's text when the caret can't move further that way:
+  // ⌘→ left to right, ⌘← right to left, where the row's end is its left edge. Otherwise the
+  // arrow moves the caret as usual.
+  function rowAttributesPastTextEnd(lineEnd: string, { editor, selection }: CommandContext): boolean {
+    if (selection?.type !== 'caret') return false
+    if (selection.detail.char !== selection.row.text.count) return false
+    bike.commands.performCommand(lineEnd, { editor })
+    const moved = editor?.selection
+    if (moved?.type !== 'caret' || moved.row.id !== selection.row.id || moved.detail.char !== selection.detail.char) {
+      return true
+    }
+    // undefined = no handler.
+    return bike.commands.performCommand('format:row-attributes') === true
+  }
 
   function addOrUpdateHomeLocation(window: Window, representedRowId: string) {
     window.sidebar.addLocation({
