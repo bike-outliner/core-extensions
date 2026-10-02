@@ -43,9 +43,9 @@ export async function activate(context: AppExtensionContext) {
   bike.keybindings.addKeybindings({
     keymap: 'text-mode',
     keybindings: {
-      'Shift-Return': 'row:insert-above',
       'Command-Return': 'row:insert-below',
-      'Command-Shift-Return': 'row:insert-child',
+      'Command-Shift-Return': 'row:insert-above',
+      'Command-Option-Return': 'row:insert-child',
       'Command-RightArrow': 'format:.row-attributes-if-text-end',
       "'": "text:wrap-'",
       '[': 'text:wrap-[',
@@ -59,9 +59,9 @@ export async function activate(context: AppExtensionContext) {
     keymap: 'block-mode',
     keybindings: {
       Space: 'task:toggle-done',
-      'Shift-Return': 'row:insert-above',
       'Command-Return': 'row:insert-below',
-      'Command-Shift-Return': 'row:insert-child',
+      'Command-Shift-Return': 'row:insert-above',
+      'Command-Option-Return': 'row:insert-child',
       'Command-RightArrow': 'format:row-attributes',
     },
   })
