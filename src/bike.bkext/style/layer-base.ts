@@ -56,6 +56,10 @@ export function registerBaseLayer(style: EditorStyle) {
         handle.y = layout.firstLine.top.offset(strip.scale(0.5))
         handle.width = size
         handle.height = size
+        // Point toward the text; the mirror doesn't flip images. Expanded turns it down.
+        if (context.isRightToLeft) {
+          handle.rotation = 3.14
+        }
         if (hiddenWhileTyping(context, 'handles')) {
           handle.opacity = 0
         }

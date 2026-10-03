@@ -34,6 +34,8 @@ export async function activate(context: AppExtensionContext) {
         rowAttributesPastTextEnd('cursor:to-line-left', context),
       'format:.row-attributes-if-text-end-right': (context) =>
         rowAttributesPastTextEnd('cursor:to-line-right', context),
+      'format:.row-attributes-if-row-end-left': (context) => rowAttributesTowardRowEnd(true, context),
+      'format:.row-attributes-if-row-end-right': (context) => rowAttributesTowardRowEnd(false, context),
     },
   })
 
@@ -60,7 +62,8 @@ export async function activate(context: AppExtensionContext) {
       'Command-Return': 'row:insert-below',
       'Command-Shift-Return': 'row:insert-above',
       'Command-Option-Return': 'row:insert-child',
-      'Command-RightArrow': 'format:row-attributes',
+      'Command-LeftArrow': 'format:.row-attributes-if-row-end-left',
+      'Command-RightArrow': 'format:.row-attributes-if-row-end-right',
     },
   })
 
@@ -76,6 +79,13 @@ export async function activate(context: AppExtensionContext) {
       return true
     }
     // undefined = no handler.
+    return bike.commands.performCommand('format:row-attributes') === true
+  }
+
+  // Claims ⌘← or ⌘→ in block mode when it points at the head row's end: ⌘← in a right to left
+  // row, ⌘→ otherwise.
+  function rowAttributesTowardRowEnd(rightToLeft: boolean, { editor, selection }: CommandContext): boolean {
+    if (!editor || !selection || editor.isRightToLeft(selection.row) !== rightToLeft) return false
     return bike.commands.performCommand('format:row-attributes') === true
   }
 

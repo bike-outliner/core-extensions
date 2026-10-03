@@ -14,7 +14,7 @@ export function registerControlsLayer(style: EditorStyle) {
           focus.commandName = 'bike:.click-focus'
           focus.contents.gravity = 'center'
           focus.contents.image = symbolImage(
-            'arrow.down.forward',
+            context.isRightToLeft ? 'arrow.down.backward' : 'arrow.down.forward',
             context.theme.colors.focusArrow,
             values.font,
           )
