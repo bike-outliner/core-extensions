@@ -33,7 +33,8 @@ export function registerControlsLayer(style: EditorStyle) {
     row(`.parent() = true and focused-root() = true`, (context, row) => {
       if (context.settings.showFocusArrows) {
         row.decoration('focus', (focus, _) => {
-          focus.rotation = 3.14
+          // Turning the other way in a right-to-left row mirrors the turn too.
+          focus.rotation = context.isRightToLeft ? -3.14 : 3.14
         })
       }
     })
