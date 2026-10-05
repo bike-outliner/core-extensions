@@ -184,7 +184,7 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
         <thead>
           <tr>
             <th
-              style={headerCell('left')}
+              style={headerCell('start')}
               title={bike.localize('Attributes extensions declare, plus any name an open document uses or your settings mention.')}
             >
               <Label color="secondary" size="small">
@@ -203,7 +203,7 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
         <tbody>
           {rows.map((row, index) => (
             <tr key={row.name}>
-              <td style={bodyCell('left', index === 0)}>
+              <td style={bodyCell('start', index === 0)}>
                 {/* The raw name, on the text rather than the whole cell: the
                     cell runs the width of the pane, and a tooltip that far
                     from the word it names looks like it belongs to nothing.
@@ -214,7 +214,7 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
                   {row.title}
                 </span>
                 {!row.declared && (
-                  <Label color="tertiary" size="small" style={{ marginLeft: '6px' }}>
+                  <Label color="tertiary" size="small" style={{ marginInlineStart: '6px' }}>
                     {row.present ? bike.localize('In open document') : bike.localize('Not in any open document')}
                   </Label>
                 )}
@@ -262,7 +262,7 @@ function nameColor(row: AttributeRow): string | undefined {
 const MODIFIED_DOT: React.CSSProperties = {
   position: 'absolute',
   top: '-1px',
-  right: '-7px',
+  insetInlineEnd: '-7px',
   width: '5px',
   height: '5px',
   borderRadius: '50%',
@@ -273,7 +273,7 @@ const MODIFIED_DOT: React.CSSProperties = {
 // part of the first row rather than as a heading over the whole column. Room
 // below it is the header's own padding; room above the first row is that row's,
 // since a table's cells are the only thing there is to pad.
-function headerCell(align: 'left' | 'center'): React.CSSProperties {
+function headerCell(align: 'start' | 'center'): React.CSSProperties {
   return {
     textAlign: align,
     fontWeight: 'normal',
@@ -282,7 +282,7 @@ function headerCell(align: 'left' | 'center'): React.CSSProperties {
   }
 }
 
-function bodyCell(align: 'left' | 'center', first: boolean): React.CSSProperties {
+function bodyCell(align: 'start' | 'center', first: boolean): React.CSSProperties {
   return {
     textAlign: align,
     // 3px matches `.bike-form-row`, so rows sit on the same rhythm as the rest

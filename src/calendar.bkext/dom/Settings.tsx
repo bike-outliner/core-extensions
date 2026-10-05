@@ -192,7 +192,7 @@ function FormatRow({
             justifyContent: 'center',
             alignItems: 'center',
             width: '20px',
-            marginRight: '8px',
+            marginInlineEnd: '8px',
           }}
         >
           {onToggle ? (
@@ -269,7 +269,7 @@ function Preview({
         alignItems: 'center',
         gap: '4px',
         color: 'var(--secondary-label)',
-        marginLeft: `${6 + indent * 16}px`,
+        marginInlineStart: `${6 + indent * 16}px`,
       }}
     >
       <SFSymbol name={deepest ? 'arrowtriangle.forward' : 'arrowtriangle.down'} scale="small" />

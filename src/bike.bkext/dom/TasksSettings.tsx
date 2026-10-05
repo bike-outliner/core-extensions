@@ -124,7 +124,7 @@ function TasksSection() {
         value={badgeType}
         onChange={onBadgeTypeChange}
         disabled={!showBadges}
-        style={{ marginLeft: 'var(--bike-checkbox-content-indent)' }}
+        style={{ marginInlineStart: 'var(--bike-checkbox-content-indent)' }}
       />
     </Disclosure>
   )

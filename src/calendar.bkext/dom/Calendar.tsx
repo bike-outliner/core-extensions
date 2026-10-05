@@ -285,8 +285,10 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
   // scroll the panel.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // The grid runs right to left in a right-to-left UI, so ← is the next day there.
+      const forward = bike.layoutDirection === 'rtl' ? -1 : 1
       const step =
-        e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' ? -7 : e.key === 'ArrowDown' ? 7 : 0
+        e.key === 'ArrowLeft' ? -forward : e.key === 'ArrowRight' ? forward : e.key === 'ArrowUp' ? -7 : e.key === 'ArrowDown' ? 7 : 0
       if (step !== 0) {
         e.preventDefault()
         e.stopPropagation()
@@ -299,7 +301,7 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
           selectRange(r.anchor, dayKey(next), modeFor(e))
         } else if (r && r.anchor !== r.focus) {
           // A plain arrow on a multi-day selection collapses it to the edge
-          // in the arrow's direction (←/↑ = start, →/↓ = end), like a text
+          // in the arrow's direction (back/↑ = start, forward/↓ = end), like a text
           // selection — no stepping.
           const [start, end] = r.anchor <= r.focus ? [r.anchor, r.focus] : [r.focus, r.anchor]
           const key = step < 0 ? start : end
