@@ -14,8 +14,8 @@ export function registerTasks() {
     commands: {
       'task:mark-branch-done': markBranchDone,
       'task:mark-branch-todo': reopenBranch,
-      'task:filter-branch-open': filterBranchTasks('open()', 'Open Tasks'),
-      'task:filter-branch-closed': filterBranchTasks('closed()', 'Closed Tasks'),
+      'task:filter-branch-open': filterBranchTasks('open()', bike.localize('Open Tasks')),
+      'task:filter-branch-closed': filterBranchTasks('closed()', bike.localize('Closed Tasks')),
       'task:archive-closed': archiveClosed,
       'task:archive-branch-closed': archiveBranchClosed,
     },
@@ -69,17 +69,17 @@ function installBadge(): Disposable | undefined {
       // Commands read the selection, which the click has set to `row`.
       editor.showMenu({ row, anchor: 'tasks' }, {
         items: [
-          { type: 'button', id: 'command:task:filter-branch-open', title: 'Filter Open' },
-          { type: 'button', id: 'command:task:filter-branch-closed', title: 'Filter Closed' },
+          { type: 'button', id: 'command:task:filter-branch-open', title: bike.localize('Filter Open') },
+          { type: 'button', id: 'command:task:filter-branch-closed', title: bike.localize('Filter Closed') },
           { type: 'separator' },
-          { type: 'button', id: 'command:task:mark-branch-done', title: 'Mark Branch Tasks Done', enabled: closed !== tasks.length },
-          { type: 'button', id: 'command:task:mark-branch-todo', title: 'Reopen Branch Tasks', enabled: closed !== 0 },
+          { type: 'button', id: 'command:task:mark-branch-done', title: bike.localize('Mark Branch Tasks Done'), enabled: closed !== tasks.length },
+          { type: 'button', id: 'command:task:mark-branch-todo', title: bike.localize('Reopen Branch Tasks'), enabled: closed !== 0 },
           { type: 'separator' },
           // Archive takes any closed row, not just tasks, so ask its helper.
           {
             type: 'button',
             id: 'command:task:archive-branch-closed',
-            title: 'Archive Branch Closed',
+            title: bike.localize('Archive Branch Closed'),
             enabled: closedRowsToArchive(editor.outline, [row]).length > 0,
           },
         ],
@@ -107,7 +107,7 @@ function markBranchDone({ editor, selection }: CommandContext): boolean {
   if (!editor || rows.length === 0) return false
   const tasks = branchTasks(rows).filter((task) => !isClosed(task))
   if (tasks.length === 0) return false
-  editor.outline.transaction({ label: 'Mark Branch Tasks Done' }, () => {
+  editor.outline.transaction({ label: bike.localize('Mark Branch Tasks Done') }, () => {
     for (const task of tasks) task.setAttribute('status', 'done')
   })
   return true
@@ -119,7 +119,7 @@ function reopenBranch({ editor, selection }: CommandContext): boolean {
   if (!editor || rows.length === 0) return false
   const tasks = branchTasks(rows).filter((task) => isClosed(task))
   if (tasks.length === 0) return false
-  editor.outline.transaction({ label: 'Reopen Branch Tasks' }, () => {
+  editor.outline.transaction({ label: bike.localize('Reopen Branch Tasks') }, () => {
     for (const task of tasks) task.removeAttribute('status')
   })
   return true
@@ -163,17 +163,18 @@ function closedRowsToArchive(outline: Outline, scope?: Row[]): Row[] {
 // Declines on an empty set, so no empty undo step or bare Archive row.
 function archiveInto(outline: Outline, rows: Row[]): boolean {
   if (rows.length === 0) return false
-  outline.transaction({ label: 'Archive Done', animate: 'default' }, () => {
+  outline.transaction({ label: bike.localize('Archive Done'), animate: 'default' }, () => {
     outline.moveRows(rows, ensureArchiveRow(outline))
   })
   return true
 }
 
-// Keyed by persistent id, not text, so the user can rename or move it.
+// Keyed by persistent id, not text, so the user can rename or move it, and
+// the text is written in the UI language.
 function ensureArchiveRow(outline: Outline): Row {
   return (
     outline.getRowById(ARCHIVE_ID) ??
-    outline.insertRows([{ persistentId: ARCHIVE_ID, text: 'Archive' }], outline.root)[0]
+    outline.insertRows([{ persistentId: ARCHIVE_ID, text: bike.localize('Archive') }], outline.root)[0]
   )
 }
 

@@ -8,19 +8,19 @@ import { attributeTag } from './helpers'
 
 // Shared by `status` and `log-status` so they can't drift.
 const STATUS_CHOICES = [
-  { name: 'Todo', value: 'todo' },
-  { name: 'Started', value: 'started' },
-  { name: 'Canceled', value: 'canceled' },
-  { name: 'Done', value: 'done' },
+  { name: bike.localize('Todo'), value: 'todo' },
+  { name: bike.localize('Started'), value: 'started' },
+  { name: bike.localize('Canceled'), value: 'canceled' },
+  { name: bike.localize('Done'), value: 'done' },
 ]
 
 export function registerStatus() {
   bike.attribute('status', {
-    title: 'Status',
+    title: bike.localize('Status'),
     // `open()`/`closed()` are defined over exactly these four.
     type: 'choice',
     choices: STATUS_CHOICES,
-    description: 'A row\u2019s state. Absent means todo.',
+    description: bike.localize('A row\u2019s state. Absent means todo.'),
     defaultBadge: false,
     metadata: { calendar: false },
   })
@@ -28,10 +28,10 @@ export function registerStatus() {
   // Not needed for recording; declared so the log badge formats and edits it
   // as a choice.
   bike.attribute('log-status', {
-    title: 'Logged Status',
+    title: bike.localize('Logged Status'),
     type: 'choice',
     choices: STATUS_CHOICES,
-    description: 'The state a log entry records.',
+    description: bike.localize('The state a log entry records.'),
     defaultBadge: false,
     // Recorded by the log, see `log-date` in log.ts.
     metadata: { calendar: false, user: false },

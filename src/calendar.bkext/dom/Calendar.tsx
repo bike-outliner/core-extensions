@@ -440,13 +440,31 @@ function CalendarPanel({ context }: { context: DOMExtensionContext<CalendarProto
 
   const navBar = (
     <div className="calendar-nav-bar">
-      <button className="calendar-nav-button" onClick={() => setActiveStartDate(d => new Date(d.getFullYear(), d.getMonth() - 1))} type="button">
+      <button
+        className="calendar-nav-button"
+        onClick={() => setActiveStartDate(d => new Date(d.getFullYear(), d.getMonth() - 1))}
+        type="button"
+        title={bike.localize('Previous Month')}
+        aria-label={bike.localize('Previous Month')}
+      >
         <SFSymbol name="chevron.backward" scale="small" />
       </button>
-      <button className="calendar-nav-button" onClick={() => { setActiveStartDate(new Date()); onChange(new Date()) }} type="button">
+      <button
+        className="calendar-nav-button"
+        onClick={() => { setActiveStartDate(new Date()); onChange(new Date()) }}
+        type="button"
+        title={bike.localize('Today')}
+        aria-label={bike.localize('Today')}
+      >
         <SFSymbol name="suit.diamond" scale="small" />
       </button>
-      <button className="calendar-nav-button" onClick={() => setActiveStartDate(d => new Date(d.getFullYear(), d.getMonth() + 1))} type="button">
+      <button
+        className="calendar-nav-button"
+        onClick={() => setActiveStartDate(d => new Date(d.getFullYear(), d.getMonth() + 1))}
+        type="button"
+        title={bike.localize('Next Month')}
+        aria-label={bike.localize('Next Month')}
+      >
         <SFSymbol name="chevron.forward" scale="small" />
       </button>
     </div>

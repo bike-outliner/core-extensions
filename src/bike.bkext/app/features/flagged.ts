@@ -1,4 +1,4 @@
-import { BadgeEnvironment, Color, CommandDefinition, Image, SymbolConfiguration } from 'bike/app'
+import { BadgeEnvironment, Color, Image, SymbolConfiguration } from 'bike/app'
 import {
   clearAttributeOnSelection,
   filterCommand,
@@ -23,29 +23,45 @@ const COLORS: Record<FlagColor, () => Color> = {
 }
 
 export function registerFlagged() {
+  const names: Record<FlagColor, string> = {
+    orange: bike.localize('Orange'),
+    red: bike.localize('Red'),
+    purple: bike.localize('Purple'),
+    blue: bike.localize('Blue'),
+    yellow: bike.localize('Yellow'),
+    green: bike.localize('Green'),
+    gray: bike.localize('Gray'),
+  }
+  const setLabel = bike.localize('Set Flagged')
+
   bike.attribute('flagged', {
-    title: 'Flagged',
+    title: bike.localize('Flagged'),
     type: 'choice',
-    choices: FLAG_COLORS.map((name) => ({ name: name[0].toUpperCase() + name.slice(1), value: name })),
-    emptyLabel: 'Flagged',
-    description: 'Marks the row for attention, in one of seven colors.',
+    choices: FLAG_COLORS.map((value) => ({ name: names[value], value })),
+    emptyLabel: bike.localize('Flagged'),
+    description: bike.localize('Marks the row for attention, in one of seven colors.'),
     defaultBadge: false,
   })
 
   bike.commands.addCommands({
     commands: {
       // Raises a valueless flag (drawn red), or lowers it when all rows have one.
-      'flagged:toggle': toggleAttributeOnSelection('flagged', '', 'Toggle Flagged'),
-      // One setter per color; these set, they don't toggle.
-      ...Object.fromEntries(
-        FLAG_COLORS.map((color) => [`flagged:${color}`, setAttributeOnSelection('flagged', color, 'Set Flagged')])
-      ) as Record<string, CommandDefinition>,
-      'flagged:remove': clearAttributeOnSelection('flagged', 'Remove Flagged'),
+      'flagged:toggle': toggleAttributeOnSelection('flagged', '', bike.localize('Toggle Flagged')),
+      // One setter per color; these set, they don't toggle. Literal ids so the
+      // build can extract their titles.
+      'flagged:orange': setAttributeOnSelection('flagged', 'orange', setLabel),
+      'flagged:red': setAttributeOnSelection('flagged', 'red', setLabel),
+      'flagged:purple': setAttributeOnSelection('flagged', 'purple', setLabel),
+      'flagged:blue': setAttributeOnSelection('flagged', 'blue', setLabel),
+      'flagged:yellow': setAttributeOnSelection('flagged', 'yellow', setLabel),
+      'flagged:green': setAttributeOnSelection('flagged', 'green', setLabel),
+      'flagged:gray': setAttributeOnSelection('flagged', 'gray', setLabel),
+      'flagged:remove': clearAttributeOnSelection('flagged', bike.localize('Remove Flagged')),
       'flagged:filter': filterCommand({
         path: '//(@flagged and open())',
-        label: 'Flagged',
-        emptyTitle: 'No Flagged Items',
-        emptyMessage: 'There are no flagged items that have not been completed.',
+        label: bike.localize('Flagged'),
+        emptyTitle: bike.localize('No Flagged Items'),
+        emptyMessage: bike.localize('There are no flagged items that have not been completed.'),
       }),
     },
   })

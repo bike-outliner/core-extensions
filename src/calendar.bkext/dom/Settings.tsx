@@ -2,7 +2,7 @@ import { DOMExtensionContext } from 'bike/dom'
 import { JSONValue } from 'bike/core'
 import { Box, Checkbox, Disclosure, FormRow, FormGroup, SFSymbol } from 'bike/components'
 import { createRoot } from 'react-dom/client'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { calendarDefaults, startOfWeek, substituteDate } from './protocols'
 import { SettingsGroupAccessory } from './settings-group'
 
@@ -73,13 +73,13 @@ function SettingsPanel() {
 
   return (
     <Disclosure
-      label="Calendar"
+      label={bike.localize('Calendar')}
       accessory={
         <SettingsGroupAccessory
           canReset={changed}
           onReset={onReset}
           helpURL={HELP_URL}
-          helpTitle="Calendar help"
+          helpTitle={bike.localize('Calendar help')}
         />
       }
       accessoryAlignment="trailing"
@@ -89,33 +89,49 @@ function SettingsPanel() {
 
       <Box>
         <p>
-          Format patterns used to generate calendar rows:
+          {bike.localize('Format patterns used to generate calendar rows:')}
         </p>
 
         <ul>
-          <li>Include date <code>{'{'}</code> <a href="https://date-fns.org/docs/format">pattern</a> <code>{'}'}</code> or JSON Intl.DateTimeFormat{' '}
-          <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat#using_options">options</a>.</li>
-          <li>Use markdown outside the braces for row formatting — <code>{'# { yyyy }'}</code> is a heading.</li>
-          <li>Check or uncheck Year, Month and Week to choose which levels the calendar generates.</li>
+          <li>
+            {withTags(bike.localize('Include date <pattern>pattern</pattern> or JSON Intl.DateTimeFormat <options>options</options>.'), {
+              pattern: (inner) => (
+                <>
+                  <code>{'{'}</code> <a href="https://date-fns.org/docs/format">{inner}</a> <code>{'}'}</code>
+                </>
+              ),
+              options: (inner) => (
+                <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat#using_options">
+                  {inner}
+                </a>
+              ),
+            })}
+          </li>
+          <li>
+            {withTags(bike.localize('Use markdown outside the braces for row formatting — <code># { yyyy }</code> is a heading.'), {
+              code: (inner) => <code>{inner}</code>,
+            })}
+          </li>
+          <li>{bike.localize('Check or uncheck Year, Month and Week to choose which levels the calendar generates.')}</li>
         </ul>
 
         <FormGroup key={resetToken}>
           <FormatRow
-            label="Year"
+            label={bike.localize('Year')}
             formatKey="yearNameFormat"
             enabled={yearEnabled}
             onToggle={toggle('yearEnabled', setYearEnabled)}
             indent={0}
           />
           <FormatRow
-            label="Month"
+            label={bike.localize('Month')}
             formatKey="monthNameFormat"
             enabled={monthEnabled}
             onToggle={toggle('monthEnabled', setMonthEnabled)}
             indent={aboveMonth}
           />
           <FormatRow
-            label="Week"
+            label={bike.localize('Week')}
             formatKey="weekNameFormat"
             enabled={weekEnabled}
             onToggle={toggle('weekEnabled', setWeekEnabled)}
@@ -123,7 +139,7 @@ function SettingsPanel() {
             // A week row is named for its first day, so preview it that way.
             previewDate={startOfWeek(new Date())}
           />
-          <FormatRow label="Day" formatKey="dayNameFormat" enabled indent={aboveDay} deepest />
+          <FormatRow label={bike.localize('Day')} formatKey="dayNameFormat" enabled indent={aboveDay} deepest />
         </FormGroup>
       </Box>
 
@@ -214,7 +230,7 @@ function NewestFirstRow() {
 
   return (
     <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)}>
-      Insert newest date rows first
+      {bike.localize('Insert newest date rows first')}
     </Checkbox>
   )
 }
@@ -229,7 +245,7 @@ function WeekNumbersRow() {
 
   return (
     <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)}>
-      Show week numbers in the inspector view calendar
+      {bike.localize('Show week numbers in the inspector view calendar')}
     </Checkbox>
   )
 }
@@ -270,8 +286,22 @@ function preview(value: string, defaultValue: string, date: Date = new Date()): 
     // it already surfaces author markers like `# 2026` literally.
     return substituteDate(date, raw, { escapeMarkdown: true })
   } catch {
-    return '(invalid format)'
+    return bike.localize('(invalid format)')
   }
+}
+
+/** Renders each `<tag>inner</tag>` in localized text with `tags[tag]`, so links stay inside whole sentences. */
+function withTags(text: string, tags: Record<string, (inner: string) => React.ReactNode>): React.ReactNode[] {
+  const parts = text.split(/<(\w+)>(.*?)<\/\1>/)
+  const nodes: React.ReactNode[] = []
+  for (let i = 0; i < parts.length; i += 3) {
+    nodes.push(parts[i])
+    if (i + 2 < parts.length) {
+      const render = tags[parts[i + 1]] ?? ((inner: string) => inner)
+      nodes.push(<Fragment key={i}>{render(parts[i + 2])}</Fragment>)
+    }
+  }
+  return nodes
 }
 
 /** Convert a JSONValue to its display string representation. */

@@ -14,9 +14,9 @@ const CLOCK_BADGES: boolean = false
 
 export function registerClock() {
   bike.attribute('clock-duration', {
-    title: 'Clocked',
+    title: bike.localize('Clocked'),
     type: 'duration',
-    description: 'Time a clock entry recorded. Present but empty means it is still running.',
+    description: bike.localize('Time a clock entry recorded. Present but empty means it is still running.'),
     defaultBadge: false,
     // Bookkeeping, see `log-date` in log.ts for `user: false`.
     metadata: { calendar: false, user: false },
@@ -140,8 +140,8 @@ function showClockMenu(editor: OutlineEditor, row: Row, badge: string): void {
     {
       items: [
         // Hidden `clock:.` ids while the feature is held back.
-        { type: 'button', id: 'command:clock:.in', title: 'Clock In', enabled: !running },
-        { type: 'button', id: 'command:clock:.out', title: 'Clock Out', enabled: running },
+        { type: 'button', id: 'command:clock:.in', title: bike.localize('Clock In'), enabled: !running },
+        { type: 'button', id: 'command:clock:.out', title: bike.localize('Clock Out'), enabled: running },
       ],
     }
   )

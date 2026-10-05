@@ -14,27 +14,27 @@ import {
 
 export function registerDue() {
   bike.attribute('due', {
-    title: 'Due',
+    title: bike.localize('Due'),
     type: 'date',
-    emptyLabel: 'Soon',
-    description: 'When the row is due — a calendar day, a timestamp, or valueless for "soon".',
+    emptyLabel: bike.localize('Soon'),
+    description: bike.localize('When the row is due — a calendar day, a timestamp, or valueless for "soon".'),
     defaultBadge: false,
-    suggestions: () => [{ name: 'Soon', value: '', menu: true }],
+    suggestions: () => [{ name: bike.localize('Soon'), value: '', menu: true }],
   })
 
   bike.commands.addCommands({
     commands: {
       'due:set': pickAttributeForSelection('due'),
       // Date-only. Thunks, or "today" would be pinned to launch day.
-      'due:today': setAttributeOnSelection('due', () => dayStamp(0), 'Set Due'),
-      'due:tomorrow': setAttributeOnSelection('due', () => dayStamp(1), 'Set Due'),
-      'due:soon': setAttributeOnSelection('due', '', 'Set Due'),
-      'due:remove': clearAttributeOnSelection('due', 'Remove Due'),
+      'due:today': setAttributeOnSelection('due', () => dayStamp(0), bike.localize('Set Due')),
+      'due:tomorrow': setAttributeOnSelection('due', () => dayStamp(1), bike.localize('Set Due')),
+      'due:soon': setAttributeOnSelection('due', '', bike.localize('Set Due')),
+      'due:remove': clearAttributeOnSelection('due', bike.localize('Remove Due')),
       'due:filter': filterCommand({
         path: '//(@due and open())',
-        label: 'Due',
-        emptyTitle: 'No Due Items',
-        emptyMessage: 'There are no due items that have not been completed.',
+        label: bike.localize('Due'),
+        emptyTitle: bike.localize('No Due Items'),
+        emptyMessage: bike.localize('There are no due items that have not been completed.'),
       }),
     },
   })
@@ -63,7 +63,7 @@ export function registerDue() {
             : env.color
       const overdue = urgency === 'overdue'
       const bm = env.badgeMetrics
-      const label = raw === '' ? 'Soon' : env.formatAttribute('due', raw)
+      const label = raw === '' ? bike.localize('Soon') : env.formatAttribute('due', raw)
       const textColor = overdue ? env.theme.colors.background : color.alphaSet(done ? 0.3 : 0.8)
       return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), textColor)).withBackground({
         fill: overdue ? color : undefined,

@@ -33,7 +33,7 @@ export function SettingsGroupAccessory({
           shouldn't look like it might. Disabled says as much, and doubles as
           the answer to "have I changed anything in here?". */}
       <Button size="mini" disabled={!canReset} onClick={onReset}>
-        Reset Settings
+        {bike.localize('Reset Settings')}
       </Button>
       <a className="bike-button bike-button--mini" style={HELP_STYLE} href={helpURL} title={helpTitle} aria-label={helpTitle}>
         ?

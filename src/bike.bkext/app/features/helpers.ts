@@ -78,13 +78,13 @@ export function filterCommand(spec: {
           title: spec.emptyTitle,
           message: spec.emptyMessage,
           style: 'informational',
-          buttons: ['OK'],
+          buttons: [bike.localize('OK')],
         },
         bike.frontmostWindow
       )
       return true
     }
-    editor.transaction({ label: `Show ${spec.label}`, animate: { spring: 'navigation' } }, () => {
+    editor.transaction({ label: bike.localize('Show {label}', { label: spec.label }), animate: { spring: 'navigation' } }, () => {
       editor.focus = editor.outline.root
       editor.filter = { path: spec.path, label: spec.label }
     })

@@ -5,7 +5,7 @@ import { clearAttributeOnSelection, filterCommand, pickAttributeForSelection, se
 
 export function registerPriority() {
   bike.attribute('priority', {
-    title: 'Priority',
+    title: bike.localize('Priority'),
     // A `choice`, not a number: nothing sums or orders these.
     type: 'choice',
     choices: [
@@ -13,22 +13,22 @@ export function registerPriority() {
       { name: '2', value: '2' },
       { name: '3', value: '3' },
     ],
-    description: 'Importance from 1 (highest) to 3 (lowest).',
+    description: bike.localize('Importance from 1 (highest) to 3 (lowest).'),
     defaultBadge: false,
   })
 
   bike.commands.addCommands({
     commands: {
       'priority:set': pickAttributeForSelection('priority'),
-      'priority:1': setAttributeOnSelection('priority', '1', 'Set Priority'),
-      'priority:2': setAttributeOnSelection('priority', '2', 'Set Priority'),
-      'priority:3': setAttributeOnSelection('priority', '3', 'Set Priority'),
-      'priority:remove': clearAttributeOnSelection('priority', 'Remove Priority'),
+      'priority:1': setAttributeOnSelection('priority', '1', bike.localize('Set Priority')),
+      'priority:2': setAttributeOnSelection('priority', '2', bike.localize('Set Priority')),
+      'priority:3': setAttributeOnSelection('priority', '3', bike.localize('Set Priority')),
+      'priority:remove': clearAttributeOnSelection('priority', bike.localize('Remove Priority')),
       'priority:filter': filterCommand({
         path: '//(@priority and open())',
-        label: 'Priority',
-        emptyTitle: 'No Prioritized Items',
-        emptyMessage: 'There are no prioritized items that have not been completed.',
+        label: bike.localize('Priority'),
+        emptyTitle: bike.localize('No Prioritized Items'),
+        emptyMessage: bike.localize('There are no prioritized items that have not been completed.'),
       }),
     },
   })

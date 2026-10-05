@@ -9,9 +9,9 @@ import { attributeTag } from './helpers'
 
 export function registerLog() {
   bike.attribute('log-date', {
-    title: 'Logged Date',
+    title: bike.localize('Logged Date'),
     type: 'date',
-    description: 'When a log entry happened. Present on every entry.',
+    description: bike.localize('When a log entry happened. Present on every entry.'),
     // Drawn by the `logEntry` badge below.
     defaultBadge: false,
     // History, not schedule. `user: false`: never offered on a row that lacks

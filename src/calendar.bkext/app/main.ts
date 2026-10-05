@@ -30,14 +30,14 @@ export async function activate(context: AppExtensionContext) {
   })
 
   bike.settings.addItem({
-    label: 'Calendar',
+    label: bike.localize('Calendar'),
     script: 'Settings.js',
   })
 
   bike.observeWindows(async (window: Window) => {
     window.sidebar.addLocation({
       id: 'calendar:today',
-      text: 'Today',
+      text: bike.localize('Today'),
       symbol: 'calendar',
       representedRowId: getDateComponents(new Date()).dayId,
       prepareRow: () => {
@@ -50,7 +50,8 @@ export async function activate(context: AppExtensionContext) {
     })
 
     const calendarHandle = await window.inspector.addItem<CalendarProtocol>({
-      label: 'Calendar',
+      id: 'calendar',
+      label: bike.localize('Calendar'),
       script: 'Calendar.js',
     })
 
@@ -60,7 +61,8 @@ export async function activate(context: AppExtensionContext) {
 
     /*
     const agendaHandle = await window.inspector.addItem<CalendarProtocol>({
-      label: 'Agenda',
+      id: 'agenda',
+      label: bike.localize('Agenda'),
       script: 'Agenda.js',
     })
     */
@@ -91,10 +93,10 @@ export async function activate(context: AppExtensionContext) {
         mode === 'dates' ? dateUnions
         : mode === 'days' ? dayUnions
         : [...dateUnions, ...dayUnions]
-      const fmt = (d: Date) => d.toLocaleDateString(bike.systemLocale, { dateStyle: 'medium' })
+      const fmt = new Intl.DateTimeFormat(bike.systemLocale, { dateStyle: 'medium' })
       const singleDay = dayKey(start) === dayKey(end)
-      const labelDates = singleDay ? fmt(start) : `${fmt(start)} – ${fmt(end)}`
-      editor.transaction({ label: 'Show Agenda', animate: { spring: 'navigation' } }, () => {
+      const labelDates = singleDay ? fmt.format(start) : fmt.formatRange(start, end)
+      editor.transaction({ label: bike.localize('Show Agenda'), animate: { spring: 'navigation' } }, () => {
         // The focus setter pushes a location even when unchanged, which would
         // leak Back steps during a drag.
         if (editor.focus.id !== editor.outline.root.id) {
@@ -104,7 +106,9 @@ export async function activate(context: AppExtensionContext) {
           // Never-matching fallback keeps the labeled filter and empty message.
           path: parts.length > 0 ? parts.join(' union ') : '//@id = ""',
           label: labelDates,
-          emptyMessage: `**No rows for ${labelDates}**\nReturn or double-click in Calendar to create row`,
+          emptyMessage: bike.localize('**No rows for {dates}**\nReturn or double-click in Calendar to create row', {
+            dates: labelDates,
+          }),
           // The drag's mousedown already pushed a step.
           pushLocation: !live,
         }
@@ -116,7 +120,7 @@ export async function activate(context: AppExtensionContext) {
     function openDay(editor: OutlineEditor, date: Date) {
       // One transaction: split up, the first event animates rows the second
       // hides, and those layers linger until their spring ends.
-      editor.transaction({ label: 'Go to Day', animate: { spring: 'navigation' } }, () => {
+      editor.transaction({ label: bike.localize('Go to Day'), animate: { spring: 'navigation' } }, () => {
         const dateRow = getDayRow(editor.outline, date)
         editor.filter = undefined
         editor.focus = dateRow
@@ -129,7 +133,7 @@ export async function activate(context: AppExtensionContext) {
     // Return with a range selected; the block selection must not echo back.
     function openRange(editor: OutlineEditor, start: Date, end: Date) {
       const endExclusive = addDays(end, 1)
-      editor.transaction({ label: 'Create Days', animate: { spring: 'navigation' } }, () => {
+      editor.transaction({ label: bike.localize('Create Days'), animate: { spring: 'navigation' } }, () => {
         let first: Row | undefined
         let last: Row | undefined
         for (let d = new Date(start.getFullYear(), start.getMonth(), start.getDate()); d < endExclusive; d = addDays(d, 1)) {

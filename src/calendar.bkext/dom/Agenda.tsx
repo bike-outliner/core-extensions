@@ -105,7 +105,7 @@ function AgendaPanel({ context }: { context: DOMExtensionContext<CalendarProtoco
 
   const label =
     dayKey(agendaDate) === dayKey(today)
-      ? 'Today'
+      ? bike.localize('Today')
       : agendaDate.toLocaleDateString(bike.systemLocale, { dateStyle: 'long' })
 
   return (
@@ -115,7 +115,7 @@ function AgendaPanel({ context }: { context: DOMExtensionContext<CalendarProtoco
       defaultExpanded
     >
       <div className="calendar-agenda">
-        {agendaHits.length === 0 && <div className="calendar-agenda-empty">Nothing scheduled</div>}
+        {agendaHits.length === 0 && <div className="calendar-agenda-empty">{bike.localize('Nothing scheduled')}</div>}
         {agendaHits.map(({ row, attribute, value }) => {
           const time = agendaTimeLabel(value, bike.systemLocale)
           const closed = isClosed(row)
@@ -148,7 +148,7 @@ function AgendaPanel({ context }: { context: DOMExtensionContext<CalendarProtoco
                 onClick={() => bike.session.updateEditor({ select: row.id, activate: true })}
               >
                 {time && <span className="calendar-agenda-time">{time}</span>}
-                {rowDisplayText(row) || 'Untitled'}
+                {rowDisplayText(row) || bike.localize('Untitled')}
                 {/* Which attribute put the row here — only worth saying
                     when more than one date attribute can. */}
                 {dateAttributes.length > 1 && (

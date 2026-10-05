@@ -6,9 +6,10 @@ import { clearAttributeOnSelection, filterCommand, pickAttributeForSelection } f
 
 export function registerEstimate() {
   bike.attribute('estimate', {
-    title: 'Estimate',
+    title: bike.localize('Estimate'),
     type: 'duration',
-    description: 'Estimated effort as a duration: 30m, 2h, 1d.',
+    // The examples are parser syntax, so they stay out of the translation.
+    description: bike.localize('Estimated effort as a duration: {examples}.', { examples: '30m, 2h, 1d' }),
     defaultBadge: false,
     // Day-scale at most; the picker shows only these.
     components: ['days', 'hours', 'minutes'],
@@ -17,12 +18,12 @@ export function registerEstimate() {
   bike.commands.addCommands({
     commands: {
       'estimate:set': pickAttributeForSelection('estimate'),
-      'estimate:remove': clearAttributeOnSelection('estimate', 'Remove Estimate'),
+      'estimate:remove': clearAttributeOnSelection('estimate', bike.localize('Remove Estimate')),
       'estimate:filter': filterCommand({
         path: '//(@estimate and open())',
-        label: 'Estimated',
-        emptyTitle: 'No Estimated Items',
-        emptyMessage: 'There are no estimated items that have not been completed.',
+        label: bike.localize('Estimated'),
+        emptyTitle: bike.localize('No Estimated Items'),
+        emptyMessage: bike.localize('There are no estimated items that have not been completed.'),
       }),
     },
   })

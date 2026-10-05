@@ -21,9 +21,9 @@ export function activate(context: DOMExtensionContext<AttributesProtocol>) {
 }
 
 const COLUMN_LABELS: Record<AttributeColumn, string> = {
-  editor: 'Editor',
-  badge: 'Badge',
-  log: 'Log',
+  editor: bike.localize('Editor'),
+  badge: bike.localize('Badge'),
+  log: bike.localize('Log'),
 }
 
 /** Kept in step by hand with `GuideURL.settingsWindow.anchored("attributes")`,
@@ -33,17 +33,26 @@ const HELP_URL = 'https://www.hogbaysoftware.com/bike/guide/using-bike/settings-
 // The pane is a fixed 700pt wide, so each of these has to say its piece on one
 // line — a wrapped legend line reads as two entries rather than one.
 const COLUMN_HELP: Record<AttributeColumn, string> = {
-  editor: 'Suggest this attribute in the Attributes Editor, even on rows that don’t have it set.',
-  badge: 'Show Bike’s built-in badge. Turn off for attributes that draw their own, or that you’d rather hide.',
-  log: 'Record changes in the row’s log. Only rows with a log record anything; add one with row:insert-log.',
+  editor: bike.localize('Suggest this attribute in the Attributes Editor, even on rows that don’t have it set.'),
+  badge: bike.localize('Show Bike’s built-in badge. Turn off for attributes that draw their own, or that you’d rather hide.'),
+  log: bike.localize('Record changes in the row’s log. Only rows with a log record anything; add one with row:insert-log.'),
 }
 
 // The column header is the checkbox's only visible label, so each box says the
 // whole sentence itself rather than leaving a screen reader with "Editor due".
-const COLUMN_ARIA: Record<AttributeColumn, (title: string) => string> = {
-  editor: (title) => `Suggest ${title} in the Attributes Editor`,
-  badge: (title) => `Show badge for ${title}`,
-  log: (title) => `Log changes to ${title}`,
+const COLUMN_ARIA: Record<AttributeColumn, (title: string, changed: boolean) => string> = {
+  editor: (title, changed) =>
+    changed
+      ? bike.localize('Suggest {title} in the Attributes Editor, changed from default', { title })
+      : bike.localize('Suggest {title} in the Attributes Editor', { title }),
+  badge: (title, changed) =>
+    changed
+      ? bike.localize('Show badge for {title}, changed from default', { title })
+      : bike.localize('Show badge for {title}', { title }),
+  log: (title, changed) =>
+    changed
+      ? bike.localize('Log changes to {title}, changed from default', { title })
+      : bike.localize('Log changes to {title}', { title }),
 }
 
 /**
@@ -132,13 +141,13 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
 
   return (
     <Disclosure
-      label="Attributes"
+      label={bike.localize('Attributes')}
       accessory={
         <SettingsGroupAccessory
           canReset={Object.keys(overrides).length > 0}
           onReset={() => write({})}
           helpURL={HELP_URL}
-          helpTitle="Attributes help"
+          helpTitle={bike.localize('Attributes help')}
         />
       }
       accessoryAlignment="trailing"
@@ -150,14 +159,14 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
       }}
     >
       <Label color="secondary" size="small">
-        Configure how Bike handles specific attributes:
+        {bike.localize('Configure how Bike handles specific attributes:')}
       </Label>
       <Label color="secondary" size="small">
         {ATTRIBUTE_COLUMNS.map((column, index) => (
           <Fragment key={column}>
             {index > 0 && <br />}
             <span id={helpId(column)}>
-              {COLUMN_LABELS[column]} — {COLUMN_HELP[column]}
+              {bike.localize('{column} — {help}', { column: COLUMN_LABELS[column], help: COLUMN_HELP[column] })}
             </span>
           </Fragment>
         ))}
@@ -176,10 +185,10 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
           <tr>
             <th
               style={headerCell('left')}
-              title="Attributes extensions declare, plus any name an open document uses or your settings mention."
+              title={bike.localize('Attributes extensions declare, plus any name an open document uses or your settings mention.')}
             >
               <Label color="secondary" size="small">
-                Attribute
+                {bike.localize('Attribute')}
               </Label>
             </th>
             {ATTRIBUTE_COLUMNS.map((column) => (
@@ -206,7 +215,7 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
                 </span>
                 {!row.declared && (
                   <Label color="tertiary" size="small" style={{ marginLeft: '6px' }}>
-                    {row.present ? 'In open document' : 'Not in any open document'}
+                    {row.present ? bike.localize('In open document') : bike.localize('Not in any open document')}
                   </Label>
                 )}
               </td>
@@ -216,16 +225,14 @@ function AttributesSection({ context }: { context: DOMExtensionContext<Attribute
                   <td
                     key={column}
                     style={bodyCell('center', index === 0)}
-                    title={overridden ? 'Changed from default' : undefined}
+                    title={overridden ? bike.localize('Changed from default') : undefined}
                   >
                     {/* No visible label beside the box — the column header is
                         the label, and only for someone who can see it. */}
                     <span style={{ position: 'relative', display: 'inline-block' }}>
                       <Checkbox
                         checked={valueOf(row, column)}
-                        aria-label={
-                          COLUMN_ARIA[column](row.title) + (overridden ? ', changed from default' : '')
-                        }
+                        aria-label={COLUMN_ARIA[column](row.title, overridden)}
                         aria-describedby={helpId(column)}
                         onChange={(e) => onChange(row, column, e.target.checked)}
                       />

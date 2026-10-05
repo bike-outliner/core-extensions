@@ -53,7 +53,8 @@ export const calendarDefaults = {
   monthNameFormat: '{"year":"numeric","month":"long"}',
   // `ww`, not ISO `II`, which is off by one week on Sunday-start Macs.
   // `yyyy`, not `Y`, so it agrees with the ancestor Year row across January 1.
-  weekNameFormat: 'Week { ww }, { yyyy }',
+  // Localized: week rows are found by id, never by this text.
+  weekNameFormat: bike.localize('Week { ww }, { yyyy }'),
   dayNameFormat: '{"dateStyle":"long"}',
   yearEnabled: true,
   monthEnabled: true,

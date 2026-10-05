@@ -14,8 +14,8 @@ export function activate(context: DOMExtensionContext) {
 }
 
 const TASK_PROGRESS_BADGE_TYPES: RadioGroupItem<TaskProgressBadgeType>[] = [
-  { value: 'fraction', label: 'Fraction' },
-  { value: 'pie', label: 'Pie chart' },
+  { value: 'fraction', label: bike.localize('Fraction') },
+  { value: 'pie', label: bike.localize('Pie chart') },
 ]
 
 /** Kept in step by hand with `GuideURL.settingsWindow.anchored("tasks")`, which
@@ -94,27 +94,27 @@ function TasksSection() {
 
   return (
     <Disclosure
-      label="Tasks"
+      label={bike.localize('Tasks')}
       accessory={
         <SettingsGroupAccessory
           canReset={changed}
           onReset={onReset}
           helpURL={HELP_URL}
-          helpTitle="Tasks help"
+          helpTitle={bike.localize('Tasks help')}
         />
       }
       accessoryAlignment="trailing"
     >
       <Checkbox checked={sortDone} onChange={(e) => onSortDoneChange(e.target.checked)}>
-        Sort completed to end of list
+        {bike.localize('Sort completed to end of list')}
       </Checkbox>
       {/* Above the progress-badge checkbox, so that one stays adjacent to the
           radios it owns. */}
       <Checkbox checked={hideDoneBadge} onChange={(e) => onHideDoneBadgeChange(e.target.checked)}>
-        Hide Done badge on completed tasks
+        {bike.localize('Hide Done badge on completed tasks')}
       </Checkbox>
       <Checkbox checked={showBadges} onChange={(e) => onShowBadgesChange(e.target.checked)}>
-        Show task progress badge in parents
+        {bike.localize('Show task progress badge in parents')}
       </Checkbox>
       {/* The type only means something while the badge is drawn, so it belongs
           TO the checkbox rather than standing beside it: indented to line up

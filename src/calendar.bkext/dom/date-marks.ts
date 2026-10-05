@@ -206,9 +206,13 @@ export function dayMarkTooltip(
   for (const hit of hits) {
     counts.set(hit.attribute, (counts.get(hit.attribute) ?? 0) + 1)
   }
-  return [...counts]
-    .map(([attribute, count]) => `${count} ${titleByName.get(attribute) ?? attribute}`)
-    .join(', ')
+  const parts = [...counts].map(([attribute, count]) =>
+    bike.localize('{count, plural, one {# {title}} other {# {title}}}', {
+      count,
+      title: titleByName.get(attribute) ?? attribute,
+    })
+  )
+  return new Intl.ListFormat(bike.uiLanguage, { type: 'unit', style: 'short' }).format(parts)
 }
 
 /** All runs concatenated, not just the first. */

@@ -93,7 +93,10 @@ function badgeImage(name: string, value: string, done: boolean, env: BadgeEnviro
     if (emptyLabel == null && registeredNames.has(name)) return null
     label = emptyLabel ?? name
   } else {
-    label = `${name}:${truncate(env.formatAttribute(name, value), VALUE_TRUNCATE_LENGTH)}`
+    label = bike.localize('{name}:{value}', {
+      name,
+      value: truncate(env.formatAttribute(name, value), VALUE_TRUNCATE_LENGTH),
+    })
   }
   const bm = env.badgeMetrics
   return Image.fromText(new Text(label, env.font.withPointSize(bm.fontSize), env.color.alphaSet(done ? 0.3 : 0.8))).withBackground({
