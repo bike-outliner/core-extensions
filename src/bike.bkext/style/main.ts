@@ -5,7 +5,7 @@ import { registerControlsLayer } from './layer-controls'
 import { registerInteractionLayers } from './layer-interaction'
 import { registerFocusLayers } from './layer-focus'
 
-let style = defineEditorStyle('bike', 'Bike (default)')
+let style = defineEditorStyle('bike', bike.localize('Bike (default)'))
 
 registerBaseLayer(style)
 registerFormattingLayers(style)
