@@ -17,7 +17,7 @@ export async function activate(context: AppExtensionContext) {
 
   // One settings item per section; the pane orders sections by label.
   registerAttributesSettings()
-  bike.settings.addItem({ label: bike.localize('Tasks'), script: 'TasksSettings.js' })
+  bike.settings.addItem({ id: 'tasks', label: bike.localize('Tasks'), script: 'TasksSettings.js' })
 
   // Hidden commands for style interactions (not shown in command palette)
   bike.commands.addCommands({
@@ -124,7 +124,7 @@ function registerAttributesSettings() {
 
   // Don't await: `addItem` resolves only once Settings is opened.
   bike.settings
-    .addItem<AttributesProtocol>({ label: bike.localize('Attributes'), script: 'AttributesSettings.js' })
+    .addItem<AttributesProtocol>({ id: 'attributes', label: bike.localize('Attributes'), script: 'AttributesSettings.js' })
     .then((handle) => {
       handle.onmessage = (message) => {
         switch (message.type) {

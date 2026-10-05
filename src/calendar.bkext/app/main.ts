@@ -30,6 +30,7 @@ export async function activate(context: AppExtensionContext) {
   })
 
   bike.settings.addItem({
+    id: 'calendar',
     label: bike.localize('Calendar'),
     script: 'Settings.js',
   })
