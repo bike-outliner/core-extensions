@@ -233,8 +233,12 @@ function buildHandleImage(width: number, height: number, color: Color): Image {
   return Image.fromShape(shape)
 }
 
-export function symbolImage(name: string, color: Color, font: Font): Image {
+/** `rightToLeft` draws `forward`/`backward` symbols along a row of that direction. */
+export function symbolImage(name: string, color: Color, font: Font, rightToLeft?: boolean): Image {
   let symbol = new SymbolConfiguration(name).withHierarchicalColor(color).withFont(font)
+  if (rightToLeft !== undefined) {
+    symbol = symbol.withLayoutDirection(rightToLeft ? 'rtl' : 'ltr')
+  }
   return Image.fromSymbol(symbol)
 }
 

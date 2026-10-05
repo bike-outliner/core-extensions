@@ -173,6 +173,7 @@ export function registerFormattingLayers(style: EditorStyle) {
         .withSymbolScale('medium')
         .withFont(text.font.withWeight('semibold'))
         .withHierarchicalColor(text.color.alphaSet(1))
+        .withLayoutDirection(context.isRightToLeft ? 'rtl' : 'ltr')
       let image = Image.fromSymbol(symbol)
       let imageWidth = image.resolve(context).width * 1.1
       text.padding.right = imageWidth
