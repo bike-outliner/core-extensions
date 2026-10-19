@@ -206,6 +206,29 @@ describe("OutlineEditor revealRow", () => {
     })
 })
 
+describe("OutlineEditor transaction pushLocation", () => {
+    const editor = bike.testEditor()
+    const outline = editor.outline
+
+    const [start, middle, target] = outline.insertRows(["Start", "Middle", "Target"], outline.root)
+
+    it("true records a Back step for a selection jump", () => {
+        editor.selectCaret(start, 0)
+        editor.transaction({ pushLocation: true }, () => editor.selectCaret(middle, 0))
+        assert(bike.commands.performCommand("go:back", { editor }), "go:back should perform")
+        assert.equal(editor.selection?.row.id, start.id)
+    })
+
+    it("false records no Back step when setting focus", () => {
+        editor.selectCaret(start, 0)
+        editor.transaction({ pushLocation: true }, () => editor.selectCaret(middle, 0))
+        editor.transaction({ pushLocation: false }, () => { editor.focus = target })
+        assert(bike.commands.performCommand("go:back", { editor }), "go:back should perform")
+        assert.equal(editor.focus.id, outline.root.id)
+        assert.equal(editor.selection?.row.id, start.id)
+    })
+})
+
 describe("OutlineEditor showStatusMessage", () => {
     const editor = bike.testEditor()
 
