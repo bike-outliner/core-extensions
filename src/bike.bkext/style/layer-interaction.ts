@@ -262,15 +262,17 @@ export function registerInteractionLayers(style: EditorStyle) {
     row(`.drop-indicator() = on`, (context, row) => {
       let values = computeValues(context)
       let colors = context.theme.colors
+      // Same rect as the block selection band.
       row.decoration('dropIndicator', (dropIndicator, layout) => {
         dropIndicator.anchor.x = 0
         dropIndicator.anchor.y = 0
-        dropIndicator.x = layout.leading
-        dropIndicator.y = layout.text.top
+        dropIndicator.x = layout.leadingContent
+        dropIndicator.y = layout.top
+        dropIndicator.width = layout.trailing.minus(layout.leadingContent)
+        dropIndicator.height = layout.text.bottom.minus(layout.top).offset(row.text.margin.bottom)
         dropIndicator.border.color = colors.accent
         dropIndicator.border.width = 3 * values.uiScale
         dropIndicator.corners.radius = 3 * values.uiScale
-        dropIndicator.height = layout.text.height
         dropIndicator.transitions.clear()
         dropIndicator.zPosition = -1
       })

@@ -21,7 +21,7 @@ export function registerFormattingLayers(style: EditorStyle) {
       row.text.margin.left = Math.floor(indent * 2)
       row.text.decoration('mark', (mark, layout) => {
         mark.anchor.y = 0
-        mark.y = layout.top
+        mark.y = layout.top.offset(-row.text.margin.top)
         mark.x = layout.leading.offset(-values.indent / 2)
         mark.height = layout.height.offset(row.text.margin.top + row.text.margin.bottom)
         mark.width = layout.fixed(Math.max(4 * values.uiScale, 0.5))
@@ -41,7 +41,7 @@ export function registerFormattingLayers(style: EditorStyle) {
           .offset(-values.indent / 2)
           .offset(-1 * values.uiScale)
         block.x = layout.leading.offset(adjust)
-        block.y = layout.top
+        block.y = layout.top.offset(-row.text.margin.top)
         block.height = layout.height.offset(row.text.margin.top + row.text.margin.bottom)
         block.width = layout.text.width.offset(adjust.scale(-1))
         block.color = colors.text.alphaSet(0.02)
