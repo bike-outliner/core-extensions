@@ -180,10 +180,11 @@ function computeGeometryForFont(
   // tier-scaled call gets the scaled value.
   let uiScale = fontAttributes.uiScale
   let indent = INDENT_MULTIPLIER * uiScale
-  let rowPaddingBase = context.settings.rowSpacingMultiple * pointSize * uiScale
   let rowTextPaddingBase = ROW_TEXT_PADDING_MULTIPLIER * uiScale
-  let rowTextMarginBase = rowPaddingBase / 2
-  let rowPadding = new Insets(rowPaddingBase, rowPaddingBase, rowPaddingBase, indent)
+  // Row spacing in ems, split around the text so every gap is equal; vertical
+  // row padding would stack at branch ends.
+  let rowTextMarginBase = (context.settings.rowSpacingMultiple * pointSize) / 2
+  let rowPadding = new Insets(0, 0, 0, indent)
 
   let rowTextMargin = new Insets(rowTextMarginBase, 0, rowTextMarginBase, 0)
   let rowTextPadding = new Insets(0, rowTextPaddingBase, 0, rowTextPaddingBase)
